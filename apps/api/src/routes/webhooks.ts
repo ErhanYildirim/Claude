@@ -84,7 +84,7 @@ export async function processWebhookDelivery(deliveryId: string): Promise<void> 
 
   const attempts = delivery.attempts + 1;
   const nextAttemptAt = !success && attempts < MAX_RETRY_ATTEMPTS
-    ? new Date(Date.now() + RETRY_DELAYS_MS[attempts] ?? 900_000)
+    ? new Date(Date.now() + (RETRY_DELAYS_MS[attempts] ?? 900_000))
     : null;
 
   await prisma.webhookDelivery.update({

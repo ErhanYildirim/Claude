@@ -128,11 +128,12 @@ export const cfeImportRoutes: FastifyPluginAsync = async (app) => {
 
       // CFE hesapla
       const result = calculateCFEMatching({
-        periodId,
+        installationId,
+        periodLabel: period.periodName,
         slots: rows.map(r => ({
-          timestamp:       r.timestamp,
-          consumptionKwh:  r.consumption_kwh,
-          productionKwh:   r.production_kwh,
+          hour:           r.timestamp,
+          consumptionKwh: r.consumption_kwh,
+          productionKwh:  r.production_kwh,
         })),
         gecDataVersion: process.env.CBAM_DATA_VERSION ?? "20260204",
       });
@@ -152,7 +153,7 @@ export const cfeImportRoutes: FastifyPluginAsync = async (app) => {
             matchedHours:        result.matchedHours,
             partialHours:        result.partialHours,
             unmatchedHours:      result.unmatchedHours,
-            monthlyBreakdown:    result.monthlyBreakdown,
+            monthlyBreakdown:    result.monthlyBreakdown as unknown as import("@prisma/client").Prisma.InputJsonValue,
             gecDataVersion:      result.gecDataVersion,
           },
           update: {
@@ -165,7 +166,7 @@ export const cfeImportRoutes: FastifyPluginAsync = async (app) => {
             matchedHours:        result.matchedHours,
             partialHours:        result.partialHours,
             unmatchedHours:      result.unmatchedHours,
-            monthlyBreakdown:    result.monthlyBreakdown,
+            monthlyBreakdown:    result.monthlyBreakdown as unknown as import("@prisma/client").Prisma.InputJsonValue,
             gecDataVersion:      result.gecDataVersion,
             calculatedAt:        new Date(),
           },

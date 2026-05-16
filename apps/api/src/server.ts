@@ -38,7 +38,7 @@ const app = Fastify({
   bodyTimeout:    60_000,
   requestTimeout: 120_000,
   routerOptions: { maxParamLength: 500 },
-});
+} as Parameters<typeof Fastify>[0]);
 
 // ── Security plugins ─────────────────────────────────────────────────────────
 await app.register(cors, {

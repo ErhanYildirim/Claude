@@ -95,8 +95,9 @@ model ReportingPeriod {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt    @map("updated_at")
 
-  result    EmbeddedEmission?
-  cfeResult CFEMatchingResult?
+  result      EmbeddedEmission?
+  cfeResult   CFEMatchingResult?
+  hourlyData  HourlyConsumption[]
 
   @@index([installationId])
   @@map("reporting_periods")
@@ -244,4 +245,23 @@ model AuditLog {
   @@index([tenantId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ── HourlyConsumption (Saatlik Tüketim Verisi) ───────────────────────────────
+model HourlyConsumption {
+  id             String          @id @default(uuid()) @db.Uuid
+  periodId       String          @map("period_id") @db.Uuid
+  period         ReportingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  hour           DateTime        @map("hour")           // ISO 8601 UTC, saat başı
+  consumptionKwh Float           @map("consumption_kwh")
+  source         String          @default("csv")        // csv | osos | amr | manual
+  quality        String          @default("measured")   // measured | estimated | interpolated
+
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  @@unique([periodId, hour])
+  @@index([periodId])
+  @@index([hour])
+  @@map("hourly_consumptions")
 }

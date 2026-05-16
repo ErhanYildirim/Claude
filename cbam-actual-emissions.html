@@ -6,6 +6,7 @@
 <title>CBAM Actual Emissions | Voltfox</title>
 <!-- Gerçek veri: Excel'den üretilmiş -->
 <script src="cbam-defaults.js"></script>
+<script src="cbam-engine.js"></script>
 <style>
 :root{
   --bg:#0b1f1a;--panel:#13302a;--panel-2:#0f2823;
@@ -172,6 +173,27 @@ footer{margin-top:48px;text-align:center;color:var(--muted);font-size:11px}
 .ctx-sep{color:var(--border)}
 .ctx-edit-btn{font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);padding:5px 12px;border-radius:8px;white-space:nowrap;transition:background .15s}
 .ctx-edit-btn:hover{background:rgba(52,211,153,.2)}
+/* ── Fuel breakdown ──────────────────────────────────────────────────────── */
+.fuel-toggle{font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);padding:5px 12px;border-radius:8px;transition:background .15s;white-space:nowrap}
+.fuel-toggle:hover{background:rgba(52,211,153,.18)}
+.fuel-section{margin-top:10px;display:none}
+.fuel-section.show{display:block}
+.fuel-row-hdr{display:grid;grid-template-columns:1fr 90px 72px 68px 26px;gap:5px;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.fuel-row{display:grid;grid-template-columns:1fr 90px 72px 68px 26px;gap:5px;align-items:center;margin-bottom:5px}
+.fuel-type-sel,.fuel-mwh-inp,.fuel-ef-ov{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:6px 8px;width:100%;outline:none;font-family:inherit}
+.fuel-type-sel:focus,.fuel-mwh-inp:focus,.fuel-ef-ov:focus{border-color:var(--accent)}
+.fuel-ef-ov{color:var(--info)}
+.fuel-ef-ov:focus{border-color:var(--info)}
+.fuel-tco2{font-size:12px;font-weight:700;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
+.fuel-del-btn{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);color:var(--danger);border-radius:6px;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;line-height:1;padding:0}
+.fuel-del-btn:hover{background:rgba(248,113,113,.22)}
+.bio-warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);color:#fde68a;font-size:11px;padding:6px 10px;border-radius:8px;margin-top:4px;display:none}
+.bio-warn.show{display:block}
+.fuel-total{display:flex;justify-content:space-between;padding:8px 4px 0;border-top:1px dashed var(--border);margin-top:6px;font-size:12px;font-weight:700}
+.fuel-total .ft-lbl{color:var(--muted)}
+.fuel-total .ft-val{color:var(--accent)}
+.btn-add-fuel{margin-top:8px;padding:7px 14px;background:rgba(52,211,153,.08);color:var(--accent);border:1px dashed rgba(52,211,153,.35);border-radius:9px;cursor:pointer;font-family:inherit;font-weight:700;font-size:12px;width:100%;transition:background .15s}
+.btn-add-fuel:hover{background:rgba(52,211,153,.18)}
 </style>
 </head>
 <body>
@@ -266,6 +288,24 @@ footer{margin-top:48px;text-align:center;color:var(--muted);font-size:11px}
       placeholder="örn. Doğal gaz sayaç verisi — Eylül 2024 enerji raporu"
       oninput="recalc()"/>
     <div class="hint">Denetçiye iletilecek veri kaynağı açıklaması</div>
+
+    <!-- F-02: Yakıt dökümü modu -->
+    <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <span class="hint" style="margin:0">Detaylı yakıt + proses girişi için:</span>
+      <button class="fuel-toggle" id="fuelToggleBtn" onclick="toggleFuelMode()">+ Yakıt Dökümü</button>
+    </div>
+    <div class="fuel-section" id="fuelSection">
+      <div class="fuel-row-hdr" style="margin-top:8px">
+        <span>Yakıt Tipi</span><span>MWh (LHV)</span><span>EF (tCO₂/MWh)</span><span>tCO₂</span><span></span>
+      </div>
+      <div id="fuelRows"></div>
+      <div class="bio-warn" id="bioWarn">Biyokütle biogenic CO₂ GHG Protocol kapsamında Scope 1'den hariç tutulur — ayrı dipnot ekleyin.</div>
+      <button class="btn-add-fuel" onclick="addFuelRow()">+ Yakıt / Proses Satırı Ekle</button>
+      <div class="fuel-total">
+        <span class="ft-lbl">Yakıt Toplam Scope 1</span>
+        <span class="ft-val" id="fuelTotal">— tCO₂</span>
+      </div>
+    </div>
   </div>
 
   <!-- Scope 2 -->
@@ -464,10 +504,134 @@ footer{margin-top:48px;text-align:center;color:var(--muted);font-size:11px}
 
 <script>
 const DATA = window.CBAM_DATA;
+const E    = window.CBAMEngine;
 
 // Veri versiyonunu göster
 document.getElementById("dataVersion").textContent =
   "Veri: " + (DATA?.meta?.version || "bilinmiyor") + " · " + (DATA?.meta?.validFrom || "");
+
+// ── Wizard context ────────────────────────────────────────────────────────────
+let ctx = {};
+
+// ── F-02: Yakıt dökümü state ──────────────────────────────────────────────────
+let fuelMode    = false;
+let fuelRowIdx  = 0;
+let fuelRowsArr = [];
+
+const FUEL_LABELS = {
+  natural_gas:    "Doğal Gaz",
+  hard_coal:      "Taş Kömürü",
+  lignite:        "Linyit",
+  diesel:         "Dizel",
+  heavy_fuel_oil: "Ağır Fuel Oil",
+  lpg:            "LPG",
+  coke:           "Kok Kömürü",
+  wood_biomass:   "Biyokütle (Odun)",
+  other:          "Diğer",
+};
+
+const FUEL_EF_DEFAULT = {
+  natural_gas:    0.202,
+  hard_coal:      0.341,
+  lignite:        0.361,
+  diesel:         0.266,
+  heavy_fuel_oil: 0.282,
+  lpg:            0.227,
+  coke:           0.386,
+  wood_biomass:   0.000,
+  other:          0.250,
+};
+
+function toggleFuelMode() {
+  fuelMode = !fuelMode;
+  const section = document.getElementById("fuelSection");
+  const btn     = document.getElementById("fuelToggleBtn");
+  const inp     = document.getElementById("scope1Tco2");
+  section.classList.toggle("show", fuelMode);
+  btn.textContent   = fuelMode ? "× Toplam Giriş" : "+ Yakıt Dökümü";
+  inp.readOnly      = fuelMode;
+  inp.style.opacity = fuelMode ? "0.5" : "1";
+  if (fuelMode && fuelRowsArr.length === 0) addFuelRow();
+  recalc();
+}
+
+function addFuelRow() {
+  const idx = fuelRowIdx++;
+  fuelRowsArr.push({ idx, fuelType: "natural_gas", mwh: 0, efOverride: "" });
+  renderFuelRows();
+  recalc();
+}
+
+function removeFuelRow(idx) {
+  fuelRowsArr = fuelRowsArr.filter(r => r.idx !== idx);
+  renderFuelRows();
+  recalc();
+}
+
+function updateFuelRow(idx, field, value) {
+  const row = fuelRowsArr.find(r => r.idx === idx);
+  if (row) { row[field] = value; syncFuelRowDisplay(idx); }
+  updateFuelTotal();
+  recalc();
+}
+
+function syncFuelRowDisplay(idx) {
+  const row = fuelRowsArr.find(r => r.idx === idx);
+  if (!row) return;
+  const ef  = row.efOverride !== "" ? +row.efOverride : (FUEL_EF_DEFAULT[row.fuelType] ?? 0.25);
+  const el  = document.getElementById("fco2_" + idx);
+  if (el) el.textContent = (row.mwh * ef).toFixed(2);
+}
+
+function renderFuelRows() {
+  const container = document.getElementById("fuelRows");
+  container.innerHTML = fuelRowsArr.map(row => {
+    const typeOptions = Object.entries(FUEL_LABELS).map(([val, lbl]) =>
+      `<option value="${val}"${row.fuelType === val ? " selected" : ""}>${lbl}</option>`
+    ).join("");
+    const ef  = row.efOverride !== "" ? +row.efOverride : (FUEL_EF_DEFAULT[row.fuelType] ?? 0.25);
+    const co2 = (row.mwh * ef).toFixed(2);
+    return `<div class="fuel-row" id="frow_${row.idx}">
+      <select class="fuel-type-sel" onchange="updateFuelRow(${row.idx},'fuelType',this.value)">${typeOptions}</select>
+      <input class="fuel-mwh-inp" type="number" min="0" step="0.1" value="${row.mwh || ""}"
+        placeholder="MWh" oninput="updateFuelRow(${row.idx},'mwh',+this.value)"/>
+      <input class="fuel-ef-ov" type="number" min="0" step="0.001" value="${row.efOverride || ""}"
+        placeholder="${FUEL_EF_DEFAULT[row.fuelType] ?? 0.25}"
+        title="Geçersiz kıl — boş = IPCC 2006"
+        oninput="updateFuelRow(${row.idx},'efOverride',this.value)"/>
+      <span class="fuel-tco2" id="fco2_${row.idx}">${co2}</span>
+      <button class="fuel-del-btn" onclick="removeFuelRow(${row.idx})" title="Sil">×</button>
+    </div>`;
+  }).join("");
+  updateFuelTotal();
+}
+
+function updateFuelTotal() {
+  const bd    = getFuelBreakdown();
+  const total = bd ? bd.reduce((s, e) => {
+    const ef = e.emissionFactorOverride ?? (FUEL_EF_DEFAULT[e.fuelType] ?? 0.25);
+    return s + e.consumedMwh * ef;
+  }, 0) : 0;
+  document.getElementById("fuelTotal").textContent = total.toFixed(2) + " tCO₂";
+  if (fuelMode) {
+    const inp = document.getElementById("scope1Tco2");
+    inp.value = total.toFixed(2);
+  }
+  const hasBio = fuelRowsArr.some(r => r.fuelType === "wood_biomass" && +r.mwh > 0);
+  document.getElementById("bioWarn").classList.toggle("show", hasBio);
+}
+
+function getFuelBreakdown() {
+  if (!fuelMode || fuelRowsArr.length === 0) return null;
+  const entries = fuelRowsArr
+    .filter(r => +r.mwh > 0)
+    .map(r => ({
+      fuelType: r.fuelType,
+      consumedMwh: +r.mwh,
+      ...(r.efOverride !== "" ? { emissionFactorOverride: +r.efOverride } : {}),
+    }));
+  return entries.length > 0 ? entries : null;
+}
 
 // ── Ülke dropdown'unu doldur ──────────────────────────────────────────────
 function populateCountries() {
@@ -567,21 +731,23 @@ function onCnChange() {
   recalc();
 }
 
-// ── Hesaplama ─────────────────────────────────────────────────────────────
+// ── Hesaplama (CBAMEngine entegrasyonu) ──────────────────────────────────────
 function fmt(n, dec=2) {
   return n.toLocaleString("tr-TR", { maximumFractionDigits:dec, minimumFractionDigits:dec });
 }
 
 function recalc() {
+  if (!E) { console.warn("CBAMEngine henüz yüklenmedi"); return; }
+
   const sel    = document.getElementById("cnCode");
   const opt    = sel.options[sel.selectedIndex];
   const exempt = opt?.dataset.exempt === "true";
 
-  const prodVol    = +document.getElementById("prodVol").value   || 0;
+  const prodVol    = +document.getElementById("prodVol").value    || 0;
   const scope1     = +document.getElementById("scope1Tco2").value || 0;
   const scope1Q    = document.getElementById("scope1Quality").value;
   const scope1Note = document.getElementById("scope1AuditNote").value.trim();
-  const elecKwh    = +document.getElementById("elecKwh").value   || 0;
+  const elecKwh    = +document.getElementById("elecKwh").value    || 0;
   const baselineEf = +document.getElementById("baselineEf").value || 0;
   const renewEf    = +document.getElementById("renewableEf").value;
   const carbonP    = +document.getElementById("carbonPrice").value || 65;
@@ -594,54 +760,57 @@ function recalc() {
   document.getElementById("effectiveEfLabel").textContent = effEf.toFixed(4) + " tCO₂/MWh";
   document.getElementById("baselineEfLabel").textContent  = baselineEf.toFixed(3);
   const fillPct = baselineEf > 0 ? effEf / baselineEf * 100 : 0;
-  const fill = document.getElementById("efFill");
-  fill.style.width = fillPct.toFixed(1) + "%";
+  const fill    = document.getElementById("efFill");
+  fill.style.width      = fillPct.toFixed(1) + "%";
   fill.style.background = matchPct === 0 || exempt ? "var(--warn)"
     : `linear-gradient(90deg,var(--accent),hsl(162,${60+matchPct/2}%,${35+matchPct/5}%))`;
 
   if (prodVol <= 0 || defSEE <= 0) return;
 
-  const mwh         = elecKwh / 1000;
-  const s2Baseline  = mwh * baselineEf;
-  const s2Effective = exempt ? s2Baseline : mwh * effEf;
-  const s2Full      = exempt ? s2Baseline : mwh * renewEf;
-  const s2Reduction = s2Baseline - s2Effective;
-  const s2RedPct    = s2Baseline > 0 ? s2Reduction / s2Baseline * 100 : 0;
+  const fuelBreakdown = getFuelBreakdown();
 
-  const seeBaseline = (scope1 + s2Baseline)  / prodVol;
-  const seeCurrent  = (scope1 + s2Effective) / prodVol;
-  const seeFull     = (scope1 + s2Full)       / prodVol;
+  const period = {
+    id:        "browser-calc",
+    label:     ctx.periodName  || "Hesaplama",
+    startDate: ctx.periodStart || "2024-01-01",
+    endDate:   ctx.periodEnd   || "2024-12-31",
+    productionVolumeTonnes: prodVol,
+    scope1DirectTco2:  fuelBreakdown ? 0 : scope1,
+    scope1DataQuality: scope1Q,
+    scope1AuditNote:   scope1Note || undefined,
+    scope2Exempt:      exempt,
+    fuelBreakdown:     fuelBreakdown || undefined,
+    purchasedElectricity: {
+      consumedKwh:      elecKwh,
+      matchingRatePct:  matchPct,
+      renewableEf:      renewEf,
+      baselineEf:       baselineEf,
+      baselineEfSource: "user_provided",
+      dataQuality:      scope1Q,
+    },
+  };
 
-  const savVsDefault  = (defSEE - seeCurrent)  * prodVol * carbonP;
-  const savVsBaseline = (seeBaseline - seeCurrent) * prodVol * carbonP;
-  const savFullPot    = (seeBaseline - seeFull)    * prodVol * carbonP;
-  const diffFromDef   = (defSEE - seeCurrent) / defSEE * 100;
-  const diffBase      = (seeBaseline - seeCurrent) / seeBaseline * 100;
+  let seeResult;
+  try { seeResult = E.calculateSEE(period); }
+  catch (err) { console.warn("SEE hesaplama hatası:", err); return; }
 
-  const trail = [
-    { f:"scope1.direct_tco2",        v:scope1.toFixed(2),      u:"tCO₂",      s:"user_input",        n:`kalite: ${scope1Q}${scope1Note ? " · " + scope1Note : ""}` },
-    { f:"scope2.consumed_mwh",       v:mwh.toFixed(2),          u:"MWh",       s:"user_input",        n:elecSource },
-    { f:"scope2.baseline_ef",        v:baselineEf.toFixed(4),   u:"tCO₂/MWh",  s:"country_annual_avg" },
-    { f:"scope2.baseline_tco2",      v:s2Baseline.toFixed(2),   u:"tCO₂",      s:"country_annual_avg", n:"0% eşleşme" },
-    ...(exempt ? [] : [
-      { f:"scope2.matching_rate",    v:matchPct.toFixed(0),     u:"%",         s:"voltfox_gec_hourly" },
-      { f:"scope2.renewable_ef",     v:renewEf.toFixed(4),      u:"tCO₂/MWh",  s:"voltfox_gec_hourly" },
-      { f:"scope2.effective_ef",     v:effEf.toFixed(4),        u:"tCO₂/MWh",  s:"voltfox_gec_hourly", n:`${matchPct}%×${renewEf}+(${100-matchPct}%)×${baselineEf}` },
-      { f:"scope2.effective_tco2",   v:s2Effective.toFixed(2),  u:"tCO₂",      s:"voltfox_gec_hourly", n:`azaltım: ${s2Reduction.toFixed(1)} tCO₂ (%${s2RedPct.toFixed(1)})` },
-    ]),
-    { f:"see.cbam_default",          v:defSEE.toFixed(4),       u:"tCO₂e/t",   s:"cbam_annex4_default", n:"DVs as adopted_v20260204" },
-    { f:"see.baseline",              v:seeBaseline.toFixed(4),  u:"tCO₂e/t",   s:"country_annual_avg" },
-    { f:"see.current",               v:seeCurrent.toFixed(4),   u:"tCO₂e/t",   s:exempt?"user_input":"voltfox_gec_hourly" },
-  ];
+  const country = document.getElementById("country").value;
+  const cnCode  = document.getElementById("cnCode").value;
+  let defaults  = E.lookupDefault(DATA, country, cnCode);
+  if (defaults) defaults = { ...defaults, totalDefault: defSEE };
+
+  let comparison = null;
+  if (defaults && carbonP > 0) {
+    try { comparison = E.compareWithDefault(seeResult, defaults, carbonP); }
+    catch (_) {}
+  }
 
   const gecConnected = document.getElementById("gecConnected").style.display !== "none";
 
   renderResults({
-    exempt, matchPct, defSEE, seeBaseline, seeCurrent, seeFull,
-    s2Baseline, s2Effective, s2Reduction, s2RedPct,
-    savVsDefault, savVsBaseline, savFullPot,
-    diffFromDef, diffBase, scope1, mwh, carbonP, prodVol,
-    scope1Q, scope1Note, elecSource, gecConnected, trail
+    seeResult, comparison, defSEE, matchPct, exempt,
+    prodVol, carbonP, scope1, scope1Q, scope1Note,
+    elecSource, gecConnected, fuelBreakdown, renewEf, elecKwh,
   });
 }
 
@@ -681,21 +850,53 @@ function renderResults(d) {
   const el = document.getElementById("results");
   el.style.display = "block";
 
-  const trailRows = d.trail.map(t =>
+  const r          = d.seeResult;
+  const seeCurrent = r.seeVoltfox ?? r.seeBaseline;
+  const mwh        = d.elecKwh / 1000;
+  const s2Full     = mwh * d.renewEf;
+  const seeFull    = (r.scope1DirectTco2 + s2Full) / d.prodVol;
+
+  const diffFromDef = d.defSEE > 0 ? (d.defSEE - seeCurrent)    / d.defSEE       * 100 : 0;
+  const diffBase    = r.seeBaseline > 0 ? (r.seeBaseline - seeCurrent) / r.seeBaseline * 100 : 0;
+  const pctBase     = d.defSEE > 0 ? (d.defSEE - r.seeBaseline) / d.defSEE * 100 : 0;
+  const pctCurr     = d.defSEE > 0 ? (d.defSEE - seeCurrent)    / d.defSEE * 100 : 0;
+
+  const costDef  = d.defSEE      * d.prodVol * d.carbonP;
+  const costBase = r.seeBaseline * d.prodVol * d.carbonP;
+  const costCurr = seeCurrent    * d.prodVol * d.carbonP;
+
+  const savVsDefault  = d.comparison?.annualSavingsEur ?? (d.defSEE - seeCurrent)    * d.prodVol * d.carbonP;
+  const savVsBaseline = (r.seeBaseline - seeCurrent) * d.prodVol * d.carbonP;
+  const savFullPot    = (r.seeBaseline - seeFull)    * d.prodVol * d.carbonP;
+
+  // Audit trail: engine'den gelir + CBAM default satırı eklenir
+  const srcBadge = s => {
+    if (s && s.includes("voltfox")) return "bg";
+    if (s === "user_input" || s === "user_provided") return "bm";
+    return "bb";
+  };
+  const augTrail = [
+    ...r.auditTrail,
+    { field:"see.cbam_default", source:"cbam_annex4_default",
+      value: d.defSEE, unit:"tCO₂e/t",
+      note:"DVs as adopted_v20260204",
+      timestamp:r.calculatedAt, calcEngineVersion:r.calcEngineVersion },
+  ];
+  const trailRows = augTrail.map(t =>
     `<tr>
-      <td>${t.f}</td>
-      <td style="text-align:right">${t.v}</td>
-      <td>${t.u}</td>
-      <td><span class="badge ${t.s.includes("voltfox")?"bg":t.s==="user_input"?"bm":t.s.includes("cbam")?"bm":"bb"}">${t.s}</span></td>
-      <td style="color:var(--muted);font-size:10px">${t.n||""}</td>
+      <td>${t.field}</td>
+      <td style="text-align:right">${typeof t.value === "number" ? t.value.toFixed(4) : t.value}</td>
+      <td>${t.unit}</td>
+      <td><span class="badge ${srcBadge(t.source)}">${t.source}</span></td>
+      <td style="color:var(--muted);font-size:10px">${t.note||""}</td>
     </tr>`
   ).join("");
 
-  const maxSEE = Math.max(d.defSEE, d.seeBaseline) * 1.06 || 1;
+  const maxSEE = Math.max(d.defSEE, r.seeBaseline) * 1.06 || 1;
   const barScenarios = [
-    { lbl:"CBAM Default", see:d.defSEE,      color:"var(--danger)" },
-    { lbl:"Baseline 0%",  see:d.seeBaseline,  color:"var(--warn)"   },
-    { lbl:`Voltfox ${d.matchPct}%`, see:d.seeCurrent, color:"var(--accent)" },
+    { lbl:"CBAM Default",           see:d.defSEE,      color:"var(--danger)" },
+    { lbl:"Baseline 0%",            see:r.seeBaseline, color:"var(--warn)"   },
+    { lbl:`Voltfox ${d.matchPct}%`, see:seeCurrent,    color:"var(--accent)" },
   ];
   const barsHtml = barScenarios.map(b => {
     const pct = (b.see / maxSEE * 100).toFixed(1);
@@ -707,11 +908,15 @@ function renderResults(d) {
     </div>`;
   }).join("");
 
-  const costDef  = d.defSEE      * d.prodVol * d.carbonP;
-  const costBase = d.seeBaseline * d.prodVol * d.carbonP;
-  const costCurr = d.seeCurrent  * d.prodVol * d.carbonP;
-  const pctBase  = (d.defSEE - d.seeBaseline) / d.defSEE * 100;
-  const pctCurr  = (d.defSEE - d.seeCurrent)  / d.defSEE * 100;
+  const recText = d.comparison?.recommendation
+    ?? (d.exempt
+        ? `Bu ürün 2026'da Scope 2 CBAM yükümlülüğünden muaftır. Baseline SEE değeriniz CBAM default'un <strong>%${fmt(diffFromDef,1)} altında</strong> — yıllık <strong>€ ${fmt(savVsDefault,0)}</strong> tasarruf ediyorsunuz.`
+        : `${d.matchPct}% eşleştirme ile Scope 2 emisyonlarınız %${fmt(r.scope2.reductionPct,1)} azaldı. CBAM default'un <strong>%${fmt(diffFromDef,1)} altındaki</strong> SEE değerinizle yıllık <strong>€ ${fmt(savVsDefault,0)}</strong> tasarruf sağlıyorsunuz.${d.matchPct<100?" Oranı %100'e çıkararak ek €"+fmt(savFullPot-savVsBaseline,0)+" daha kazanın.":""}`);
+
+  const q = computeQuality(d);
+  const allWarns = [...(r.warnings || []), ...(q.warns || [])];
+  const warnsHtml = allWarns.length
+    ? `<ul class="dq-warnings">${allWarns.map(w=>`<li>${w}</li>`).join("")}</ul>` : "";
 
   el.innerHTML = `
     <div class="cmp-bars">${barsHtml}</div>
@@ -724,27 +929,27 @@ function renderResults(d) {
       </div>
       <div class="see-card card-warn">
         <div class="sc-lbl">Baseline (0%)</div>
-        <div class="sc-val">${fmt(d.seeBaseline,4)}</div>
+        <div class="sc-val">${fmt(r.seeBaseline,4)}</div>
         <div class="sc-unit">tCO₂e/t</div>
-        <div class="sc-diff">${fmt(d.diffFromDef-(d.diffFromDef-d.diffBase),1)}% def. altı</div>
+        <div class="sc-diff">${fmt(pctBase,1)}% def. altı</div>
       </div>
       <div class="see-card card-green">
         <div class="sc-lbl">${d.exempt ? "Scope 2 Muaf" : "Voltfox " + d.matchPct + "%"}</div>
-        <div class="sc-val">${fmt(d.seeCurrent,4)}</div>
+        <div class="sc-val">${fmt(seeCurrent,4)}</div>
         <div class="sc-unit">tCO₂e/t</div>
-        <div class="sc-diff">${d.exempt ? "GEC uygulanamaz" : fmt(d.diffBase,1)+"% daha iyi"}</div>
+        <div class="sc-diff">${d.exempt ? "GEC uygulanamaz" : fmt(diffBase,1)+"% daha iyi"}</div>
       </div>
     </div>
 
     <div class="savings-block">
       <div class="sav-card sav-vs-default">
         <div class="sv-lbl">vs. CBAM Default</div>
-        <div class="sv-val">€ ${fmt(d.savVsDefault,0)}</div>
+        <div class="sv-val">€ ${fmt(savVsDefault,0)}</div>
         <div class="sv-sub">yıllık tasarruf</div>
       </div>
       <div class="sav-card sav-voltfox-extra">
         <div class="sv-lbl">${d.exempt ? "Scope 2 Katkısı" : "Voltfox katkısı"}</div>
-        <div class="sv-val">€ ${fmt(d.savVsBaseline,0)}</div>
+        <div class="sv-val">€ ${fmt(savVsBaseline,0)}</div>
         <div class="sv-sub">${d.exempt ? "— muaf" : "baseline'a ek"}</div>
       </div>
     </div>
@@ -760,13 +965,13 @@ function renderResults(d) {
         </tr>
         <tr>
           <td style="color:var(--warn);font-weight:700">Baseline (0% GEC)</td>
-          <td style="font-weight:700">${fmt(d.seeBaseline,4)}</td>
+          <td style="font-weight:700">${fmt(r.seeBaseline,4)}</td>
           <td style="color:var(--warn)">−${fmt(pctBase,1)}%</td>
           <td>€ ${fmt(costBase,0)}</td>
         </tr>
         <tr>
           <td style="color:var(--accent);font-weight:700">${d.exempt?"Scope 2 Muaf":"Voltfox "+d.matchPct+"%"}</td>
-          <td style="font-weight:700;color:var(--accent)">${fmt(d.seeCurrent,4)}</td>
+          <td style="font-weight:700;color:var(--accent)">${fmt(seeCurrent,4)}</td>
           <td style="color:var(--accent)">−${fmt(pctCurr,1)}%</td>
           <td style="color:var(--accent);font-weight:700">€ ${fmt(costCurr,0)}</td>
         </tr>
@@ -775,54 +980,44 @@ function renderResults(d) {
     <div style="font-size:10px;color:var(--muted);margin-bottom:12px">* SEE × Üretim × Karbon Fiyatı — gerçek CBAM beyanı ithalatçıya aittir</div>
 
     <div class="kpi">
-      <span class="k">Scope 1 (müşteri verisi)</span>
-      <span class="v">${fmt(d.scope1,0)}<small>tCO₂</small></span>
+      <span class="k">Scope 1 (${d.fuelBreakdown ? "yakıt dökümü" : "müşteri verisi"})</span>
+      <span class="v">${fmt(r.scope1DirectTco2,0)}<small>tCO₂</small></span>
     </div>
     <div class="kpi">
       <span class="k">Scope 2 baseline</span>
-      <span class="v">${fmt(d.s2Baseline,1)}<small>tCO₂</small></span>
+      <span class="v">${fmt(r.scope2.baselineTco2,1)}<small>tCO₂</small></span>
     </div>
     ${!d.exempt ? `
     <div class="kpi">
       <span class="k" style="color:var(--accent)">Scope 2 efektif (${d.matchPct}%)</span>
-      <span class="v" style="color:var(--accent)">${fmt(d.s2Effective,1)}<small>tCO₂</small></span>
+      <span class="v" style="color:var(--accent)">${fmt(r.scope2.voltfoxTco2,1)}<small>tCO₂</small></span>
     </div>
     <div class="kpi">
       <span class="k">CO₂ azaltımı</span>
-      <span class="v">${fmt(d.s2Reduction,1)}<small>tCO₂ (−%${fmt(d.s2RedPct,1)})</small></span>
+      <span class="v">${fmt(r.scope2.reductionTco2,1)}<small>tCO₂ (−%${fmt(r.scope2.reductionPct,1)})</small></span>
     </div>
     <div class="kpi">
       <span class="k">100% potansiyel SEE</span>
-      <span class="v" style="color:var(--muted)">${fmt(d.seeFull,4)}<small>tCO₂e/t</small></span>
+      <span class="v" style="color:var(--muted)">${fmt(seeFull,4)}<small>tCO₂e/t</small></span>
     </div>` : ""}
 
     ${d.scope1Q==="estimated"?`<div class="warn-box">Scope 1 tahmini veri — CBAM teknik dosyasında ölçüm veya hesaplama bazlı veri tercih edilir.</div>`
       :d.scope1Q==="calculated"?`<div class="warn-box" style="border-color:rgba(96,165,250,.3);background:rgba(96,165,250,.07);color:#bfdbfe">Scope 1 hesaplamalı veri — metodoloji belgesi audit paketine eklenmelidir.</div>`
       :""}
 
-    <div class="rec-box">
-      ${d.exempt
-        ? `Bu ürün 2026'da Scope 2 CBAM yükümlülüğünden muaftır. Baseline SEE değeriniz CBAM default'un <strong>%${fmt(d.diffFromDef,1)} altında</strong> — yıllık <strong>€ ${fmt(d.savVsDefault,0)}</strong> tasarruf ediyorsunuz.`
-        : `${d.matchPct}% eşleştirme ile Scope 2 emisyonlarınız %${fmt(d.s2RedPct,1)} azaldı. CBAM default'un <strong>%${fmt(d.diffFromDef,1)} altındaki</strong> SEE değerinizle yıllık <strong>€ ${fmt(d.savVsDefault,0)}</strong> tasarruf sağlıyorsunuz.${d.matchPct<100?" Oranı %100'e çıkararak ek €"+fmt(d.savFullPot-d.savVsBaseline,0)+" daha kazanın.":""}`
-      }
+    <div class="rec-box">${recText}</div>
+
+    <div class="dq-card dq-${q.level}">
+      <div class="dq-header">
+        <span class="dq-title">Veri Kalite Skoru — ${q.label}</span>
+        <span class="dq-score">${q.score}<sup style="font-size:12px;font-weight:600">/100</sup></span>
+      </div>
+      <div class="dq-bar-outer"><div class="dq-bar-inner" style="width:${q.score}%"></div></div>
+      ${warnsHtml}
     </div>
 
-    ${(() => {
-      const q = computeQuality(d);
-      const warnsHtml = q.warns.length
-        ? `<ul class="dq-warnings">${q.warns.map(w=>`<li>${w}</li>`).join("")}</ul>` : "";
-      return `<div class="dq-card dq-${q.level}">
-        <div class="dq-header">
-          <span class="dq-title">Veri Kalite Skoru — ${q.label}</span>
-          <span class="dq-score">${q.score}<sup style="font-size:12px;font-weight:600">/100</sup></span>
-        </div>
-        <div class="dq-bar-outer"><div class="dq-bar-inner" style="width:${q.score}%"></div></div>
-        ${warnsHtml}
-      </div>`;
-    })()}
-
     <details>
-      <summary>Audit Trail (${d.trail.length} kayıt) · Kaynak: DVs as adopted_v20260204.xlsx</summary>
+      <summary>Audit Trail (${augTrail.length} kayıt) · Engine v${r.calcEngineVersion}</summary>
       <table class="audit-table">
         <thead><tr><th>Alan</th><th style="text-align:right">Değer</th><th>Birim</th><th>Kaynak</th><th>Not</th></tr></thead>
         <tbody>${trailRows}</tbody>
@@ -895,6 +1090,9 @@ function wizFinish() {
   const periodName   = document.getElementById("wPeriodName").value.trim();
   const periodStart  = document.getElementById("wPeriodStart").value;
   const periodEnd    = document.getElementById("wPeriodEnd").value;
+
+  // recalc'ta kullanılır
+  ctx = { periodName, periodStart, periodEnd, facilityName, operator };
 
   // Ana forma aktar
   document.getElementById("country").value  = country;

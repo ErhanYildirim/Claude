@@ -1,6 +1,7 @@
 {
   "name": "voltfox-platform",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -13,7 +14,8 @@
     "db:push": "npm run db:push --workspace=packages/db",
     "db:migrate": "npm run migrate --workspace=packages/db",
     "db:studio": "npm run studio --workspace=packages/db",
-    "test": "tsx src/cbam/see.test.ts && tsx src/api/middleware/tenant.test.ts && tsx src/api/share-links.test.ts && tsx src/cbam/cfe-matching.test.ts && tsx src/cbam/ef-data.test.ts"
+    "test": "tsx src/cbam/see.test.ts && tsx src/api/middleware/tenant.test.ts && tsx src/api/share-links.test.ts && tsx src/cbam/cfe-matching.test.ts && tsx src/cbam/ef-data.test.ts",
+    "build:engine": "node build-cbam-engine.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

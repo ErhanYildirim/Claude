@@ -426,48 +426,54 @@ function WebhooksTab() {
 type AuditLog = AuditLogList["logs"][0];
 
 const ACTION_BADGE: Record<string, { bg: string; color: string }> = {
-  CREATE: { bg: "#D1FAE5", color: "#065F46" },
-  UPDATE: { bg: "#DBEAFE", color: "#1E40AF" },
-  DELETE: { bg: "#FEE2E2", color: "#DC2626" },
+  CREATE:    { bg: "#D1FAE5", color: "#065F46" },
+  UPDATE:    { bg: "#DBEAFE", color: "#1E40AF" },
+  DELETE:    { bg: "#FEE2E2", color: "#DC2626" },
+  CALCULATE: { bg: "#F3E8FF", color: "#6D28D9" },
 };
 
-const RESOURCE_OPTIONS = ["", "Installation", "ReportingPeriod", "Tenant", "ApiKey"];
-const ACTION_OPTIONS   = ["", "CREATE", "UPDATE", "DELETE"];
+const RESOURCE_OPTIONS = ["", "Installation", "ReportingPeriod", "Tenant", "ApiKey", "Webhook"];
+const ACTION_OPTIONS   = ["", "CREATE", "UPDATE", "DELETE", "CALCULATE"];
 
 function AuditTrailTab() {
   const [logs, setLogs]         = useState<AuditLog[]>([]);
   const [nextCursor, setNext]   = useState<string | null>(null);
+  const [count, setCount]       = useState<number>(0);
   const [loading, setLoading]   = useState(false);
   const [resource, setResource] = useState("");
   const [action, setAction]     = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [err, setErr]           = useState("");
 
   async function load(cursor?: string) {
     setLoading(true); setErr("");
     try {
       const res = await api.auditLogs.list({
-        resource:   resource || undefined,
-        action:     action   || undefined,
-        limit:      50,
-        cursor:     cursor   || undefined,
+        resource: resource || undefined,
+        action:   action   || undefined,
+        limit:    50,
+        cursor:   cursor   || undefined,
       });
       setLogs(prev => cursor ? [...prev, ...res.logs] : res.logs);
       setNext(res.nextCursor);
+      setCount(res.count);
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Yüklenemedi"); }
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [resource, action]);
+  useEffect(() => { load(); }, []);
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" as const }}>
-        <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={resource} onChange={e => { setResource(e.target.value); }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" as const, alignItems: "flex-end" }}>
+        <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={resource} onChange={e => setResource(e.target.value)}>
           {RESOURCE_OPTIONS.map(r => <option key={r} value={r}>{r || "Tüm Kaynaklar"}</option>)}
         </select>
-        <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={action} onChange={e => { setAction(e.target.value); }}>
+        <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={action} onChange={e => setAction(e.target.value)}>
           {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a || "Tüm İşlemler"}</option>)}
         </select>
+        <button style={{ ...s.btnSm, ...s.btnP, padding: "7px 16px" }} onClick={() => load()}>Filtrele</button>
+        {count > 0 && <span style={{ fontSize: 12, color: "#6B7280" }}>{count} kayıt</span>}
       </div>
 
       {err && <div style={s.err}>{err}</div>}
@@ -476,7 +482,7 @@ function AuditTrailTab() {
         <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
           <thead>
             <tr>
-              {["Zaman", "İşlem", "Kaynak", "Kaynak ID", "Kullanıcı"].map(h => (
+              {["Tarih", "İşlem", "Kaynak", "ID", "Kullanıcı"].map(h => (
                 <th key={h} style={{ background: "#F9FAFB", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#6B7280", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
               ))}
             </tr>
@@ -487,20 +493,35 @@ function AuditTrailTab() {
             )}
             {logs.map((log, i) => {
               const ac = ACTION_BADGE[log.action] ?? { bg: "#F3F4F6", color: "#6B7280" };
+              const isOpen = expanded === log.id;
               return (
-                <tr key={log.id} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #F3F4F6" }}>
-                  <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" as const }}>
-                    {new Date(log.createdAt).toLocaleString("tr-TR")}
-                  </td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <span style={{ ...s.badge, ...ac }}>{log.action}</span>
-                  </td>
-                  <td style={{ padding: "10px 14px", fontSize: 13 }}>{log.resource}</td>
-                  <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "#374151" }}>{log.resourceId.slice(0, 8)}…</td>
-                  <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>
-                    {log.userId ? log.userId.slice(0, 8) + "…" : "sistem"}
-                  </td>
-                </tr>
+                <React.Fragment key={log.id}>
+                  <tr key={log.id}
+                    style={{ borderBottom: "1px solid #F3F4F6", cursor: "pointer", background: isOpen ? "#F9FAFB" : "transparent" }}
+                    onClick={() => setExpanded(isOpen ? null : log.id)}>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" as const }}>
+                      {new Date(log.createdAt).toLocaleString("tr-TR")}
+                    </td>
+                    <td style={{ padding: "10px 14px" }}>
+                      <span style={{ ...s.badge, ...ac }}>{log.action}</span>
+                    </td>
+                    <td style={{ padding: "10px 14px", fontSize: 13 }}>{log.resource}</td>
+                    <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "#374151" }}>{log.resourceId.slice(0, 8)}…</td>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>
+                      {log.userId ? log.userId.slice(0, 8) + "…" : "sistem"}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr key={log.id + "-payload"} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #F3F4F6" }}>
+                      <td colSpan={5} style={{ padding: "0 14px 12px" }}>
+                        <pre style={{ background: "#F9FAFB", borderRadius: 6, padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "#374151" }}>
+                          {JSON.stringify(log.payload, null, 2)}
+                        </pre>
+                        {log.ipAddress && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>IP: {log.ipAddress}</div>}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </tbody>

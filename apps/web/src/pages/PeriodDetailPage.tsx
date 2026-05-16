@@ -94,11 +94,10 @@ export default function PeriodDetailPage() {
 
   return (
     <>
-      <nav style={s.nav}>
-        <Link to={`/installations/${installationId}`} style={s.back}>← Tesis</Link>
-        <span style={s.brand}>{period.periodName}</span>
-      </nav>
       <div style={s.page}>
+        <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 8 }}>
+          <Link to={`/installations/${installationId}`} style={{ color: "#0066CC", textDecoration: "none" }}>← {installationId}</Link>
+        </div>
         <div style={s.h1}>{period.periodName}</div>
         <div style={s.sub}>{period.startDate?.slice(0,10)} – {period.endDate?.slice(0,10)} · CN: {period.cnCode} · {period.importCountry}</div>
 

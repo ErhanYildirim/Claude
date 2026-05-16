@@ -207,11 +207,10 @@ export default function InstallationDetailPage() {
 
   return (
     <>
-      <nav style={s.nav}>
-        <Link to="/" style={s.back}>← Tesisler</Link>
-        <span style={s.brand}>{installation.facilityName}</span>
-      </nav>
       <div style={s.page}>
+        <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 8 }}>
+          <Link to="/cbam" style={{ color: "#0066CC", textDecoration: "none" }}>← Tesisler</Link>
+        </div>
         <div style={s.h1}>{installation.facilityName}</div>
         <div style={s.sub}>{installation.operator} · {installation.facilityCountry}</div>
 

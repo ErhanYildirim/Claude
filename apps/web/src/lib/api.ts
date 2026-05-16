@@ -210,7 +210,7 @@ export interface ShareViewResult {
 }
 
 export interface AuditLogList {
-  logs: Array<{ id: string; action: string; resource: string; resourceId: string; userId: string | null; payload: unknown; createdAt: string }>;
+  logs: Array<{ id: string; action: string; resource: string; resourceId: string; userId: string | null; payload: unknown; ipAddress: string | null; createdAt: string }>;
   nextCursor: string | null;
   count: number;
 }

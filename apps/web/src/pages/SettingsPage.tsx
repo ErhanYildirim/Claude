@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList } from "../lib/api.js";
+import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   nav:    { background: "#0066CC", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
@@ -422,8 +422,105 @@ function WebhooksTab() {
   );
 }
 
+// ── Audit Trail Sekmesi ───────────────────────────────────────────────────────
+type AuditLog = AuditLogList["logs"][0];
+
+const ACTION_BADGE: Record<string, { bg: string; color: string }> = {
+  CREATE: { bg: "#D1FAE5", color: "#065F46" },
+  UPDATE: { bg: "#DBEAFE", color: "#1E40AF" },
+  DELETE: { bg: "#FEE2E2", color: "#DC2626" },
+};
+
+const RESOURCE_OPTIONS = ["", "Installation", "ReportingPeriod", "Tenant", "ApiKey"];
+const ACTION_OPTIONS   = ["", "CREATE", "UPDATE", "DELETE"];
+
+function AuditTrailTab() {
+  const [logs, setLogs]         = useState<AuditLog[]>([]);
+  const [nextCursor, setNext]   = useState<string | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [resource, setResource] = useState("");
+  const [action, setAction]     = useState("");
+  const [err, setErr]           = useState("");
+
+  async function load(cursor?: string) {
+    setLoading(true); setErr("");
+    try {
+      const res = await api.auditLogs.list({
+        resource:   resource || undefined,
+        action:     action   || undefined,
+        limit:      50,
+        cursor:     cursor   || undefined,
+      });
+      setLogs(prev => cursor ? [...prev, ...res.logs] : res.logs);
+      setNext(res.nextCursor);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Yüklenemedi"); }
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, [resource, action]);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" as const }}>
+        <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={resource} onChange={e => { setResource(e.target.value); }}>
+          {RESOURCE_OPTIONS.map(r => <option key={r} value={r}>{r || "Tüm Kaynaklar"}</option>)}
+        </select>
+        <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={action} onChange={e => { setAction(e.target.value); }}>
+          {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a || "Tüm İşlemler"}</option>)}
+        </select>
+      </div>
+
+      {err && <div style={s.err}>{err}</div>}
+
+      <div style={{ ...s.card, padding: 0, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
+          <thead>
+            <tr>
+              {["Zaman", "İşlem", "Kaynak", "Kaynak ID", "Kullanıcı"].map(h => (
+                <th key={h} style={{ background: "#F9FAFB", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#6B7280", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {logs.length === 0 && !loading && (
+              <tr><td colSpan={5} style={{ padding: "24px 14px", color: "#9CA3AF", fontSize: 13, textAlign: "center" as const }}>Kayıt bulunamadı.</td></tr>
+            )}
+            {logs.map((log, i) => {
+              const ac = ACTION_BADGE[log.action] ?? { bg: "#F3F4F6", color: "#6B7280" };
+              return (
+                <tr key={log.id} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #F3F4F6" }}>
+                  <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" as const }}>
+                    {new Date(log.createdAt).toLocaleString("tr-TR")}
+                  </td>
+                  <td style={{ padding: "10px 14px" }}>
+                    <span style={{ ...s.badge, ...ac }}>{log.action}</span>
+                  </td>
+                  <td style={{ padding: "10px 14px", fontSize: 13 }}>{log.resource}</td>
+                  <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "#374151" }}>{log.resourceId.slice(0, 8)}…</td>
+                  <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>
+                    {log.userId ? log.userId.slice(0, 8) + "…" : "sistem"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {loading && <div style={{ textAlign: "center", padding: "12px 0", color: "#6B7280", fontSize: 13 }}>Yükleniyor...</div>}
+      {nextCursor && !loading && (
+        <div style={{ textAlign: "center", marginTop: 12 }}>
+          <button style={{ ...s.btnSm, ...s.btnSec, padding: "8px 18px", fontSize: 13 }} onClick={() => load(nextCursor)}>
+            Daha Fazla Yükle
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
-type Tab = "team" | "apikeys" | "webhooks";
+type Tab = "team" | "apikeys" | "webhooks" | "audit";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
@@ -432,6 +529,7 @@ export default function SettingsPage() {
     { id: "team",     label: "Ekip" },
     { id: "apikeys",  label: "API Anahtarları" },
     { id: "webhooks", label: "Webhook'lar" },
+    { id: "audit",    label: "Audit Trail" },
   ];
 
   return (
@@ -456,6 +554,7 @@ export default function SettingsPage() {
         {tab === "team"     && <TeamTab />}
         {tab === "apikeys"  && <ApiKeysTab />}
         {tab === "webhooks" && <WebhooksTab />}
+        {tab === "audit"    && <AuditTrailTab />}
       </div>
     </>
   );

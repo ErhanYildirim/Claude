@@ -171,15 +171,60 @@ export default function PeriodDetailPage() {
               <div style={s.row}><span style={s.rowL}>Baseline (grid avg)</span><span style={s.rowV}>{emission.scope2BaselineTco2.toFixed(2)} tCO₂</span></div>
               <div style={s.row}><span style={s.rowL}>Voltfox (CFE ile)</span><span style={{ ...s.rowV, color: "#059669" }}>{emission.scope2VoltfoxTco2.toFixed(2)} tCO₂</span></div>
               <div style={s.row}><span style={s.rowL}>Azaltım</span><span style={{ ...s.rowV, color: "#059669" }}>{emission.reductionTco2.toFixed(2)} tCO₂ (%{emission.reductionPct.toFixed(1)})</span></div>
-              {emission.defaultSee !== null && (
-                <>
-                  <div style={s.row}><span style={s.rowL}>AB Default SEE</span><span style={s.rowV}>{emission.defaultSee.toFixed(4)} tCO₂e/t</span></div>
-                  {emission.savingsVsDefaultEur !== null && (
-                    <div style={s.row}><span style={s.rowL}>CBAM Tasarruf Potansiyeli</span><span style={{ ...s.rowV, color: "#059669" }}>€{emission.savingsVsDefaultEur.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}/yıl</span></div>
-                  )}
-                </>
-              )}
             </div>
+
+            {emission.defaultSee !== null && (
+              <>
+                <div style={s.section}>CBAM Default Karşılaştırması</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                  <div style={{ ...s.kpi, border: "1px solid #FECACA", background: "#FFF5F5" }}>
+                    <div style={s.kpiL}>AB Default SEE</div>
+                    <div style={{ ...s.kpiV, ...s.kpiR }}>{emission.defaultSee.toFixed(4)}<span style={{ fontSize: 12, color: "#DC2626", fontWeight: 400 }}> tCO₂e/t</span></div>
+                    <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Yüksek — CBAM Ek-IV referans değeri</div>
+                  </div>
+                  <div style={{ ...s.kpi, border: "1px solid #A7F3D0", background: "#F0FDF4" }}>
+                    <div style={s.kpiL}>Actual SEE (Voltfox)</div>
+                    <div style={{ ...s.kpiV, ...s.kpiG }}>{emission.seeVoltfox.toFixed(4)}<span style={{ fontSize: 12, color: "#059669", fontWeight: 400 }}> tCO₂e/t</span></div>
+                    <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>Düşük — Gerçek ölçüm verisi</div>
+                  </div>
+                </div>
+
+                <div style={s.card}>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Fark Analizi</div>
+                  <div style={s.row}>
+                    <span style={s.rowL}>Mutlak fark</span>
+                    <span style={{ ...s.rowV, color: "#059669" }}>
+                      {(emission.defaultSee - emission.seeVoltfox).toFixed(4)} tCO₂e/t daha düşük
+                    </span>
+                  </div>
+                  <div style={s.row}>
+                    <span style={s.rowL}>Yüzde fark</span>
+                    <span style={{ ...s.rowV, color: "#059669" }}>
+                      %{((emission.defaultSee - emission.seeVoltfox) / emission.defaultSee * 100).toFixed(1)} azalma
+                    </span>
+                  </div>
+                  {emission.savingsVsDefaultEur !== null && (
+                    <>
+                      <div style={s.row}>
+                        <span style={s.rowL}>CBAM Maliyet Tasarrufu</span>
+                        <span style={{ ...s.rowV, color: "#059669", fontSize: 16 }}>
+                          €{emission.savingsVsDefaultEur.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}/yıl
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6B7280", marginTop: 10, padding: "10px 12px", background: "#F9FAFB", borderRadius: 6 }}>
+                        CN kodu {period.cnCode} için AB default değeri {emission.defaultSee.toFixed(4)} tCO₂e/t'dir.
+                        Actual emissions {emission.seeVoltfox.toFixed(4)} tCO₂e/t ile daha düşük — CBAM maliyetinizi düşürür.
+                      </div>
+                    </>
+                  )}
+                  <div style={{ marginTop: 12, padding: "12px 14px", background: "#EFF6FF", borderLeft: "3px solid #0066CC", borderRadius: "0 6px 6px 0", fontSize: 12, color: "#1E40AF" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Audit Kanıtı</div>
+                    <div>Motor: {emission.calcEngineVersion} · EF Veri: {emission.efDataVersion}</div>
+                    <div style={{ marginTop: 2 }}>Hesaplanma: {new Date(emission.calculatedAt).toLocaleString("tr-TR")}</div>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
 
@@ -233,6 +278,15 @@ export default function PeriodDetailPage() {
           <div style={s.row}><span style={s.rowL}>CFE Eşleşme Oranı</span><span style={s.rowV}>{period.matchingRatePct}%</span></div>
           {period.carbonPriceEur && <div style={s.row}><span style={s.rowL}>Karbon Fiyatı</span><span style={s.rowV}>€{period.carbonPriceEur}/tCO₂</span></div>}
         </div>
+
+        {emission && (
+          <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: 14, fontSize: 12, color: "#64748B" }}>
+            <div style={{ fontWeight: 600, color: "#6B7280", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: ".05em", fontSize: 11 }}>Hesaplama Kaydı</div>
+            <div>Motor Versiyonu: <span style={{ fontFamily: "monospace" }}>{emission.calcEngineVersion}</span></div>
+            <div style={{ marginTop: 4 }}>EF Veri Versiyonu: <span style={{ fontFamily: "monospace" }}>{emission.efDataVersion}</span></div>
+            <div style={{ marginTop: 4 }}>Hesaplanma Tarihi: {new Date(emission.calculatedAt).toLocaleString("tr-TR")}</div>
+          </div>
+        )}
       </div>
     </>
   );

@@ -8,6 +8,11 @@ const ROLE_LABELS: Record<string, string> = {
   owner: "Sahip", admin: "Yönetici", analyst: "Analist", viewer: "İzleyici",
 };
 
+const SECTOR_LABELS: Record<string, string> = {
+  steel: "Çelik", aluminium: "Alüminyum", cement: "Çimento",
+  fertilizer: "Gübre", electricity: "Elektrik",
+};
+
 const s: Record<string, React.CSSProperties> = {
   nav:    { background: "#0066CC", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   brand:  { fontWeight: 700, fontSize: 18 },
@@ -121,7 +126,7 @@ export default function DashboardPage() {
                 <Link to={`/installations/${inst.id}`} style={s.card}>
                   <div style={s.cardTitle}>{inst.facilityName}</div>
                   <div style={s.cardSub}>{inst.operator} · {inst.facilityCountry}</div>
-                  <span style={{ ...s.badge, marginRight: 6 }}>{(inst as any).sector ?? "steel"}</span>
+                  <span style={{ ...s.badge, marginRight: 6 }}>{SECTOR_LABELS[(inst as any).sector] ?? (inst as any).sector ?? "Çelik"}</span>
                   <span style={s.badge}>{inst._count?.periods ?? 0} dönem</span>
                 </Link>
                 {["owner", "admin"].includes(myRole ?? "") && (

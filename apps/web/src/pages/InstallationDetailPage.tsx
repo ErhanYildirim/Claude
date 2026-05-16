@@ -310,6 +310,11 @@ export default function InstallationDetailPage() {
                     onChange={e => set("cnCode", e.target.value)} placeholder="7208" required />
                 </div>
               </div>
+
+              <label style={s.label}>Rapor Yılı *</label>
+              <input style={s.input} type="number" min={2024} max={2030}
+                value={form.reportYear || ""}
+                onChange={e => set("reportYear", parseInt(e.target.value))} required />
               <label style={s.label}>Üretim Hacmi (tonne) *</label>
               <input style={s.input} type="number" min="0" step="0.001" value={form.prodVolumeTonne || ""}
                 onChange={e => set("prodVolumeTonne", parseFloat(e.target.value))} required />
@@ -494,6 +499,18 @@ export default function InstallationDetailPage() {
                 value={(form.carbonPriceEur as number | undefined) || ""}
                 onChange={e => set("carbonPriceEur", e.target.value ? parseFloat(e.target.value) : undefined)}
                 placeholder="Opsiyonel" />
+
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14, padding: "10px 12px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 7 }}>
+                <input type="checkbox" checked={form.gecConnected ?? false}
+                  onChange={e => set("gecConnected", e.target.checked)}
+                  style={{ marginTop: 2, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#065F46" }}>Voltfox GEC Bağlantısı Aktif</div>
+                  <div style={{ fontSize: 12, color: "#047857", marginTop: 2 }}>
+                    GEC üzerinden saatlik üretim verisi otomatik çekilir. CFE eşleştirme skoru güncellenir.
+                  </div>
+                </div>
+              </label>
 
               <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14, padding: "10px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 7 }}>
                 <input type="checkbox" checked={form.scope2Exempt ?? false}

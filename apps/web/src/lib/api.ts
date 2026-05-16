@@ -104,6 +104,19 @@ export const api = {
     deliveries: (id: string) => request<DeliveryList>("GET", `/webhooks/${id}/deliveries`),
   },
 
+  auditLogs: {
+    list: (params?: { resource?: string; resourceId?: string; action?: string; limit?: number; cursor?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.resource)   q.set("resource",   params.resource);
+      if (params?.resourceId) q.set("resourceId", params.resourceId);
+      if (params?.action)     q.set("action",     params.action);
+      if (params?.limit)      q.set("limit",      String(params.limit));
+      if (params?.cursor)     q.set("cursor",     params.cursor);
+      const qs = q.toString();
+      return request<AuditLogList>("GET", `/audit-logs${qs ? "?" + qs : ""}`);
+    },
+  },
+
   onboarding: {
     me:     () => request<OnboardingMe>("GET", "/onboarding/me"),
     createTenant: (companyName: string) =>
@@ -194,6 +207,12 @@ export interface ShareViewResult {
       installation: { facilityName: string; operator: string };
     };
   };
+}
+
+export interface AuditLogList {
+  logs: Array<{ id: string; action: string; resource: string; resourceId: string; userId: string | null; payload: unknown; createdAt: string }>;
+  nextCursor: string | null;
+  count: number;
 }
 
 export interface CsvImportResult {

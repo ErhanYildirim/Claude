@@ -1,0 +1,9 @@
+{
+  "name": "voltfox-engineering",
+  "description": "Voltfox teknik sahibi — emisyon hesaplama motoru, API tasarımı, React Native, CBAM teknik mimarisi",
+  "version": "1.0.0",
+  "author": {
+    "name": "Voltfox",
+    "email": "erhansmail@gmail.com"
+  }
+}

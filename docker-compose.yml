@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL (geliştirme ortamı) ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER:     voltfox
+      POSTGRES_PASSWORD: voltfox_dev
+      POSTGRES_DB:       voltfox
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voltfox"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Fastify API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL:              postgresql://voltfox:voltfox_dev@postgres:5432/voltfox?schema=public&connection_limit=10
+      DIRECT_URL:                postgresql://voltfox:voltfox_dev@postgres:5432/voltfox
+      SUPABASE_URL:              ${SUPABASE_URL}
+      SUPABASE_ANON_KEY:         ${SUPABASE_ANON_KEY}
+      SUPABASE_JWT_SECRET:       ${SUPABASE_JWT_SECRET}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ALLOWED_ORIGINS:           http://localhost:5173,http://localhost:80
+      NODE_ENV:                  production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── React Web Uygulaması ────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_SUPABASE_URL:      ${SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

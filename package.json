@@ -1,0 +1,26 @@
+{
+  "name": "voltfox-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/api",
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "npm run generate --workspace=packages/db",
+    "db:push": "npm run db:push --workspace=packages/db",
+    "db:migrate": "npm run migrate --workspace=packages/db",
+    "db:studio": "npm run studio --workspace=packages/db",
+    "test": "tsx src/cbam/see.test.ts && tsx src/api/middleware/tenant.test.ts && tsx src/api/share-links.test.ts && tsx src/cbam/cfe-matching.test.ts && tsx src/cbam/ef-data.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

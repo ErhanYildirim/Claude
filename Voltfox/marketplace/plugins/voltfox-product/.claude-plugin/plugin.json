@@ -1,0 +1,9 @@
+{
+  "name": "voltfox-product",
+  "description": "Voltfox ürün yöneticisi — PRD, roadmap, feature önceliklendirme, sprint planlama",
+  "version": "1.0.0",
+  "author": {
+    "name": "Voltfox",
+    "email": "erhansmail@gmail.com"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "voltfox-tester",
+  "description": "Voltfox QA test uzmanı — kod, hesaplama motoru, döküman ve çıktıları test eder; bulduğu hataları öncelikli bug raporu olarak voltfox-engineering'e iletir",
+  "version": "1.0.0",
+  "author": {
+    "name": "Voltfox",
+    "email": "erhansmail@gmail.com"
+  }
+}

@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Tenant ────────────────────────────────────────────────────────────────────
+model Tenant {
+  id            String               @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String               @unique
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+
+  installations Installation[]
+  shareLinks    ShareLink[]
+  auditLogs     AuditLog[]
+  members       TenantMember[]
+  apiKeys       ApiKey[]
+  webhooks      WebhookSubscription[]
+
+  @@map("tenants")
+}
+
+// ── TenantMember (RBAC) ───────────────────────────────────────────────────────
+model TenantMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+
+  role      String   @default("viewer")         // owner | admin | analyst | viewer
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt    @map("updated_at")
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_members")
+}
+
+// ── Installation (Tesis) ──────────────────────────────────────────────────────
+model Installation {
+  id              String  @id @default(uuid()) @db.Uuid
+  tenantId        String  @map("tenant_id") @db.Uuid
+  tenant          Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  facilityName    String  @map("facility_name")
+  operator        String
+  facilityCountry String  @map("facility_country")
+  facilityRef     String? @map("facility_ref")
+  sector          String  @default("steel") @map("sector")  // steel|aluminium|cement|fertilizer|electricity
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt    @map("updated_at")
+
+  periods ReportingPeriod[]
+
+  @@index([tenantId])
+  @@map("installations")
+}
+
+// ── ReportingPeriod (Üretim Dönemi) ──────────────────────────────────────────
+model ReportingPeriod {
+  id             String       @id @default(uuid()) @db.Uuid
+  installationId String       @map("installation_id") @db.Uuid
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  periodName   String   @map("period_name")
+  startDate    DateTime @map("start_date") @db.Date
+  endDate      DateTime @map("end_date")   @db.Date
+  reportYear   Int      @map("report_year")
+
+  importCountry   String @map("import_country")
+  cnCode          String @map("cn_code")
+  prodVolumeTonne Float  @map("prod_volume_tonne")
+  scope2Exempt    Boolean @default(false) @map("scope2_exempt")
+
+  scope1DirectTco2 Float   @map("scope1_direct_tco2")
+  scope1Quality    String  @map("scope1_quality")
+  scope1AuditNote  String? @map("scope1_audit_note")
+
+  electricityKwh    Float   @map("electricity_kwh")
+  electricitySource String  @map("electricity_source")
+  baselineEf        Float   @map("baseline_ef")
+  renewableEf       Float   @map("renewable_ef")
+  matchingRatePct   Float   @map("matching_rate_pct")
+  gecConnected      Boolean @default(false) @map("gec_connected")
+
+  carbonPriceEur Float? @map("carbon_price_eur")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt    @map("updated_at")
+
+  result    EmbeddedEmission?
+  cfeResult CFEMatchingResult?
+
+  @@index([installationId])
+  @@map("reporting_periods")
+}
+
+// ── EmbeddedEmission (SEE Sonucu) ─────────────────────────────────────────────
+model EmbeddedEmission {
+  id       String          @id @default(uuid()) @db.Uuid
+  periodId String          @unique @map("period_id") @db.Uuid
+  period   ReportingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  scope2BaselineTco2  Float  @map("scope2_baseline_tco2")
+  scope2VoltfoxTco2   Float  @map("scope2_voltfox_tco2")
+  reductionTco2       Float  @map("reduction_tco2")
+  reductionPct        Float  @map("reduction_pct")
+
+  seeBaseline Float  @map("see_baseline")
+  seeVoltfox  Float  @map("see_voltfox")
+
+  defaultSee          Float? @map("default_see")
+  savingsVsDefaultEur Float? @map("savings_vs_default_eur")
+
+  calcEngineVersion String @map("calc_engine_version")
+  calcMethodology   String @default("EU_2023_1773_AnnexIV_MethodA") @map("calc_methodology")
+  efDataVersion     String @map("ef_data_version")
+
+  calculatedAt DateTime @default(now()) @map("calculated_at")
+
+  @@map("embedded_emissions")
+}
+
+// ── CFEMatchingResult (24/7 CFE Eşleştirme Sonucu) ───────────────────────────
+model CFEMatchingResult {
+  id       String          @id @default(uuid()) @db.Uuid
+  periodId String          @unique @map("period_id") @db.Uuid
+  period   ReportingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  totalConsumptionKwh Float @map("total_consumption_kwh")
+  totalProductionKwh  Float @map("total_production_kwh")
+  totalMatchedKwh     Float @map("total_matched_kwh")
+  cfeScore            Float @map("cfe_score")
+  ppaSurplusKwh       Float @map("ppa_surplus_kwh")
+  ppaDeficitKwh       Float @map("ppa_deficit_kwh")
+  matchedHours        Int   @map("matched_hours")
+  partialHours        Int   @map("partial_hours")
+  unmatchedHours      Int   @map("unmatched_hours")
+
+  monthlyBreakdown  Json   @map("monthly_breakdown")
+  gecDataVersion    String @map("gec_data_version")
+  calculatedAt      DateTime @default(now()) @map("calculated_at")
+
+  @@map("cfe_matching_results")
+}
+
+// ── ShareLink ─────────────────────────────────────────────────────────────────
+model ShareLink {
+  id             String    @id @default(uuid()) @db.Uuid
+  jti            String    @unique
+  tenantId       String    @map("tenant_id") @db.Uuid
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  installationId String    @map("installation_id") @db.Uuid
+  periodId       String    @map("period_id") @db.Uuid
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([jti])
+  @@map("share_links")
+}
+
+// ── ApiKey (Data Service B2B) ─────────────────────────────────────────────────
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name       String
+  keyHash    String    @unique @map("key_hash")
+  prefix     String
+  scopes     String[]  @default([])
+  expiresAt  DateTime? @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@map("api_keys")
+}
+
+// ── WebhookSubscription ───────────────────────────────────────────────────────
+model WebhookSubscription {
+  id         String    @id @default(uuid()) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  url        String
+  events     String[]
+  secretHash String    @map("secret_hash")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt    @map("updated_at")
+
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId])
+  @@map("webhook_subscriptions")
+}
+
+// ── WebhookDelivery ───────────────────────────────────────────────────────────
+model WebhookDelivery {
+  id             String              @id @default(uuid()) @db.Uuid
+  subscriptionId String              @map("subscription_id") @db.Uuid
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  event          String
+  payload        Json
+  status         String    @default("pending")
+  attempts       Int       @default(0)
+  responseStatus Int?      @map("response_status")
+  nextAttemptAt  DateTime? @map("next_attempt_at")
+  deliveredAt    DateTime? @map("delivered_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([subscriptionId])
+  @@index([status, nextAttemptAt])
+  @@map("webhook_deliveries")
+}
+
+// ── AuditLog ──────────────────────────────────────────────────────────────────
+model AuditLog {
+  id         String  @id @default(uuid()) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String? @map("user_id") @db.Uuid
+
+  action     String
+  resource   String
+  resourceId String? @map("resource_id")
+  payload    Json?
+  ipAddress  String? @map("ip_address")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

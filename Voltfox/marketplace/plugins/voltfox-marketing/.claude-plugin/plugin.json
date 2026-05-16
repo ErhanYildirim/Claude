@@ -1,0 +1,9 @@
+{
+  "name": "voltfox-marketing",
+  "description": "Voltfox pazarlama yöneticisi — LinkedIn carousel, e-posta kampanyaları, marka konumlandırma",
+  "version": "1.0.0",
+  "author": {
+    "name": "Voltfox",
+    "email": "erhansmail@gmail.com"
+  }
+}

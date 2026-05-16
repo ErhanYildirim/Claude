@@ -1,0 +1,1094 @@
+openapi: "3.1.0"
+info:
+  title: Voltfox CBAM API
+  version: "1.0.0"
+  description: |
+    Voltfox CBAM Actual Emissions hesaplama ve raporlama API'si.
+    Tüm endpoint'ler tenant-izolasyonlu ve audit-trail üretir.
+    Metodoloji: EU 2023/1773 Ek-IV Method A.
+
+servers:
+  - url: https://api.voltfox.com/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Local dev
+
+security:
+  - bearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+tags:
+  - name: installations
+    description: Tesis yönetimi
+  - name: periods
+    description: Raporlama dönemi ve veri girişi
+  - name: calculations
+    description: SEE ve CFE hesaplama
+  - name: reports
+    description: PDF teknik dosya export
+  - name: share-links
+    description: Read-only ithalatçı paylaşım linkleri
+  - name: cbam-defaults
+    description: CBAM default değer veritabanı ve grid EF
+  - name: api-keys
+    description: Programatik erişim için API anahtarları
+  - name: webhooks
+    description: Olay tabanlı webhook abonelikleri
+  - name: onboarding
+    description: Yeni tenant ve kullanıcı onboarding
+
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Tesisler ───────────────────────────────────────────────────────────────
+  /installations:
+    get:
+      tags: [installations]
+      summary: Tesis listesi
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        "200":
+          description: Tesis listesi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/InstallationSummary" }
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+    post:
+      tags: [installations]
+      summary: Yeni tesis oluştur
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstallationCreate" }
+      responses:
+        "201":
+          description: Oluşturulan tesis
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Installation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /installations/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [installations]
+      summary: Tesis detayı
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Installation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+    put:
+      tags: [installations]
+      summary: Tesis güncelle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstallationCreate" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Installation" }
+
+    delete:
+      tags: [installations]
+      summary: Tesis sil
+      responses:
+        "204": { description: Silindi }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Raporlama Dönemleri ────────────────────────────────────────────────────
+  /installations/{installationId}/periods:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [periods]
+      summary: Dönem listesi
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/PeriodSummary" }
+
+    post:
+      tags: [periods]
+      summary: Yeni dönem oluştur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PeriodCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Period" }
+
+  /installations/{installationId}/periods/{periodId}:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: periodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [periods]
+      summary: Dönem detayı
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Period" }
+
+    put:
+      tags: [periods]
+      summary: Dönem verisi güncelle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PeriodCreate" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Period" }
+
+  # ── Hesaplama ──────────────────────────────────────────────────────────────
+  /installations/{installationId}/periods/{periodId}/calculate:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: periodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    post:
+      tags: [calculations]
+      summary: SEE hesapla
+      description: |
+        Dönem verisiyle SEE hesaplar. İki senaryo döndürür:
+        - `baseline`: Voltfox GEC olmadan (ülke ortalaması EF)
+        - `voltfox`: Saatlik eşleştirme oranı uygulanmış
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalculationRequest" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SEEResult" }
+        "422":
+          description: Hesaplama hatası (ör. sıfır üretim hacmi)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /installations/{installationId}/periods/{periodId}/compare:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: periodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [calculations]
+      summary: Default vs. actual karşılaştırma
+      parameters:
+        - name: carbon_price_eur
+          in: query
+          required: true
+          schema: { type: number, minimum: 0.01 }
+          description: EU ETS karbon fiyatı (€/tCO₂)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComparisonResult" }
+
+  # ── Raporlar ───────────────────────────────────────────────────────────────
+  /installations/{installationId}/periods/{periodId}/report:
+    parameters:
+      - $ref: "#/components/parameters/TenantId"
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: periodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    get:
+      tags: [reports]
+      summary: CBAM Ek-IV uyumlu PDF teknik dosya
+      description: |
+        EU 2023/1773 Ek-IV formatında PDF üretir.
+        Audit trail metadata PDF'e gömülü olarak gelir.
+        İthalatçıya e-posta eki olarak gönderilebilir.
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [pdf, json]
+            default: pdf
+      responses:
+        "200":
+          description: PDF veya JSON teknik dosya
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            application/json:
+              schema: { $ref: "#/components/schemas/TechnicalFile" }
+        "409":
+          description: Hesap henüz yapılmamış
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Paylaşım Linkleri ──────────────────────────────────────────────────────
+  /share-links:
+    post:
+      tags: [share-links]
+      summary: Read-only paylaşım linki oluştur
+      description: |
+        AB ithalatçısına göndermek için 30 günlük read-only JWT token üretir.
+        Token revoke edilene kadar geçerlidir.
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShareLinkCreate" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShareLink" }
+
+  /share-links/{token}:
+    get:
+      tags: [share-links]
+      summary: Paylaşım linki içeriği (auth gerektirmez)
+      description: İthalatçının token ile eriştiği read-only endpoint.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410":
+          description: Token süresi dolmuş veya revoke edilmiş
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    delete:
+      tags: [share-links]
+      summary: Paylaşım linkini revoke et
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Revoke edildi }
+
+  # ── 24/7 CFE Matching ─────────────────────────────────────────────────────
+  /installations/{installationId}/periods/{periodId}/cfe:
+    parameters:
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: periodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    post:
+      tags: [calculations]
+      summary: CFE saatlik eşleştirme hesapla (JSON slot verisi)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CFERequest" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CFEResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+    get:
+      tags: [calculations]
+      summary: Kayıtlı CFE sonucunu getir
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CFEResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /installations/{installationId}/periods/{periodId}/cfe/import:
+    parameters:
+      - name: installationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: periodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    post:
+      tags: [calculations]
+      summary: CFE CSV dosyası yükle ve hesapla
+      description: |
+        multipart/form-data ile CSV yükler.
+        Beklenen başlıklar: `timestamp,consumption_kwh,production_kwh`
+        Maksimum 10 MB, ~8760 satır/yıl.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV dosyası
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CFEImportResult" }
+        "400":
+          description: Geçersiz format veya başlık
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: Geçerli satır yok veya sıralama hatası
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── API Keys ───────────────────────────────────────────────────────────────
+  /api-keys:
+    get:
+      tags: [api-keys]
+      summary: Tenant API anahtarlarını listele
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiKey" }
+
+    post:
+      tags: [api-keys]
+      summary: Yeni API anahtarı oluştur (admin+)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApiKeyCreate" }
+      responses:
+        "201":
+          description: Anahtar ve ham değer (bir kez gösterilir)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewApiKey" }
+
+  /api-keys/{id}:
+    delete:
+      tags: [api-keys]
+      summary: API anahtarı revoke et (admin+)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Revoke edildi }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ── Webhook Subscriptions ─────────────────────────────────────────────────
+  /webhooks:
+    get:
+      tags: [webhooks]
+      summary: Webhook aboneliklerini listele
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items: { $ref: "#/components/schemas/Webhook" }
+
+    post:
+      tags: [webhooks]
+      summary: Yeni webhook aboneliği oluştur (admin+)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookCreate" }
+      responses:
+        "201":
+          description: Abonelik ve imzalama secret (bir kez gösterilir)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewWebhook" }
+
+  /webhooks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+
+    patch:
+      tags: [webhooks]
+      summary: Webhook güncelle (aktif/pasif, URL, events)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:    { type: string, format: uri }
+                events: { type: array, items: { type: string } }
+                active: { type: boolean }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Webhook" }
+
+    delete:
+      tags: [webhooks]
+      summary: Webhook sil (admin+)
+      responses:
+        "204": { description: Silindi }
+
+  /webhooks/{id}/deliveries:
+    get:
+      tags: [webhooks]
+      summary: Webhook teslimat geçmişi
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/WebhookDelivery" }
+
+  # ── Onboarding ─────────────────────────────────────────────────────────────
+  /onboarding/tenant:
+    post:
+      tags: [onboarding]
+      summary: Yeni tenant oluştur (ilk giriş)
+      description: |
+        Supabase Auth callback'inden sonra çağrılır. JWT gerekli ama tenant_id henüz yok.
+        Tenant oluşturur, kullanıcıyı owner yapar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [companyName]
+              properties:
+                companyName: { type: string, minLength: 2, maxLength: 100 }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenantId: { type: string, format: uuid }
+                  slug:     { type: string }
+                  role:     { type: string, example: owner }
+        "409":
+          description: Bu kullanıcı zaten bir tenant'a bağlı
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /onboarding/me:
+    get:
+      tags: [onboarding]
+      summary: Onboarding durumunu sorgula
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  onboarded: { type: boolean }
+                  userId:    { type: string, format: uuid }
+                  tenantId:  { type: string, format: uuid, nullable: true }
+                  role:      { type: string, nullable: true }
+                  tenant:
+                    nullable: true
+                    type: object
+                    properties:
+                      id:   { type: string, format: uuid }
+                      name: { type: string }
+                      slug: { type: string }
+
+  # ── Grid Emission Factors ─────────────────────────────────────────────────
+  /defaults/ef:
+    get:
+      tags: [cbam-defaults]
+      summary: Desteklenen tüm ülkelerin grid EF değerleri
+      security: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dataVersion: { type: string, example: "2024-IEA" }
+                  countries:
+                    type: array
+                    items: { $ref: "#/components/schemas/GridEFSummary" }
+
+  /defaults/ef/{country}:
+    get:
+      tags: [cbam-defaults]
+      summary: Tek ülke grid EF (ISO2 veya tam isim)
+      security: []
+      parameters:
+        - name: country
+          in: path
+          required: true
+          schema: { type: string }
+          examples:
+            iso2:    { value: "TR", summary: "ISO 3166-1 alpha-2" }
+            fullName: { value: "Turkey", summary: "Tam ülke adı" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GridEFEntry" }
+        "404":
+          description: Desteklenmeyen ülke
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── CBAM Defaults ─────────────────────────────────────────────────────────
+  /cbam-defaults:
+    get:
+      tags: [cbam-defaults]
+      summary: CBAM default değer sorgula
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema: { type: string }
+          example: Türkiye
+        - name: cn_code
+          in: query
+          required: true
+          schema: { type: string }
+          example: "72071190"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CbamDefault" }
+        "404":
+          description: Bu ülke/CN kodu kombinasyonu veritabanında yok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    TenantId:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: Müşteri tenant ID'si — zorunlu, cross-tenant erişimi engeller
+
+  # ── Schemas ─────────────────────────────────────────────────────────────────
+  schemas:
+
+    InstallationCreate:
+      type: object
+      required: [name, country, sector, cnCode]
+      properties:
+        name:    { type: string, example: "Manisa Çelik Tesisi" }
+        country: { type: string, example: "Türkiye" }
+        sector:
+          type: string
+          enum: [steel, aluminium, cement, fertilizer, electricity]
+        cnCode:  { type: string, example: "72071190" }
+
+    InstallationSummary:
+      allOf:
+        - $ref: "#/components/schemas/InstallationCreate"
+        - type: object
+          properties:
+            id:        { type: string, format: uuid }
+            tenantId:  { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            periodCount: { type: integer }
+
+    Installation:
+      allOf:
+        - $ref: "#/components/schemas/InstallationSummary"
+        - type: object
+          properties:
+            periods:
+              type: array
+              items: { $ref: "#/components/schemas/PeriodSummary" }
+
+    PeriodCreate:
+      type: object
+      required: [label, startDate, endDate, productionVolumeTonnes, scope1DirectTco2, purchasedElectricity]
+      properties:
+        label:                  { type: string, example: "Q1 2026" }
+        startDate:              { type: string, format: date }
+        endDate:                { type: string, format: date }
+        productionVolumeTonnes: { type: number, minimum: 0.001 }
+        scope1DirectTco2:       { type: number, minimum: 0, description: "Müşteri ERP/rapor verisi — tCO₂" }
+        scope1DataQuality:
+          type: string
+          enum: [measured, estimated, default]
+          default: measured
+        scope1AuditNote:        { type: string, example: "ERP sistemi Q1 2026 raporu" }
+        purchasedElectricity:   { $ref: "#/components/schemas/ElectricityInput" }
+
+    PeriodSummary:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        label:         { type: string }
+        startDate:     { type: string, format: date }
+        endDate:       { type: string, format: date }
+        status:
+          type: string
+          enum: [draft, calculated, exported]
+        lastCalculatedAt: { type: string, format: date-time, nullable: true }
+
+    Period:
+      allOf:
+        - $ref: "#/components/schemas/PeriodCreate"
+        - $ref: "#/components/schemas/PeriodSummary"
+
+    ElectricityInput:
+      type: object
+      required: [consumedKwh, matchingRatePct, renewableEf]
+      properties:
+        consumedKwh:      { type: number, minimum: 0 }
+        matchingRatePct:  { type: number, minimum: 0, maximum: 100, description: "Voltfox 24/7 CFE eşleştirme oranı %" }
+        renewableEf:      { type: number, minimum: 0, description: "Yenilenebilir kaynak artık EF — tCO₂/MWh" }
+        gecDataVersion:   { type: string, example: "GEC-2026Q1-TR" }
+        baselineEf:
+          type: number
+          minimum: 0
+          description: "Grid ülke ortalaması EF (tCO₂/MWh). Verilmezse tesisin ülkesinden otomatik çekilir."
+          nullable: true
+        baselineEfSource:
+          type: string
+          enum: [voltfox_gec_hourly, country_annual_avg, user_provided, cbam_annex4_default]
+        baselineEfVersion: { type: string }
+        dataQuality:
+          type: string
+          enum: [measured, estimated, default]
+
+    CFERequest:
+      type: object
+      required: [slots]
+      properties:
+        slots:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [timestamp, consumptionKwh, productionKwh]
+            properties:
+              timestamp:      { type: string, format: date-time }
+              consumptionKwh: { type: number, minimum: 0 }
+              productionKwh:  { type: number, minimum: 0 }
+        gecDataVersion: { type: string }
+
+    CFEResult:
+      type: object
+      properties:
+        id:                  { type: string, format: uuid }
+        periodId:            { type: string, format: uuid }
+        cfeScore:            { type: number, minimum: 0, maximum: 100, description: "% CFE eşleşme oranı" }
+        totalConsumptionKwh: { type: number }
+        totalProductionKwh:  { type: number }
+        totalMatchedKwh:     { type: number }
+        ppaSurplusKwh:       { type: number }
+        ppaDeficitKwh:       { type: number }
+        matchedHours:        { type: integer }
+        partialHours:        { type: integer }
+        unmatchedHours:      { type: integer }
+        monthlyBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              month:          { type: string, example: "2025-01" }
+              consumptionKwh: { type: number }
+              productionKwh:  { type: number }
+              matchedKwh:     { type: number }
+              cfeRate:        { type: number }
+        gecDataVersion: { type: string }
+        calculatedAt:   { type: string, format: date-time }
+
+    CFEImportResult:
+      type: object
+      properties:
+        rowCount:   { type: integer }
+        errorCount: { type: integer }
+        errors:     { type: array, items: { type: string }, description: "İlk 20 hata" }
+        result:     { $ref: "#/components/schemas/CFEResult" }
+
+    ApiKey:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        name:        { type: string }
+        prefix:      { type: string, example: "vf_abc123def" }
+        scopes:      { type: array, items: { type: string } }
+        expiresAt:   { type: string, format: date-time, nullable: true }
+        lastUsedAt:  { type: string, format: date-time, nullable: true }
+        createdAt:   { type: string, format: date-time }
+
+    ApiKeyCreate:
+      type: object
+      required: [name, scopes]
+      properties:
+        name:      { type: string, maxLength: 100 }
+        scopes:    { type: array, items: { type: string }, example: ["read:periods", "read:cfe"] }
+        expiresAt: { type: string, format: date-time, nullable: true }
+
+    NewApiKey:
+      allOf:
+        - $ref: "#/components/schemas/ApiKey"
+        - type: object
+          properties:
+            key: { type: string, description: "Ham API anahtarı — yalnızca bir kez gösterilir", example: "vf_abc...xyz" }
+
+    Webhook:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        url:       { type: string, format: uri }
+        events:    { type: array, items: { type: string } }
+        active:    { type: boolean }
+        createdAt: { type: string, format: date-time }
+        _count:
+          type: object
+          properties:
+            deliveries: { type: integer }
+
+    WebhookCreate:
+      type: object
+      required: [url, events]
+      properties:
+        url:    { type: string, format: uri }
+        events:
+          type: array
+          items:
+            type: string
+            enum: [period.calculated, cfe.calculated, report.exported]
+
+    NewWebhook:
+      allOf:
+        - $ref: "#/components/schemas/Webhook"
+        - type: object
+          properties:
+            secret: { type: string, description: "HMAC-SHA256 imzalama secret — yalnızca bir kez gösterilir" }
+
+    WebhookDelivery:
+      type: object
+      properties:
+        id:             { type: string, format: uuid }
+        event:          { type: string }
+        status:         { type: string, enum: [pending, retrying, delivered, failed] }
+        attempts:       { type: integer }
+        responseStatus: { type: integer, nullable: true }
+        deliveredAt:    { type: string, format: date-time, nullable: true }
+        createdAt:      { type: string, format: date-time }
+
+    GridEFSummary:
+      type: object
+      properties:
+        iso2: { type: string, example: "TR" }
+        name: { type: string, example: "Turkey" }
+        ef:   { type: number, example: 0.474, description: "tCO₂/MWh" }
+
+    GridEFEntry:
+      allOf:
+        - $ref: "#/components/schemas/GridEFSummary"
+        - type: object
+          properties:
+            source:      { type: string, example: "TEİAŞ 2023" }
+            year:        { type: integer, example: 2023 }
+            dataVersion: { type: string, example: "2024-IEA" }
+            notes:       { type: string, nullable: true }
+
+    CalculationRequest:
+      type: object
+      required: [matchingRatePct]
+      properties:
+        matchingRatePct:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Hesap anında uygulanacak eşleştirme oranı (period.purchasedElectricity.matchingRatePct override)
+
+    SEEResult:
+      type: object
+      properties:
+        calculationId:     { type: string, format: uuid }
+        calcEngineVersion: { type: string, example: "1.0.0" }
+        calculatedAt:      { type: string, format: date-time }
+        scope1DirectTco2:  { type: number }
+        scope1DataQuality: { type: string }
+        scope2:
+          type: object
+          properties:
+            consumedKwh:      { type: number }
+            baselineTco2:     { type: number }
+            baselineEf:       { type: number }
+            effectiveTco2:    { type: number }
+            effectiveEf:      { type: number }
+            matchingRatePct:  { type: number }
+            reductionTco2:    { type: number }
+            reductionPct:     { type: number }
+            scope2Exempt:     { type: boolean, description: "true → bu CN kodu 2026'da Scope 2'den muaf" }
+        seeBaseline:  { type: number, description: "tCO₂e/tonne — GEC olmadan" }
+        seeVoltfox:   { type: number, description: "tCO₂e/tonne — GEC eşleştirme ile" }
+        unit:         { type: string, example: "tCO2e/tonne" }
+        warnings:     { type: array, items: { type: string } }
+        auditTrail:   { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+
+    ComparisonResult:
+      type: object
+      properties:
+        actualSee:          { type: number }
+        defaultSee:         { type: number }
+        differenceAbs:      { type: number }
+        differencePercent:  { type: number }
+        productionVolumeTonnes: { type: number }
+        carbonPriceEur:     { type: number }
+        totalActualTco2:    { type: number }
+        totalDefaultTco2:   { type: number }
+        annualSavingsEur:   { type: number }
+        recommendation:     { type: string }
+        defaultDataVersion: { type: string }
+        comparedAt:         { type: string, format: date-time }
+
+    ShareLinkCreate:
+      type: object
+      required: [installationId, periodId]
+      properties:
+        installationId: { type: string, format: uuid }
+        periodId:       { type: string, format: uuid }
+        ttlDays:        { type: integer, default: 30, minimum: 1, maximum: 90 }
+        note:           { type: string, description: "İthalatçı notu" }
+
+    ShareLink:
+      type: object
+      properties:
+        token:     { type: string }
+        url:       { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    SharedReport:
+      type: object
+      description: İthalatçının read-only token ile gördüğü rapor
+      properties:
+        installation: { $ref: "#/components/schemas/InstallationSummary" }
+        period:       { $ref: "#/components/schemas/PeriodSummary" }
+        seeResult:    { $ref: "#/components/schemas/SEEResult" }
+        exportedAt:   { type: string, format: date-time }
+
+    TechnicalFile:
+      type: object
+      description: CBAM Ek-IV uyumlu teknik dosya (JSON temsili)
+      properties:
+        installationName: { type: string }
+        country:          { type: string }
+        cnCode:           { type: string }
+        reportingPeriod:  { type: string }
+        seeValue:         { type: number }
+        unit:             { type: string }
+        methodology:      { type: string, example: "EU 2023/1773 Annex IV Method A" }
+        calcEngineVersion:{ type: string }
+        generatedAt:      { type: string, format: date-time }
+        auditTrail:       { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+
+    CbamDefault:
+      type: object
+      properties:
+        cnCode:         { type: string }
+        country:        { type: string }
+        description:    { type: string }
+        sector:         { type: string }
+        directDefault:  { type: number, nullable: true }
+        indirectDefault:{ type: number, nullable: true }
+        totalDefault:   { type: number, nullable: true }
+        y2026:          { type: number, nullable: true }
+        y2027:          { type: number, nullable: true }
+        y2028:          { type: number, nullable: true }
+        scope2Exempt:   { type: boolean }
+        dataVersion:    { type: string, example: "20260204" }
+
+    AuditEntry:
+      type: object
+      properties:
+        field:             { type: string }
+        source:            { type: string }
+        value:             { type: number }
+        unit:              { type: string }
+        timestamp:         { type: string, format: date-time }
+        calcEngineVersion: { type: string }
+        note:              { type: string, nullable: true }
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:       { type: integer }
+        per_page:   { type: integer }
+        total:      { type: integer }
+        total_pages:{ type: integer }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string, example: "PRODUCTION_VOLUME_ZERO" }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+
+  # ── Reusable Responses ──────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: JWT eksik veya geçersiz
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Bu tenant'a erişim yok
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Kaynak bulunamadı
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadRequest:
+      description: Geçersiz istek gövdesi
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

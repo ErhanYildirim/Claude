@@ -1,0 +1,46 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "voltfox-marketplace",
+  "description": "Voltfox team skills — Engineering, Product, Sales, Marketing ve Co-founder persona'lar",
+  "owner": {
+    "name": "Voltfox",
+    "email": "erhansmail@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "voltfox-engineering",
+      "description": "Voltfox teknik sahibi — emisyon hesaplama motoru, API tasarımı, React Native, veri pipeline",
+      "author": { "name": "Voltfox" },
+      "source": "./plugins/voltfox-engineering",
+      "category": "development"
+    },
+    {
+      "name": "voltfox-product",
+      "description": "Voltfox ürün yöneticisi — PRD, roadmap, feature önceliklendirme, sprint planlama",
+      "author": { "name": "Voltfox" },
+      "source": "./plugins/voltfox-product",
+      "category": "productivity"
+    },
+    {
+      "name": "voltfox-sales",
+      "description": "Voltfox satış yöneticisi — CBAM B2B outreach, pipeline, itiraz yanıtları",
+      "author": { "name": "Voltfox" },
+      "source": "./plugins/voltfox-sales",
+      "category": "productivity"
+    },
+    {
+      "name": "voltfox-marketing",
+      "description": "Voltfox pazarlama yöneticisi — LinkedIn carousel, e-posta kampanyaları, marka konumlandırma",
+      "author": { "name": "Voltfox" },
+      "source": "./plugins/voltfox-marketing",
+      "category": "productivity"
+    },
+    {
+      "name": "voltfox-tester",
+      "description": "Voltfox QA test uzmanı — kod, hesaplama motoru, döküman ve çıktıları test eder; bulduğu hataları öncelikli bug raporu olarak voltfox-engineering'e iletir",
+      "author": { "name": "Voltfox" },
+      "source": "./plugins/voltfox-tester",
+      "category": "development"
+    }
+  ]
+}

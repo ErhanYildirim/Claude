@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>CBAM Quick Calculator | Voltfox</title>
+<script src="../Cbam_hesaplama/cbam-defaults.js"></script>
+<style>
+:root{
+  --bg:#0b1f1a;--panel:#13302a;--panel-2:#0f2823;
+  --accent:#34d399;--accent-2:#10b981;
+  --danger:#f87171;--warn:#fbbf24;--info:#60a5fa;
+  --text:#e6f4ef;--muted:#94b3ac;
+  --border:#1f3d36;--shadow:0 8px 24px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.5;font-size:14px}
+.wrap{max-width:960px;margin:0 auto;padding:32px 20px 80px}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;text-decoration:none;color:var(--text)}
+.logo-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#06241c;font-weight:900;font-size:16px}
+.badge{background:rgba(52,211,153,.12);color:var(--accent);border:1px solid rgba(52,211,153,.3);padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600}
+
+/* Hero */
+.hero{text-align:center;margin-bottom:40px}
+.hero h1{font-size:clamp(22px,3.5vw,36px);font-weight:800;line-height:1.2;margin-bottom:10px}
+.accent{color:var(--accent)}
+.hero p{color:var(--muted);font-size:15px;max-width:580px;margin:0 auto}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:760px){.layout{grid-template-columns:1fr}}
+
+/* Card */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:var(--shadow)}
+
+/* Form */
+.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sec-label:first-child{margin-top:0}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:600}
+select,input[type=number]{width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;outline:none;transition:border-color .15s;font-family:inherit}
+select:focus,input:focus{border-color:var(--accent)}
+.field{margin-bottom:14px}
+.hint{font-size:11px;color:var(--muted);margin-top:3px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.row2{grid-template-columns:1fr}}
+
+/* CN info strip */
+.cn-strip{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-top:8px;display:none;gap:0}
+.cn-strip.show{display:block}
+.cn-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(31,61,54,.5)}
+.cn-row:last-child{border-bottom:0}
+.cn-k{color:var(--muted)}
+.cn-v{font-weight:700}
+
+/* Slider */
+.slider-wrap{background:linear-gradient(135deg,rgba(52,211,153,.08),rgba(16,185,129,.02));border:1px solid rgba(52,211,153,.25);border-radius:14px;padding:16px;margin-top:4px}
+.slider-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.slider-pct{font-size:36px;font-weight:900;color:var(--accent);line-height:1}
+input[type=range]{width:100%;height:6px;appearance:none;background:var(--panel-2);border-radius:99px;outline:none;cursor:pointer;accent-color:var(--accent);border:1px solid var(--border);margin:6px 0}
+.ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.ef-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:10px;margin-bottom:3px}
+.ef-track{background:var(--panel-2);border:1px solid var(--border);border-radius:99px;height:8px;overflow:hidden}
+.ef-fill{height:100%;border-radius:99px;transition:width .3s}
+
+/* Results */
+.res-empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
+.res-empty .icon{font-size:32px;margin-bottom:12px;opacity:.4}
+
+.see-trio{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.see-card{border-radius:12px;padding:14px 10px;text-align:center;border:1px solid}
+.sc-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.sc-val{font-size:22px;font-weight:800;line-height:1}
+.sc-unit{font-size:10px;color:var(--muted);margin-top:3px}
+.sc-sub{font-size:10px;font-weight:600;margin-top:6px;padding:2px 8px;border-radius:999px;display:inline-block}
+.card-red{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.2)}.card-red .sc-lbl,.card-red .sc-val{color:var(--danger)}.card-red .sc-sub{background:rgba(248,113,113,.12);color:var(--danger)}
+.card-green{background:rgba(52,211,153,.09);border-color:rgba(52,211,153,.3)}.card-green .sc-lbl,.card-green .sc-val{color:var(--accent)}.card-green .sc-sub{background:rgba(52,211,153,.2);color:var(--accent)}
+
+.savings-box{background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(52,211,153,.03));border:1px solid rgba(52,211,153,.3);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center}
+.sav-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+.sav-amount{font-size:38px;font-weight:900;color:var(--accent);line-height:1}
+.sav-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+.bar-section{margin-bottom:16px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.bar-lbl{width:90px;font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0;text-align:right}
+.bar-outer{flex:1;background:var(--panel-2);border:1px solid var(--border);border-radius:99px;height:22px;overflow:hidden}
+.bar-inner{height:100%;border-radius:99px;display:flex;align-items:center;padding-left:8px;transition:width .4s}
+.bar-inner span{font-size:10px;font-weight:800;color:rgba(0,0,0,.7);white-space:nowrap}
+
+.kpi-list{margin-bottom:14px}
+.kpi{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--border)}
+.kpi:last-child{border-bottom:0}
+.kpi .k{font-size:12px;color:var(--muted)}
+.kpi .v{font-weight:700;font-size:14px}
+.kpi .v small{font-size:10px;font-weight:500;color:var(--muted);margin-left:3px}
+
+.note{font-size:10px;color:var(--muted);margin-bottom:12px;text-align:center}
+
+/* CTA */
+.cta-box{background:linear-gradient(135deg,rgba(52,211,153,.1),rgba(96,165,250,.05));border:1px solid rgba(52,211,153,.25);border-radius:16px;padding:22px;text-align:center;margin-top:20px}
+.cta-title{font-weight:800;font-size:16px;margin-bottom:6px}
+.cta-sub{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6}
+.btn-cta{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#06241c;border:0;padding:12px 24px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;text-decoration:none;transition:filter .15s}
+.btn-cta:hover{filter:brightness(1.08)}
+
+footer{margin-top:56px;text-align:center;color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="logo" href="https://voltfox.io">
+    <div class="logo-mark">V</div>Voltfox
+  </a>
+  <span class="badge">CBAM Quick Calculator</span>
+</header>
+
+<div class="hero">
+  <h1>Estimate Your <span class="accent">CBAM Savings</span> in Seconds</h1>
+  <p>Enter your product, production volume, and electricity data to instantly see how much you can save on CBAM costs with Voltfox.</p>
+</div>
+
+<div class="layout">
+
+  <!-- INPUT CARD -->
+  <div class="card">
+
+    <div class="sec-label">Product &amp; Country</div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Importing Country</label>
+        <select id="country" onchange="onCountryChange()"></select>
+      </div>
+      <div class="field">
+        <label>CN Code &amp; Product</label>
+        <select id="cnCode" onchange="onCnChange()"></select>
+      </div>
+    </div>
+
+    <div class="cn-strip" id="cnStrip">
+      <div class="cn-row"><span class="cn-k">CBAM Default SEE (total)</span><span class="cn-v" id="csTotal">—</span></div>
+      <div class="cn-row"><span class="cn-k">Direct (Scope 1)</span><span class="cn-v" id="csDirect">—</span></div>
+      <div class="cn-row"><span class="cn-k">Indirect (Scope 2)</span><span class="cn-v" id="csIndirect">—</span></div>
+    </div>
+
+    <div class="sec-label">Production</div>
+
+    <div class="field">
+      <label>Production Volume (tonnes)</label>
+      <input type="number" id="prodVol" value="50000" min="1" oninput="recalc()"/>
+    </div>
+
+    <div class="sec-label">Scope 1 — Direct Emissions</div>
+
+    <div class="field">
+      <label>Total Direct Emissions (tCO₂)</label>
+      <input type="number" id="scope1" value="" placeholder="Auto-filled from CN default" oninput="recalc()"/>
+      <div class="hint">From fuel combustion &amp; process. Leave blank to use CBAM default.</div>
+    </div>
+
+    <div class="sec-label">Electricity &amp; Renewable Matching</div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Electricity Consumption (kWh)</label>
+        <input type="number" id="elecKwh" value="15000000" oninput="recalc()"/>
+      </div>
+      <div class="field">
+        <label>Grid Emission Factor (tCO₂/MWh)</label>
+        <input type="number" id="gridEf" value="0.474" step="0.001" oninput="recalc()"/>
+        <div class="hint" id="gridHint">Country annual average</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Carbon Price (€/tCO₂)</label>
+      <input type="number" id="carbonPrice" value="65" min="1" oninput="recalc()"/>
+      <div class="hint">EU ETS spot price</div>
+    </div>
+
+    <div class="sec-label">Voltfox Hourly Matching Rate</div>
+    <div class="slider-wrap">
+      <div class="slider-top">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent)">Renewable Matching</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">% of electricity matched hourly</div>
+        </div>
+        <div class="slider-pct"><span id="matchDisplay">75</span><sup style="font-size:16px;font-weight:700">%</sup></div>
+      </div>
+      <input type="range" id="matchSlider" min="0" max="100" value="75" step="1"
+        oninput="document.getElementById('matchDisplay').textContent=this.value; recalc()"/>
+      <div class="ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+      <div class="ef-row">
+        <span>Effective Grid EF</span>
+        <span id="effEfLabel" style="color:var(--accent);font-weight:700">—</span>
+      </div>
+      <div class="ef-track"><div class="ef-fill" id="efFill" style="width:100%;background:var(--warn)"></div></div>
+    </div>
+
+  </div><!-- /input card -->
+
+  <!-- RESULTS CARD -->
+  <div class="card">
+    <div id="resEmpty" class="res-empty">
+      <div class="icon">⚡</div>
+      Select a country and CN code to see your estimated CBAM savings.
+    </div>
+    <div id="resContent" style="display:none">
+
+      <div class="savings-box">
+        <div class="sav-label">Estimated Annual CBAM Savings vs. Default</div>
+        <div class="sav-amount" id="savAmount">€ 0</div>
+        <div class="sav-sub" id="savSub">—</div>
+      </div>
+
+      <div class="bar-section" id="barSection"></div>
+
+      <div class="see-trio">
+        <div class="see-card card-red">
+          <div class="sc-lbl">CBAM Default SEE</div>
+          <div class="sc-val" id="rDefault">—</div>
+          <div class="sc-unit">tCO₂e/t</div>
+          <div class="sc-sub">reference</div>
+        </div>
+        <div class="see-card card-green">
+          <div class="sc-lbl">Your Actual SEE</div>
+          <div class="sc-val" id="rActual">—</div>
+          <div class="sc-unit">tCO₂e/t</div>
+          <div class="sc-sub" id="rDiff">— % below</div>
+        </div>
+      </div>
+
+      <div class="kpi-list">
+        <div class="kpi"><span class="k">Default CBAM cost</span><span class="v" id="costDefault">—</span></div>
+        <div class="kpi"><span class="k">Your CBAM cost</span><span class="v" id="costActual" style="color:var(--accent)">—</span></div>
+        <div class="kpi"><span class="k">Scope 1 direct</span><span class="v" id="kpiS1">—</span></div>
+        <div class="kpi"><span class="k">Scope 2 effective</span><span class="v" id="kpiS2">—</span></div>
+        <div class="kpi"><span class="k">CO₂ reduction from matching</span><span class="v" id="kpiReduction" style="color:var(--accent)">—</span></div>
+      </div>
+      <div class="note">* Indicative estimate — SEE × production × carbon price. Actual CBAM declaration is the importer's responsibility.</div>
+
+    </div><!-- /resContent -->
+
+    <div class="cta-box">
+      <div class="cta-title">Want Verified Actual Emissions?</div>
+      <div class="cta-sub">Voltfox integrates directly with your meter data, GEC/EAC registry, and production systems — producing a fully auditable CBAM report in minutes.</div>
+      <a class="btn-cta" href="https://voltfox.io/contact">Get a Free Demo →</a>
+    </div>
+
+  </div><!-- /results card -->
+</div><!-- /layout -->
+
+<footer>Voltfox · CBAM Quick Calculator · Data: DVs as adopted_v20260204.xlsx · EU Regulation 2023/1773</footer>
+</div>
+
+<script>
+const DATA = window.CBAM_DATA;
+
+// Country EF defaults (tCO2/MWh) — approximate national averages
+const COUNTRY_EF = {
+  "Türkiye": 0.474, "Germany": 0.385, "Poland": 0.773, "France": 0.052,
+  "Italy": 0.333, "Spain": 0.191, "Netherlands": 0.371, "Belgium": 0.175,
+  "Czechia": 0.621, "Romania": 0.273, "Hungary": 0.221, "Bulgaria": 0.396,
+  "Austria": 0.126, "Sweden": 0.013, "Finland": 0.073, "Denmark": 0.155,
+  "Greece": 0.561, "Portugal": 0.205, "Slovakia": 0.196, "Croatia": 0.195,
+  "Ukraine": 0.302, "Russia": 0.322, "China": 0.581, "India": 0.708,
+  "United Kingdom": 0.233, "United States": 0.386,
+};
+
+function fmt(n, dec=2){
+  return n.toLocaleString("en-US",{maximumFractionDigits:dec,minimumFractionDigits:dec});
+}
+
+// ── Populate dropdowns ────────────────────────────────────────────────────────
+function populateCountries(){
+  if(!DATA){ console.warn("CBAM_DATA not loaded"); return; }
+  const sel = document.getElementById("country");
+  const sorted = Object.keys(DATA.countries).sort();
+  const ordered = ["Türkiye", ...sorted.filter(c=>c!=="Türkiye")];
+  ordered.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+  onCountryChange();
+}
+
+function onCountryChange(){
+  const country = document.getElementById("country").value;
+  const ef = COUNTRY_EF[country];
+  if(ef){
+    document.getElementById("gridEf").value = ef;
+    document.getElementById("gridHint").textContent = "National annual average (" + country + ")";
+  }
+  const rows = (DATA?.countries[country]) || [];
+  const sel  = document.getElementById("cnCode");
+  sel.innerHTML = "";
+
+  const activeRows = rows.filter(r=>!r[7]);
+  const exemptRows = rows.filter(r=> r[7]);
+
+  if(activeRows.length){
+    const grp = document.createElement("optgroup"); grp.label = "Scope 2 Active";
+    activeRows.forEach(r=>{
+      const opt = document.createElement("option"); opt.value = r[0];
+      const desc = DATA.cn[r[0]]?.d || "";
+      opt.textContent = r[0] + (desc?" — "+desc.slice(0,58):"");
+      opt.dataset.direct   = r[1] ?? "";
+      opt.dataset.indirect = r[2] ?? "";
+      opt.dataset.total    = r[3] ?? "";
+      opt.dataset.y2026    = r[4] ?? "";
+      opt.dataset.exempt   = "false";
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  }
+  if(exemptRows.length){
+    const grp = document.createElement("optgroup"); grp.label = "Scope 2 Exempt (2026)";
+    exemptRows.forEach(r=>{
+      const opt = document.createElement("option"); opt.value = r[0];
+      const desc = DATA.cn[r[0]]?.d || "";
+      opt.textContent = r[0] + (desc?" — "+desc.slice(0,52):"") + " [Exempt]";
+      opt.dataset.direct   = r[1] ?? "";
+      opt.dataset.indirect = "";
+      opt.dataset.total    = r[3] ?? "";
+      opt.dataset.y2026    = r[4] ?? "";
+      opt.dataset.exempt   = "true";
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  }
+  onCnChange();
+}
+
+function onCnChange(){
+  const sel    = document.getElementById("cnCode");
+  const opt    = sel.options[sel.selectedIndex];
+  if(!opt) return;
+
+  const direct   = parseFloat(opt.dataset.direct)   || null;
+  const indirect = parseFloat(opt.dataset.indirect) || null;
+  const total    = parseFloat(opt.dataset.total)    || null;
+  const y2026    = parseFloat(opt.dataset.y2026)    || null;
+  const exempt   = opt.dataset.exempt === "true";
+
+  const strip = document.getElementById("cnStrip");
+  if(total || direct){
+    strip.classList.add("show");
+    document.getElementById("csTotal").textContent    = (y2026??total)?.toFixed(4)+" tCO₂e/t" ?? "—";
+    document.getElementById("csDirect").textContent   = direct?.toFixed(4)+" tCO₂e/t" ?? "—";
+    document.getElementById("csIndirect").textContent = exempt ? "N/A (Exempt)" : (indirect?.toFixed(4)+" tCO₂e/t" ?? "—");
+  } else {
+    strip.classList.remove("show");
+  }
+
+  // Auto-fill Scope 1 from direct default × production volume
+  const prodVol = +document.getElementById("prodVol").value || 50000;
+  if(direct){
+    const s1Input = document.getElementById("scope1");
+    if(!s1Input.dataset.userEdited){
+      s1Input.value = (direct * prodVol).toFixed(0);
+      s1Input.placeholder = "Auto-filled from CN default";
+    }
+  }
+  recalc();
+}
+
+document.getElementById("scope1").addEventListener("input", function(){
+  this.dataset.userEdited = "1";
+  recalc();
+});
+
+function recalc(){
+  const sel    = document.getElementById("cnCode");
+  const opt    = sel.options[sel.selectedIndex];
+  if(!opt || !opt.dataset.total) return;
+
+  const exempt   = opt.dataset.exempt === "true";
+  const y2026    = parseFloat(opt.dataset.y2026)  || parseFloat(opt.dataset.total) || 0;
+  const direct   = parseFloat(opt.dataset.direct) || 0;
+  const indirect = parseFloat(opt.dataset.indirect) || 0;
+  const defSEE   = y2026;
+
+  const prodVol  = +document.getElementById("prodVol").value   || 0;
+  const elecKwh  = +document.getElementById("elecKwh").value   || 0;
+  const gridEf   = +document.getElementById("gridEf").value    || 0.474;
+  const carbonP  = +document.getElementById("carbonPrice").value || 65;
+  const matchPct = +document.getElementById("matchSlider").value;
+  const renewEf  = 0.02; // residual renewable EF
+
+  const elecMwh  = elecKwh / 1000;
+  const effEf    = exempt ? gridEf : (matchPct/100 * renewEf + (1 - matchPct/100) * gridEf);
+
+  // EF bar
+  document.getElementById("effEfLabel").textContent = effEf.toFixed(4) + " tCO₂/MWh";
+  const fillPct = gridEf > 0 ? effEf / gridEf * 100 : 0;
+  const fill    = document.getElementById("efFill");
+  fill.style.width      = fillPct.toFixed(1) + "%";
+  fill.style.background = matchPct === 0 || exempt
+    ? "var(--warn)"
+    : `linear-gradient(90deg,var(--accent),hsl(162,${60+matchPct/2}%,${35+matchPct/5}%))`;
+
+  if(prodVol <= 0 || defSEE <= 0) return;
+
+  // Scope 1
+  const s1Input  = +document.getElementById("scope1").value;
+  const scope1   = s1Input > 0 ? s1Input : direct * prodVol;
+
+  // Scope 2
+  const s2Baseline = elecMwh * gridEf;
+  const s2Actual   = exempt ? s2Baseline : elecMwh * effEf;
+  const s2Reduction = s2Baseline - s2Actual;
+
+  // SEE
+  const seeActual   = (scope1 + s2Actual)   / prodVol;
+  const seeBaseline = (scope1 + s2Baseline) / prodVol;
+
+  // Costs
+  const costDefault  = defSEE      * prodVol * carbonP;
+  const costActual   = seeActual   * prodVol * carbonP;
+  const savings      = costDefault - costActual;
+
+  const diffPct  = defSEE > 0 ? (defSEE - seeActual) / defSEE * 100 : 0;
+
+  // Show results
+  document.getElementById("resEmpty").style.display   = "none";
+  document.getElementById("resContent").style.display = "block";
+
+  document.getElementById("savAmount").textContent = "€ " + fmt(savings, 0);
+  document.getElementById("savSub").textContent    = fmt(diffPct,1)+"% below CBAM default · at €"+carbonP+"/tCO₂";
+
+  document.getElementById("rDefault").textContent  = fmt(defSEE,4);
+  document.getElementById("rActual").textContent   = fmt(seeActual,4);
+  document.getElementById("rDiff").textContent     = fmt(diffPct,1)+"% below default";
+
+  document.getElementById("costDefault").innerHTML = "€ "+fmt(costDefault,0)+'<small>/ year</small>';
+  document.getElementById("costActual").innerHTML  = "€ "+fmt(costActual,0)+'<small>/ year</small>';
+  document.getElementById("kpiS1").innerHTML       = fmt(scope1,0)+'<small>tCO₂</small>';
+  document.getElementById("kpiS2").innerHTML       = fmt(s2Actual,0)+'<small>tCO₂</small>';
+  document.getElementById("kpiReduction").innerHTML = fmt(s2Reduction,0)+'<small>tCO₂ (−'+fmt(s2Reduction/s2Baseline*100,1)+'%)</small>';
+
+  // Comparison bars
+  const maxSEE = Math.max(defSEE, seeBaseline, seeActual) * 1.06 || 1;
+  const scenarios = [
+    { lbl:"CBAM Default", see:defSEE,      color:"var(--danger)" },
+    { lbl:"Baseline 0%",  see:seeBaseline, color:"var(--warn)"   },
+    { lbl:`Voltfox ${matchPct}%`, see:seeActual, color:"var(--accent)" },
+  ];
+  document.getElementById("barSection").innerHTML = scenarios.map(s=>{
+    const pct = (s.see / maxSEE * 100).toFixed(1);
+    return `<div class="bar-row">
+      <div class="bar-lbl">${s.lbl}</div>
+      <div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:${s.color}">
+        <span>${s.see.toFixed(4)}</span>
+      </div></div>
+    </div>`;
+  }).join("");
+}
+
+populateCountries();
+</script>
+</body>
+</html>

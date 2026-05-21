@@ -65,9 +65,9 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
       country:      z.country,
       year:         2024,
       granularity:  "hourly",
-      ciDirect:     { avg: z.avg_ci_direct, min: z.min_ci_direct, max: z.max_ci_direct },
-      cfePct:       { avg: z.avg_cfe_pct },
-      rePct:        { avg: z.avg_re_pct },
+      ciDirect:     { avg: Number(z.avg_ci_direct), min: Number(z.min_ci_direct), max: Number(z.max_ci_direct) },
+      cfePct:       { avg: Number(z.avg_cfe_pct) },
+      rePct:        { avg: Number(z.avg_re_pct) },
       rowCount:     Number(z.row_count),
       unit:         "gCO2eq/kWh",
     });
@@ -151,9 +151,9 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
       months: rows.map((r: EFMonthRow) => ({
         month:      r.month,
         monthName:  MONTH_NAMES[r.month],
-        avgCiDirect: r.avg_ci,
-        avgCfePct:   r.avg_cfe,
-        avgRePct:    r.avg_re,
+        avgCiDirect: Number(r.avg_ci),
+        avgCfePct:   Number(r.avg_cfe),
+        avgRePct:    Number(r.avg_re),
         dataPoints:  Number(r.data_points),
       })),
     });

@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/api",
+    "dev": "concurrently -n API,WEB -c green,cyan \"npm run dev --workspace=apps/api\" \"npm run dev --workspace=apps/web\"",
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
     "db:generate": "npm run generate --workspace=packages/db",
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/pg": "^8.20.0",
+    "concurrently": "^9.2.1",
     "pg": "^8.21.0",
     "tsx": "^4.22.0",
     "typescript": "^5.5.0"

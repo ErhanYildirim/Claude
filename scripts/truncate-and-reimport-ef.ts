@@ -20,24 +20,8 @@ const EF_DIR =
 
 const BATCH_SIZE = 2000;
 
-// Only import these zone_ids (file names are {ZONE_ID}_2024_hourly.csv)
-const PRIORITY_ZONES = new Set([
-  // EU27
-  "AT","BE","BG","CY","CZ",
-  "DE","DK","DK-BHM","DK-DK1","DK-DK2",
-  "EE","ES","ES-CE","ES-CN-FV","ES-CN-GC","ES-CN-HI","ES-CN-IG","ES-CN-TE",
-  "ES-IB-FO","ES-IB-IZ","ES-IB-MA","ES-IB-ME","ES-ML",
-  "FI","FR","GR","HR","HU","IE",
-  "IT","IT-CNO","IT-CSO","IT-NO","IT-SAR","IT-SIC","IT-SO",
-  "LT","LU","LV","MT","NL","PL","PT","RO","SE","SI","SK",
-  // EFTA / associated
-  "CH","GB","GB-NIR","GB-ORK","IS","NO","NO-NO1","NO-NO2","NO-NO3","NO-NO4","NO-NO5",
-  // CBAM trading partners
-  "AL","AZ","BA","CN","EG","GE","IN","KZ","MA","MD","ME","MK","RS",
-  "RU-1","RU-2","RU-AS",
-  // Voltfox primary market + energy interconnection
-  "TR","UA",
-]);
+// Şimdilik sadece Türkiye — ilerleyen aşamada diğer ülkeler eklenebilir
+const PRIORITY_ZONES = new Set(["TR"]);
 
 interface EfRow {
   zone_id: string; zone_name: string; country: string; hour: string;

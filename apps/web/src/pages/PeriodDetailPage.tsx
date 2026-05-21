@@ -101,13 +101,19 @@ export default function PeriodDetailPage() {
         <div style={s.h1}>{period.periodName}</div>
         <div style={s.sub}>{period.startDate?.slice(0,10)} – {period.endDate?.slice(0,10)} · CN: {period.cnCode} · {period.importCountry}</div>
 
-        <div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
           <button style={{ ...s.btn, ...s.btnP }} onClick={calculate} disabled={calcLoad}>
             {calcLoad ? "Hesaplanıyor..." : "SEE Hesapla"}
           </button>
           {emission && (
             <>
-              <button style={{ ...s.btn, ...s.btnG }} onClick={openReport}>PDF Rapor İndir</button>
+              <button style={{ ...s.btn, ...s.btnG }} onClick={openReport}>PDF İndir</button>
+              <button
+                style={{ ...s.btn, background: "#1a3530", color: "#fff" }}
+                onClick={() => window.open(api.periods.exportUrl(installationId!, periodId!), "_blank")}
+              >
+                JSON İndir
+              </button>
               <button style={{ ...s.btn, background: "#7C3AED", color: "#fff" }} onClick={createShareLink} disabled={shareLoad}>
                 {shareLoad ? "..." : "İthalatçıyla Paylaş"}
               </button>

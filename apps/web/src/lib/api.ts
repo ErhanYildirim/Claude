@@ -47,6 +47,8 @@ export const api = {
       request<EmbeddedEmission>("GET", `/installations/${installationId}/periods/${periodId}/result`),
     reportUrl: (installationId: string, periodId: string) =>
       `${BASE}/installations/${installationId}/periods/${periodId}/report`,
+    exportUrl: (installationId: string, periodId: string) =>
+      `${BASE}/installations/${installationId}/periods/${periodId}/export`,
     delete: (installationId: string, periodId: string) =>
       request<void>("DELETE", `/installations/${installationId}/periods/${periodId}`),
   },

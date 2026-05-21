@@ -20,8 +20,12 @@ const EF_DIR =
 
 const BATCH_SIZE = 2000;
 
-// Şimdilik sadece Türkiye — ilerleyen aşamada diğer ülkeler eklenebilir
-const PRIORITY_ZONES = new Set(["TR"]);
+// TR + EU CBAM öncelikli ülkeler (~10 zone, ~87K satır, ~20MB)
+const PRIORITY_ZONES = new Set([
+  "TR",                          // Türkiye
+  "DE", "FR", "AT", "PL", "IT", // Büyük AB ekonomileri
+  "ES", "GB", "NL", "BE", "SE", // Diğer öncelikli
+]);
 
 interface EfRow {
   zone_id: string; zone_name: string; country: string; hour: string;

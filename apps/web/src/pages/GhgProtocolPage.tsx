@@ -18,6 +18,7 @@ const s: Record<string, React.CSSProperties> = {
   dCard: { borderRadius: 8, padding: "16px 18px", border: "1px solid #d4ece4" },
   dLabel:{ fontSize: 12, color: "#5c7a72", marginBottom: 6 },
   dVal:  { fontSize: 20, fontWeight: 700 },
+  btn:   { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: "#059669", color: "#fff" },
 };
 
 export default function GhgProtocolPage() {
@@ -74,6 +75,9 @@ export default function GhgProtocolPage() {
             {instDetail?.periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
           </select>
         </div>
+        {emission && (
+          <button style={s.btn} onClick={() => window.print()}>PDF Olarak Kaydet</button>
+        )}
       </div>
 
       {loading && <div style={{ color: "#5c7a72", fontSize: 14 }}>Yükleniyor...</div>}

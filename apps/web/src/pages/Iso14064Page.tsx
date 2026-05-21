@@ -18,6 +18,7 @@ const s: Record<string, React.CSSProperties> = {
   table: { width: "100%", borderCollapse: "collapse" as const },
   th:    { padding: "8px 12px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#5c7a72", background: "#f4fbf8", borderBottom: "1px solid #d4ece4" },
   td:    { padding: "10px 12px", fontSize: 13, borderBottom: "1px solid #eef7f3" },
+  btn:   { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: "#059669", color: "#fff" },
 };
 
 const DQ_COLORS: Record<string, { bg: string; color: string; uncertainty: string }> = {
@@ -79,6 +80,9 @@ export default function Iso14064Page() {
             {instDetail?.periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
           </select>
         </div>
+        {emission && (
+          <button style={s.btn} onClick={() => window.print()}>PDF Olarak Kaydet</button>
+        )}
       </div>
 
       {loading && <div style={{ color: "#5c7a72", fontSize: 14 }}>Yükleniyor...</div>}

@@ -15,6 +15,7 @@ const s: Record<string, React.CSSProperties> = {
   select:{ padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, background: "#fff", minWidth: 220 },
   warn:  { background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#92400E", marginBottom: 16 },
   note:  { background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#92400E", marginTop: 16 },
+  btn:   { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: "#059669", color: "#fff" },
 };
 
 export default function CdpReportPage() {
@@ -64,6 +65,9 @@ export default function CdpReportPage() {
             {instDetail?.periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
           </select>
         </div>
+        {emission && (
+          <button style={s.btn} onClick={() => window.print()}>PDF Olarak Kaydet</button>
+        )}
       </div>
 
       {loading && <div style={{ color: "#5c7a72", fontSize: 14 }}>Yükleniyor...</div>}

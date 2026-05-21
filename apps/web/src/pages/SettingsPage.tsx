@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList } from "../lib/api.js";
@@ -495,7 +495,7 @@ function AuditTrailTab() {
               const ac = ACTION_BADGE[log.action] ?? { bg: "#eef7f3", color: "#5c7a72" };
               const isOpen = expanded === log.id;
               return (
-                <React.Fragment key={log.id}>
+                <Fragment key={log.id}>
                   <tr key={log.id}
                     style={{ borderBottom: "1px solid #eef7f3", cursor: "pointer", background: isOpen ? "#f4fbf8" : "transparent" }}
                     onClick={() => setExpanded(isOpen ? null : log.id)}>
@@ -521,7 +521,7 @@ function AuditTrailTab() {
                       </td>
                     </tr>
                   )}
-                </React.Fragment>
+                </Fragment>
               );
             })}
           </tbody>

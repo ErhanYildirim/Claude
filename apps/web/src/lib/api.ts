@@ -123,6 +123,21 @@ export const api = {
       request<OnboardingResult>("POST", "/onboarding/tenant", { companyName }),
   },
 
+  ef: {
+    zones: () => request<EFZoneList>("GET", "/ef/zones"),
+    zone:  (zoneId: string) => request<EFZoneSummary>("GET", `/ef/zones/${zoneId}`),
+    hourly: (zoneId: string, start?: string, end?: string) => {
+      const q = new URLSearchParams();
+      if (start) q.set("start", start);
+      if (end)   q.set("end",   end);
+      return request<EFHourlyData>("GET", `/ef/zones/${zoneId}/hourly${q.toString() ? "?" + q : ""}`);
+    },
+    monthly: (zoneId: string, year?: number) => {
+      const q = year ? `?year=${year}` : "";
+      return request<EFMonthlyData>("GET", `/ef/zones/${zoneId}/monthly${q}`);
+    },
+  },
+
   shareLinks: {
     create: (installationId: string, periodId: string, ttlDays?: number) =>
       request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays }),
@@ -221,6 +236,20 @@ export interface CsvImportResult {
 }
 export interface EFEntry { iso2: string; name: string; ef: number; source: string; year: number; dataVersion: string; notes?: string; }
 export interface EFListResult { dataVersion: string; countries: Array<{ iso2: string; name: string; ef: number }>; }
+
+// EF Veri Servisi types
+export interface EFZoneEntry { zoneId: string; zoneName: string; country: string; rowCount: number; }
+export interface EFZoneList { count: number; zones: EFZoneEntry[]; }
+export interface EFZoneSummary {
+  zoneId: string; zoneName: string; country: string; year: number; granularity: string;
+  ciDirect: { avg: number; min: number; max: number };
+  cfePct: { avg: number }; rePct: { avg: number };
+  rowCount: number; unit: string;
+}
+export interface EFHourlyPoint { hour: string; ciDirect: number; ciLifecycle: number; cfePct: number; rePct: number; dataEstimated: boolean; }
+export interface EFHourlyData { zoneId: string; start: string; end: string; count: number; unit: string; data: EFHourlyPoint[]; }
+export interface EFMonthlyPoint { month: number; monthName: string; avgCiDirect: number; avgCfePct: number; avgRePct: number; dataPoints: number; }
+export interface EFMonthlyData { zoneId: string; year: number; months: EFMonthlyPoint[]; }
 
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }
 export interface CreatePeriodBody {

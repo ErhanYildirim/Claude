@@ -4,40 +4,40 @@ import { api } from "../lib/api.js";
 import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
-  nav:    { background: "#0066CC", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
+  nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
   back:   { color: "rgba(255,255,255,.8)", textDecoration: "none", fontSize: 13 },
   brand:  { fontWeight: 700, fontSize: 18, color: "#fff" },
   page:   { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
   h1:     { fontSize: 22, fontWeight: 700, marginBottom: 4 },
-  sub:    { color: "#6B7280", fontSize: 14, marginBottom: 24 },
-  tabs:   { display: "flex", gap: 0, borderBottom: "1px solid #E5E7EB", marginBottom: 28 },
-  tab:    { padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: "#6B7280", borderBottom: "2px solid transparent", marginBottom: -1 },
-  tabA:   { color: "#0066CC", borderBottom: "2px solid #0066CC" },
-  card:   { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 16 },
-  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 },
+  sub:    { color: "#5c7a72", fontSize: 14, marginBottom: 24 },
+  tabs:   { display: "flex", gap: 0, borderBottom: "1px solid #d4ece4", marginBottom: 28 },
+  tab:    { padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: "#5c7a72", borderBottom: "2px solid transparent", marginBottom: -1 },
+  tabA:   { color: "#00b87a", borderBottom: "2px solid #00b87a" },
+  card:   { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
+  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 5 },
   input:  { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 13, outline: "none", marginBottom: 12, boxSizing: "border-box" as const },
   select: { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 13, background: "#fff", marginBottom: 12, boxSizing: "border-box" as const },
-  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #F3F4F6" },
+  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #eef7f3" },
   rowL:   { fontSize: 14 },
   rowR:   { display: "flex", gap: 8, alignItems: "center" },
   badge:  { display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 },
   btnSm:  { padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-  btnP:   { background: "#0066CC", color: "#fff" },
+  btnP:   { background: "#00b87a", color: "#fff" },
   btnR:   { background: "#FEE2E2", color: "#DC2626" },
   btnG:   { background: "#D1FAE5", color: "#065F46" },
-  btnSec: { background: "#F3F4F6", color: "#374151" },
+  btnSec: { background: "#eef7f3", color: "#1a3530" },
   err:    { color: "#DC2626", fontSize: 13, marginBottom: 12 },
   ok:     { color: "#059669", fontSize: 13, marginBottom: 12 },
   row2:   { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  mono:   { fontFamily: "monospace", background: "#F3F4F6", padding: "6px 10px", borderRadius: 5, fontSize: 12, wordBreak: "break-all" as const },
-  section:{ fontSize: 13, fontWeight: 600, color: "#6B7280", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  mono:   { fontFamily: "monospace", background: "#eef7f3", padding: "6px 10px", borderRadius: 5, fontSize: 12, wordBreak: "break-all" as const },
+  section:{ fontSize: 13, fontWeight: 600, color: "#5c7a72", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: ".05em" },
 };
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   owner:    { bg: "#FEF3C7", color: "#92400E" },
-  admin:    { bg: "#DBEAFE", color: "#1E40AF" },
+  admin:    { bg: "#DBEAFE", color: "#009966" },
   analyst:  { bg: "#D1FAE5", color: "#065F46" },
-  viewer:   { bg: "#F3F4F6", color: "#6B7280" },
+  viewer:   { bg: "#eef7f3", color: "#5c7a72" },
 };
 
 // ── Ekip Sekmesi ─────────────────────────────────────────────────────────────
@@ -90,14 +90,14 @@ function TeamTab() {
     <div>
       <div style={s.card}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Ekip Üyeleri</div>
-        {members.length === 0 && <div style={{ color: "#6B7280", fontSize: 13 }}>Henüz üye yok.</div>}
+        {members.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz üye yok.</div>}
         {members.map((m, i) => {
           const rc = ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer;
           return (
             <div key={m.id} style={{ ...s.row, ...(i === members.length - 1 ? { borderBottom: "none" } : {}) }}>
               <div>
-                <div style={{ fontSize: 13, fontFamily: "monospace", color: "#374151" }}>{m.userId.slice(0, 18)}...</div>
-                <div style={{ fontSize: 11, color: "#9CA3AF" }}>{new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi</div>
+                <div style={{ fontSize: 13, fontFamily: "monospace", color: "#1a3530" }}>{m.userId.slice(0, 18)}...</div>
+                <div style={{ fontSize: 11, color: "#5c7a72" }}>{new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi</div>
               </div>
               <div style={s.rowR}>
                 <span style={{ ...s.badge, ...rc }}>{m.role}</span>
@@ -217,19 +217,19 @@ function ApiKeysTab() {
 
       <div style={s.card}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Mevcut Anahtarlar</div>
-        {keys.length === 0 && <div style={{ color: "#6B7280", fontSize: 13 }}>Henüz API anahtarı yok.</div>}
+        {keys.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz API anahtarı yok.</div>}
         {keys.map((k, i) => (
           <div key={k.id} style={{ ...s.row, ...(i === keys.length - 1 ? { borderBottom: "none" } : {}) }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{k.name}</div>
-              <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
                 {k.prefix}·····
                 {k.expiresAt && ` · ${new Date(k.expiresAt).toLocaleDateString("tr-TR")} tarihinde sona erer`}
                 {k.lastUsedAt && ` · Son kullanım: ${new Date(k.lastUsedAt).toLocaleDateString("tr-TR")}`}
               </div>
               <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
                 {k.scopes.map(sc => (
-                  <span key={sc} style={{ ...s.badge, background: "#EFF6FF", color: "#1D4ED8" }}>{sc}</span>
+                  <span key={sc} style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>{sc}</span>
                 ))}
               </div>
             </div>
@@ -339,7 +339,7 @@ function WebhooksTab() {
       {newHook && (
         <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <div style={{ fontWeight: 700, color: "#065F46", marginBottom: 8 }}>Webhook oluşturuldu — imzalama sırrını kaydedin!</div>
-          <div style={{ fontSize: 12, color: "#374151", marginBottom: 4 }}>HMAC-SHA256 imzalama sırrı:</div>
+          <div style={{ fontSize: 12, color: "#1a3530", marginBottom: 4 }}>HMAC-SHA256 imzalama sırrı:</div>
           <div style={s.mono}>{newHook.secret}</div>
           <button style={{ ...s.btnSm, ...s.btnG, marginTop: 10 }}
             onClick={() => navigator.clipboard.writeText(newHook.secret)}>
@@ -354,18 +354,18 @@ function WebhooksTab() {
 
       <div style={s.card}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Mevcut Webhook'lar</div>
-        {hooks.length === 0 && <div style={{ color: "#6B7280", fontSize: 13 }}>Henüz webhook yok.</div>}
+        {hooks.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz webhook yok.</div>}
         {hooks.map((h, i) => (
           <div key={h.id}>
             <div style={{ ...s.row, ...(i === hooks.length - 1 && deliveries?.id !== h.id ? { borderBottom: "none" } : {}) }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>{h.url}</div>
-                <div style={{ fontSize: 11, color: "#6B7280", marginTop: 3, display: "flex", gap: 4 }}>
-                  {h.events.map(ev => <span key={ev} style={{ ...s.badge, background: "#F3F4F6", color: "#374151" }}>{ev}</span>)}
+                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 3, display: "flex", gap: 4 }}>
+                  {h.events.map(ev => <span key={ev} style={{ ...s.badge, background: "#eef7f3", color: "#1a3530" }}>{ev}</span>)}
                 </div>
               </div>
               <div style={s.rowR}>
-                <span style={{ ...s.badge, background: h.active ? "#D1FAE5" : "#F3F4F6", color: h.active ? "#065F46" : "#6B7280" }}>
+                <span style={{ ...s.badge, background: h.active ? "#D1FAE5" : "#eef7f3", color: h.active ? "#065F46" : "#5c7a72" }}>
                   {h.active ? "aktif" : "pasif"}
                 </span>
                 <button style={{ ...s.btnSm, ...s.btnSec }} onClick={() => showDeliveries(h.id)}>
@@ -375,18 +375,18 @@ function WebhooksTab() {
               </div>
             </div>
             {deliveries?.id === h.id && (
-              <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#6B7280", marginBottom: 8 }}>SON TESLİMATLAR</div>
-                {deliveries.list.length === 0 && <div style={{ fontSize: 12, color: "#9CA3AF" }}>Henüz teslimat yok.</div>}
+              <div style={{ background: "#f4fbf8", border: "1px solid #d4ece4", borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 8 }}>SON TESLİMATLAR</div>
+                {deliveries.list.length === 0 && <div style={{ fontSize: 12, color: "#5c7a72" }}>Henüz teslimat yok.</div>}
                 {deliveries.list.slice(0, 10).map(d => {
                   const sc = STATUS_COLOR[d.status] ?? STATUS_COLOR.pending;
                   return (
-                    <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #E5E7EB", fontSize: 12 }}>
-                      <span style={{ color: "#374151" }}>{d.event}</span>
+                    <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #d4ece4", fontSize: 12 }}>
+                      <span style={{ color: "#1a3530" }}>{d.event}</span>
                       <div style={{ display: "flex", gap: 8 }}>
                         <span style={{ ...s.badge, ...sc }}>{d.status}</span>
-                        {d.responseStatus && <span style={{ color: "#6B7280" }}>HTTP {d.responseStatus}</span>}
-                        <span style={{ color: "#9CA3AF" }}>{d.deliveredAt ? new Date(d.deliveredAt).toLocaleTimeString("tr-TR") : "—"}</span>
+                        {d.responseStatus && <span style={{ color: "#5c7a72" }}>HTTP {d.responseStatus}</span>}
+                        <span style={{ color: "#5c7a72" }}>{d.deliveredAt ? new Date(d.deliveredAt).toLocaleTimeString("tr-TR") : "—"}</span>
                       </div>
                     </div>
                   );
@@ -427,7 +427,7 @@ type AuditLog = AuditLogList["logs"][0];
 
 const ACTION_BADGE: Record<string, { bg: string; color: string }> = {
   CREATE:    { bg: "#D1FAE5", color: "#065F46" },
-  UPDATE:    { bg: "#DBEAFE", color: "#1E40AF" },
+  UPDATE:    { bg: "#DBEAFE", color: "#009966" },
   DELETE:    { bg: "#FEE2E2", color: "#DC2626" },
   CALCULATE: { bg: "#F3E8FF", color: "#6D28D9" },
 };
@@ -473,7 +473,7 @@ function AuditTrailTab() {
           {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a || "Tüm İşlemler"}</option>)}
         </select>
         <button style={{ ...s.btnSm, ...s.btnP, padding: "7px 16px" }} onClick={() => load()}>Filtrele</button>
-        {count > 0 && <span style={{ fontSize: 12, color: "#6B7280" }}>{count} kayıt</span>}
+        {count > 0 && <span style={{ fontSize: 12, color: "#5c7a72" }}>{count} kayıt</span>}
       </div>
 
       {err && <div style={s.err}>{err}</div>}
@@ -483,41 +483,41 @@ function AuditTrailTab() {
           <thead>
             <tr>
               {["Tarih", "İşlem", "Kaynak", "ID", "Kullanıcı"].map(h => (
-                <th key={h} style={{ background: "#F9FAFB", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#6B7280", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
+                <th key={h} style={{ background: "#f4fbf8", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#5c7a72", borderBottom: "1px solid #d4ece4" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {logs.length === 0 && !loading && (
-              <tr><td colSpan={5} style={{ padding: "24px 14px", color: "#9CA3AF", fontSize: 13, textAlign: "center" as const }}>Kayıt bulunamadı.</td></tr>
+              <tr><td colSpan={5} style={{ padding: "24px 14px", color: "#5c7a72", fontSize: 13, textAlign: "center" as const }}>Kayıt bulunamadı.</td></tr>
             )}
             {logs.map((log, i) => {
-              const ac = ACTION_BADGE[log.action] ?? { bg: "#F3F4F6", color: "#6B7280" };
+              const ac = ACTION_BADGE[log.action] ?? { bg: "#eef7f3", color: "#5c7a72" };
               const isOpen = expanded === log.id;
               return (
                 <React.Fragment key={log.id}>
                   <tr key={log.id}
-                    style={{ borderBottom: "1px solid #F3F4F6", cursor: "pointer", background: isOpen ? "#F9FAFB" : "transparent" }}
+                    style={{ borderBottom: "1px solid #eef7f3", cursor: "pointer", background: isOpen ? "#f4fbf8" : "transparent" }}
                     onClick={() => setExpanded(isOpen ? null : log.id)}>
-                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" as const }}>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#5c7a72", whiteSpace: "nowrap" as const }}>
                       {new Date(log.createdAt).toLocaleString("tr-TR")}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
                       <span style={{ ...s.badge, ...ac }}>{log.action}</span>
                     </td>
                     <td style={{ padding: "10px 14px", fontSize: 13 }}>{log.resource}</td>
-                    <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "#374151" }}>{log.resourceId.slice(0, 8)}…</td>
-                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#6B7280", fontFamily: "monospace" }}>
+                    <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "#1a3530" }}>{log.resourceId.slice(0, 8)}…</td>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#5c7a72", fontFamily: "monospace" }}>
                       {log.userId ? log.userId.slice(0, 8) + "…" : "sistem"}
                     </td>
                   </tr>
                   {isOpen && (
-                    <tr key={log.id + "-payload"} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #F3F4F6" }}>
+                    <tr key={log.id + "-payload"} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #eef7f3" }}>
                       <td colSpan={5} style={{ padding: "0 14px 12px" }}>
-                        <pre style={{ background: "#F9FAFB", borderRadius: 6, padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "#374151" }}>
+                        <pre style={{ background: "#f4fbf8", borderRadius: 6, padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "#1a3530" }}>
                           {JSON.stringify(log.payload, null, 2)}
                         </pre>
-                        {log.ipAddress && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>IP: {log.ipAddress}</div>}
+                        {log.ipAddress && <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>IP: {log.ipAddress}</div>}
                       </td>
                     </tr>
                   )}
@@ -528,7 +528,7 @@ function AuditTrailTab() {
         </table>
       </div>
 
-      {loading && <div style={{ textAlign: "center", padding: "12px 0", color: "#6B7280", fontSize: 13 }}>Yükleniyor...</div>}
+      {loading && <div style={{ textAlign: "center", padding: "12px 0", color: "#5c7a72", fontSize: 13 }}>Yükleniyor...</div>}
       {nextCursor && !loading && (
         <div style={{ textAlign: "center", marginTop: 12 }}>
           <button style={{ ...s.btnSm, ...s.btnSec, padding: "8px 18px", fontSize: 13 }} onClick={() => load(nextCursor)}>

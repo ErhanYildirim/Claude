@@ -4,29 +4,29 @@ import { api } from "../lib/api.js";
 import type { ShareViewResult } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
-  nav:    { background: "#0066CC", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   brand:  { fontWeight: 700, fontSize: 18 },
   badge:  { background: "rgba(255,255,255,.2)", borderRadius: 5, padding: "3px 10px", fontSize: 12, fontWeight: 600 },
   page:   { maxWidth: 860, margin: "0 auto", padding: "32px 24px" },
   h1:     { fontSize: 20, fontWeight: 700, marginBottom: 4 },
-  sub:    { color: "#6B7280", fontSize: 13, marginBottom: 28 },
+  sub:    { color: "#5c7a72", fontSize: 13, marginBottom: 28 },
   grid:   { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 },
-  kpi:    { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "18px 20px" },
-  kpiL:   { fontSize: 12, color: "#6B7280", marginBottom: 4 },
-  kpiV:   { fontSize: 22, fontWeight: 700, color: "#111827" },
+  kpi:    { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "18px 20px" },
+  kpiL:   { fontSize: 12, color: "#5c7a72", marginBottom: 4 },
+  kpiV:   { fontSize: 22, fontWeight: 700, color: "#0a1f1a" },
   kpiG:   { color: "#059669" },
-  section:{ fontSize: 12, fontWeight: 600, color: "#6B7280", marginTop: 24, marginBottom: 10, textTransform: "uppercase" as const, letterSpacing: ".05em" },
-  card:   { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 16 },
-  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F3F4F6" },
-  rowL:   { fontSize: 13, color: "#6B7280" },
-  rowV:   { fontSize: 14, fontWeight: 600, color: "#111827" },
-  banner: { background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "14px 18px", marginBottom: 24, fontSize: 13, color: "#1E40AF", display: "flex", alignItems: "center", gap: 10 },
+  section:{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginTop: 24, marginBottom: 10, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  card:   { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
+  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #eef7f3" },
+  rowL:   { fontSize: 13, color: "#5c7a72" },
+  rowV:   { fontSize: 14, fontWeight: 600, color: "#0a1f1a" },
+  banner: { background: "#e6f9f2", border: "1px solid rgba(0,184,122,.25)", borderRadius: 10, padding: "14px 18px", marginBottom: 24, fontSize: 13, color: "#009966", display: "flex", alignItems: "center", gap: 10 },
   errBox: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
   errCard:{ background: "#fff", borderRadius: 12, padding: "48px 40px", textAlign: "center" as const, maxWidth: 400, boxShadow: "0 4px 24px rgba(0,0,0,.08)" },
   errIcon:{ fontSize: 40, marginBottom: 12 },
   errT:   { fontWeight: 700, fontSize: 18, marginBottom: 8 },
-  errS:   { color: "#6B7280", fontSize: 14 },
-  footer: { textAlign: "center" as const, marginTop: 40, fontSize: 12, color: "#9CA3AF" },
+  errS:   { color: "#5c7a72", fontSize: 14 },
+  footer: { textAlign: "center" as const, marginTop: 40, fontSize: 12, color: "#5c7a72" },
 };
 
 type ErrorCode = "TOKEN_EXPIRED" | "TOKEN_REVOKED" | "INVALID_TOKEN" | "NO_RESULT" | "NETWORK";
@@ -46,7 +46,7 @@ function ErrorScreen({ code }: { code: ErrorCode }) {
         <div style={s.errIcon}>{icon}</div>
         <div style={s.errT}>{title}</div>
         <div style={s.errS}>{desc}</div>
-        <div style={{ marginTop: 24, fontSize: 12, color: "#9CA3AF" }}>Voltfox GreenLink Platform</div>
+        <div style={{ marginTop: 24, fontSize: 12, color: "#5c7a72" }}>Voltfox GreenLink Platform</div>
       </div>
     </div>
   );
@@ -74,7 +74,7 @@ export default function SharePage() {
 
   if (!data) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#6B7280" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#5c7a72" }}>
         Yükleniyor...
       </div>
     );
@@ -110,7 +110,7 @@ export default function SharePage() {
         <div style={s.grid}>
           <div style={s.kpi}>
             <div style={s.kpiL}>SEE Baseline</div>
-            <div style={s.kpiV}>{result.seeBaseline.toFixed(4)}<span style={{ fontSize: 12, color: "#6B7280", fontWeight: 400 }}> tCO₂e/t</span></div>
+            <div style={s.kpiV}>{result.seeBaseline.toFixed(4)}<span style={{ fontSize: 12, color: "#5c7a72", fontWeight: 400 }}> tCO₂e/t</span></div>
           </div>
           <div style={s.kpi}>
             <div style={s.kpiL}>SEE (24/7 CFE ile)</div>

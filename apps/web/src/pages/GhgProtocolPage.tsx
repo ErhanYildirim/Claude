@@ -5,18 +5,18 @@ import { fmt, fmtEur } from "../lib/chart-utils.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:  { maxWidth: 900, margin: "0 auto", padding: "32px 28px" },
-  h1:    { fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4 },
-  sub:   { fontSize: 14, color: "#6B7280", marginBottom: 24 },
-  card:  { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 16 },
-  cardH: { fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 12 },
-  row:   { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F3F4F6" },
-  rowL:  { fontSize: 13, color: "#6B7280" },
-  rowV:  { fontSize: 13, fontWeight: 600, color: "#111827" },
+  h1:    { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
+  sub:   { fontSize: 14, color: "#5c7a72", marginBottom: 24 },
+  card:  { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
+  cardH: { fontSize: 14, fontWeight: 600, color: "#0a1f1a", marginBottom: 12 },
+  row:   { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eef7f3" },
+  rowL:  { fontSize: 13, color: "#5c7a72" },
+  rowV:  { fontSize: 13, fontWeight: 600, color: "#0a1f1a" },
   select:{ padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, background: "#fff", minWidth: 220 },
   warn:  { background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#92400E", marginBottom: 16 },
   dual:  { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 },
-  dCard: { borderRadius: 8, padding: "16px 18px", border: "1px solid #E5E7EB" },
-  dLabel:{ fontSize: 12, color: "#6B7280", marginBottom: 6 },
+  dCard: { borderRadius: 8, padding: "16px 18px", border: "1px solid #d4ece4" },
+  dLabel:{ fontSize: 12, color: "#5c7a72", marginBottom: 6 },
   dVal:  { fontSize: 20, fontWeight: 700 },
 };
 
@@ -61,14 +61,14 @@ export default function GhgProtocolPage() {
 
       <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap" as const }}>
         <div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 4 }}>Tesis</div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 4 }}>Tesis</div>
           <select style={s.select} value={selectedInstId} onChange={e => setSelectedInstId(e.target.value)}>
             <option value="">— Tesis Seçin —</option>
             {installations.map(i => <option key={i.id} value={i.id}>{i.facilityName}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 4 }}>Dönem</div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 4 }}>Dönem</div>
           <select style={s.select} value={selectedPeriodId} onChange={e => setSelectedPeriodId(e.target.value)} disabled={!instDetail}>
             <option value="">— Dönem Seçin —</option>
             {instDetail?.periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
@@ -76,7 +76,7 @@ export default function GhgProtocolPage() {
         </div>
       </div>
 
-      {loading && <div style={{ color: "#6B7280", fontSize: 14 }}>Yükleniyor...</div>}
+      {loading && <div style={{ color: "#5c7a72", fontSize: 14 }}>Yükleniyor...</div>}
       {period && !emission && !loading && (
         <div style={s.warn}>Bu dönem için henüz hesaplama yapılmamış. Dönem detayına gidip SEE Hesapla butonuna basın.</div>
       )}
@@ -87,10 +87,10 @@ export default function GhgProtocolPage() {
           <div style={s.card}>
             <div style={s.cardH}>Scope 2 — Dual Raporlama (GHG Protocol Md. 7)</div>
             <div style={s.dual}>
-              <div style={{ ...s.dCard, background: "#F9FAFB" }}>
+              <div style={{ ...s.dCard, background: "#f4fbf8" }}>
                 <div style={s.dLabel}>Konum Bazlı (Location-Based)</div>
                 <div style={{ ...s.dVal }}>{fmt(emission.scope2BaselineTco2, 2)} tCO₂</div>
-                <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>Ülke ortalama EF: {period.baselineEf} tCO₂/MWh</div>
+                <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 4 }}>Ülke ortalama EF: {period.baselineEf} tCO₂/MWh</div>
               </div>
               <div style={{ ...s.dCard, background: "#F0FDF4", borderColor: "#A7F3D0" }}>
                 <div style={{ ...s.dLabel, color: "#059669" }}>Pazar Bazlı (Market-Based)</div>
@@ -122,7 +122,7 @@ export default function GhgProtocolPage() {
             </div>
           )}
 
-          <div style={{ background: "#F0F9FF", borderLeft: "3px solid #0066CC", padding: "12px 14px", borderRadius: "0 8px 8px 0", fontSize: 12, color: "#0369A1" }}>
+          <div style={{ background: "#F0F9FF", borderLeft: "3px solid #00b87a", padding: "12px 14px", borderRadius: "0 8px 8px 0", fontSize: 12, color: "#0369A1" }}>
             Motor: {emission.calcEngineVersion} · EF Veri: {emission.efDataVersion} · {new Date(emission.calculatedAt).toLocaleString("tr-TR")}
           </div>
         </>

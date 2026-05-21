@@ -4,14 +4,14 @@ import { supabase } from "../lib/supabase.js";
 const s: Record<string, React.CSSProperties> = {
   page:   { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f4ff" },
   card:   { background: "#fff", borderRadius: 12, padding: "40px 36px", width: 380, boxShadow: "0 4px 24px rgba(0,0,0,.08)" },
-  logo:   { color: "#0066CC", fontSize: 24, fontWeight: 700, marginBottom: 4 },
-  sub:    { color: "#6B7280", fontSize: 13, marginBottom: 28 },
-  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 },
+  logo:   { color: "#00b87a", fontSize: 24, fontWeight: 700, marginBottom: 4 },
+  sub:    { color: "#5c7a72", fontSize: 13, marginBottom: 28 },
+  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 6 },
   input:  { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #D1D5DB", fontSize: 14, outline: "none", marginBottom: 16 },
-  btn:    { width: "100%", padding: "11px", borderRadius: 8, background: "#0066CC", color: "#fff", fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" },
+  btn:    { width: "100%", padding: "11px", borderRadius: 8, background: "#00b87a", color: "#fff", fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" },
   err:    { color: "#DC2626", fontSize: 13, marginBottom: 12 },
-  toggle: { textAlign: "center" as const, marginTop: 18, fontSize: 13, color: "#6B7280" },
-  link:   { color: "#0066CC", cursor: "pointer", fontWeight: 600, textDecoration: "none" },
+  toggle: { textAlign: "center" as const, marginTop: 18, fontSize: 13, color: "#5c7a72" },
+  link:   { color: "#00b87a", cursor: "pointer", fontWeight: 600, textDecoration: "none" },
 };
 
 export default function LoginPage() {

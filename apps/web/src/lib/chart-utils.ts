@@ -1,12 +1,12 @@
 export const CHART_COLORS = {
-  primary: "#0066CC", green: "#059669", red: "#DC2626",
+  primary: "#00b87a", green: "#059669", red: "#DC2626",
   orange: "#D97706", purple: "#7C3AED", teal: "#0D9488",
-  gray: "#9CA3AF",
+  gray: "#5c7a72",
 };
 
 export const SECTOR_COLORS: Record<string, string> = {
   steel: "#6366F1", aluminium: "#0D9488", cement: "#D97706",
-  fertilizer: "#059669", electricity: "#0066CC",
+  fertilizer: "#059669", electricity: "#00b87a",
 };
 
 export const SECTOR_LABELS: Record<string, string> = {

@@ -4,39 +4,39 @@ import { api } from "../lib/api.js";
 import type { InstallationDetail, Period, CreatePeriodBody, EFEntry } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
-  nav:     { background: "#0066CC", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
+  nav:     { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
   back:    { color: "rgba(255,255,255,.8)", textDecoration: "none", fontSize: 13 },
   brand:   { fontWeight: 700, fontSize: 18, color: "#fff" },
   page:    { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
   h1:      { fontSize: 22, fontWeight: 700, marginBottom: 4 },
-  sub:     { color: "#6B7280", fontSize: 14, marginBottom: 28 },
-  addBtn:  { display: "inline-flex", alignItems: "center", gap: 6, background: "#0066CC", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 },
-  table:   { width: "100%", borderCollapse: "collapse" as const, background: "#fff", borderRadius: 10, overflow: "hidden", border: "1px solid #E5E7EB" },
-  th:      { background: "#F9FAFB", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#6B7280", borderBottom: "1px solid #E5E7EB" },
-  td:      { padding: "12px 14px", borderBottom: "1px solid #F3F4F6", fontSize: 14 },
+  sub:     { color: "#5c7a72", fontSize: 14, marginBottom: 28 },
+  addBtn:  { display: "inline-flex", alignItems: "center", gap: 6, background: "#00b87a", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 },
+  table:   { width: "100%", borderCollapse: "collapse" as const, background: "#fff", borderRadius: 10, overflow: "hidden", border: "1px solid #d4ece4" },
+  th:      { background: "#f4fbf8", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#5c7a72", borderBottom: "1px solid #d4ece4" },
+  td:      { padding: "12px 14px", borderBottom: "1px solid #eef7f3", fontSize: 14 },
   btnSm:   { padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 },
   green:   { background: "#D1FAE5", color: "#065F46" },
-  blue:    { background: "#DBEAFE", color: "#1E40AF" },
-  gray:    { background: "#F3F4F6", color: "#6B7280" },
+  blue:    { background: "#DBEAFE", color: "#009966" },
+  gray:    { background: "#eef7f3", color: "#5c7a72" },
   modal:   { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto" as const },
   mCard:   { background: "#fff", borderRadius: 12, padding: "32px", width: 580, margin: "20px auto", boxShadow: "0 8px 32px rgba(0,0,0,.15)" },
   mTitle:  { fontSize: 17, fontWeight: 700, marginBottom: 20 },
-  label:   { display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 },
+  label:   { display: "block", fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 5 },
   input:   { width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, outline: "none", marginBottom: 14, boxSizing: "border-box" as const },
   select:  { width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, marginBottom: 14, background: "#fff", boxSizing: "border-box" as const },
   row2:    { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
   btnRow:  { display: "flex", gap: 10, marginTop: 8 },
   btn:     { flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14 },
-  btnP:    { background: "#0066CC", color: "#fff" },
-  btnS:    { background: "#F3F4F6", color: "#374151" },
+  btnP:    { background: "#00b87a", color: "#fff" },
+  btnS:    { background: "#eef7f3", color: "#1a3530" },
   err:     { color: "#DC2626", fontSize: 13, marginBottom: 12 },
-  section: { fontSize: 13, fontWeight: 600, color: "#6B7280", marginBottom: 8, marginTop: 18, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  section: { fontSize: 13, fontWeight: 600, color: "#5c7a72", marginBottom: 8, marginTop: 18, textTransform: "uppercase" as const, letterSpacing: ".05em" },
   badge:   { display: "inline-block", fontSize: 11, padding: "2px 7px", borderRadius: 4, marginLeft: 6, fontWeight: 600 },
   badgeAuto: { background: "#D1FAE5", color: "#065F46" },
   badgeManual: { background: "#FEF3C7", color: "#92400E" },
-  efNote:  { fontSize: 12, color: "#6B7280", marginTop: -10, marginBottom: 14 },
+  efNote:  { fontSize: 12, color: "#5c7a72", marginTop: -10, marginBottom: 14 },
   dropzone: { border: "2px dashed #D1D5DB", borderRadius: 8, padding: "24px", textAlign: "center" as const, cursor: "pointer", marginBottom: 14, transition: "border-color .2s" },
-  dropzoneActive: { borderColor: "#0066CC", background: "#EFF6FF" },
+  dropzoneActive: { borderColor: "#00b87a", background: "#e6f9f2" },
 };
 
 const EMPTY_FORM: CreatePeriodBody = {
@@ -203,13 +203,13 @@ export default function InstallationDetailPage() {
     if (file) setCsvFile(file);
   }
 
-  if (!installation) return <div style={{ padding: 40, textAlign: "center", color: "#6B7280" }}>Yükleniyor...</div>;
+  if (!installation) return <div style={{ padding: 40, textAlign: "center", color: "#5c7a72" }}>Yükleniyor...</div>;
 
   return (
     <>
       <div style={s.page}>
-        <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 8 }}>
-          <Link to="/cbam" style={{ color: "#0066CC", textDecoration: "none" }}>← Tesisler</Link>
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
+          <Link to="/cbam" style={{ color: "#00b87a", textDecoration: "none" }}>← Tesisler</Link>
         </div>
         <div style={s.h1}>{installation.facilityName}</div>
         <div style={s.sub}>{installation.operator} · {installation.facilityCountry}</div>
@@ -217,7 +217,7 @@ export default function InstallationDetailPage() {
         <button style={s.addBtn} onClick={() => setShowModal(true)}>+ Yeni Dönem Ekle</button>
 
         {installation.periods.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "#6B7280" }}>
+          <div style={{ textAlign: "center", padding: "40px 0", color: "#5c7a72" }}>
             Henüz raporlama dönemi yok. İlk dönemi ekleyin.
           </div>
         ) : (
@@ -236,20 +236,20 @@ export default function InstallationDetailPage() {
               {installation.periods.map(p => (
                 <tr key={p.id}>
                   <td style={s.td}>
-                    <Link to={`/installations/${id}/periods/${p.id}`} style={{ color: "#0066CC", fontWeight: 600 }}>
+                    <Link to={`/installations/${id}/periods/${p.id}`} style={{ color: "#00b87a", fontWeight: 600 }}>
                       {p.periodName}
                     </Link>
-                    <div style={{ fontSize: 12, color: "#9CA3AF" }}>{p.startDate?.slice(0,10)} – {p.endDate?.slice(0,10)}</div>
+                    <div style={{ fontSize: 12, color: "#5c7a72" }}>{p.startDate?.slice(0,10)} – {p.endDate?.slice(0,10)}</div>
                   </td>
                   <td style={s.td}>{p.cnCode}</td>
                   <td style={s.td}>{p.prodVolumeTonne.toLocaleString()}</td>
                   <td style={s.td}>
-                    {p.result ? `${p.result.seeBaseline.toFixed(4)} tCO₂e/t` : <span style={{ color: "#9CA3AF" }}>—</span>}
+                    {p.result ? `${p.result.seeBaseline.toFixed(4)} tCO₂e/t` : <span style={{ color: "#5c7a72" }}>—</span>}
                   </td>
                   <td style={s.td}>
                     {p.result
                       ? <span style={{ color: "#059669", fontWeight: 600 }}>{p.result.seeVoltfox.toFixed(4)} tCO₂e/t</span>
-                      : <span style={{ color: "#9CA3AF" }}>—</span>}
+                      : <span style={{ color: "#5c7a72" }}>—</span>}
                   </td>
                   <td style={s.td}>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -344,13 +344,13 @@ export default function InstallationDetailPage() {
               {/* Yakıt breakdown — opsiyonel */}
               <div style={{ marginBottom: 14 }}>
                 <button type="button"
-                  style={{ background: "none", border: "none", color: "#0066CC", fontSize: 13, cursor: "pointer", padding: 0, fontWeight: 600 }}
+                  style={{ background: "none", border: "none", color: "#00b87a", fontSize: 13, cursor: "pointer", padding: 0, fontWeight: 600 }}
                   onClick={() => setShowFuel(v => !v)}>
                   {showFuel ? "▼" : "▶"} Yakıt Detayı ile Hesapla (opsiyonel)
                 </button>
                 {showFuel && (
-                  <div style={{ marginTop: 12, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: 14 }}>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 10 }}>
+                  <div style={{ marginTop: 12, background: "#f4fbf8", border: "1px solid #d4ece4", borderRadius: 8, padding: 14 }}>
+                    <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 10 }}>
                       Yakıt tipi ve tüketim girin — Scope 1 toplamı otomatik hesaplanır (IPCC 2006).
                     </div>
                     {fuelRows.map((row, i) => {
@@ -359,7 +359,7 @@ export default function InstallationDetailPage() {
                       return (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 8, marginBottom: 8, alignItems: "end" }}>
                           <div>
-                            {i === 0 && <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>Yakıt Tipi</div>}
+                            {i === 0 && <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Yakıt Tipi</div>}
                             <select style={{ ...s.select, marginBottom: 0 }}
                               value={row.fuelType}
                               onChange={e => setFuelRows(rows => rows.map((r, j) => j === i ? { ...r, fuelType: e.target.value as FuelType } : r))}>
@@ -369,13 +369,13 @@ export default function InstallationDetailPage() {
                             </select>
                           </div>
                           <div>
-                            {i === 0 && <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>Tüketim (MWh)</div>}
+                            {i === 0 && <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Tüketim (MWh)</div>}
                             <input style={{ ...s.input, marginBottom: 0 }} type="number" min="0" step="0.1"
                               value={row.consumedMwh || ""}
                               onChange={e => setFuelRows(rows => rows.map((r, j) => j === i ? { ...r, consumedMwh: parseFloat(e.target.value) || 0 } : r))} />
                           </div>
                           <div>
-                            {i === 0 && <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>Sonuç (tCO₂)</div>}
+                            {i === 0 && <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Sonuç (tCO₂)</div>}
                             <div style={{ padding: "9px 12px", background: "#E0F2FE", borderRadius: 7, fontSize: 13, fontWeight: 600, color: "#0369A1" }}>
                               {tco2.toFixed(2)}
                             </div>
@@ -391,11 +391,11 @@ export default function InstallationDetailPage() {
                     })}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
                       <button type="button"
-                        style={{ background: "none", border: "1px dashed #D1D5DB", borderRadius: 6, color: "#6B7280", cursor: "pointer", padding: "5px 12px", fontSize: 12 }}
+                        style={{ background: "none", border: "1px dashed #D1D5DB", borderRadius: 6, color: "#5c7a72", cursor: "pointer", padding: "5px 12px", fontSize: 12 }}
                         onClick={() => setFuelRows(rows => [...rows, { ...EMPTY_FUEL_ROW }])}>
                         + Yakıt Ekle
                       </button>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0a1f1a" }}>
                         Toplam: {fuelTotal().toFixed(2)} tCO₂
                       </div>
                     </div>
@@ -428,7 +428,7 @@ export default function InstallationDetailPage() {
                   <label style={s.label}>
                     Tesis Ülkesi
                     {efCountries.length > 0 && (
-                      <span style={{ fontWeight: 400, color: "#6B7280", fontSize: 12, marginLeft: 4 }}>
+                      <span style={{ fontWeight: 400, color: "#5c7a72", fontSize: 12, marginLeft: 4 }}>
                         (EF için ülke seç)
                       </span>
                     )}
@@ -450,7 +450,7 @@ export default function InstallationDetailPage() {
                       ))}
                     </select>
                   ) : (
-                    <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 14 }}>Yükleniyor...</div>
+                    <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14 }}>Yükleniyor...</div>
                   )}
                 </div>
                 <div>
@@ -471,7 +471,7 @@ export default function InstallationDetailPage() {
                     <div style={s.efNote}>
                       Kaynak: {efEntry.source} · {efEntry.year} yılı verisi
                       {efManual && " · "}
-                      <button type="button" style={{ background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 11, textDecoration: "underline", padding: 0 }}
+                      <button type="button" style={{ background: "none", border: "none", color: "#5c7a72", cursor: "pointer", fontSize: 11, textDecoration: "underline", padding: 0 }}
                         onClick={() => { setEfManual(false); if (efEntry) set("baselineEf", efEntry.ef); }}>
                         sıfırla
                       </button>
@@ -543,8 +543,8 @@ export default function InstallationDetailPage() {
         <div style={s.modal} onClick={e => e.target === e.currentTarget && setShowCsvModal(false)}>
           <div style={{ ...s.mCard, width: 480 }}>
             <div style={s.mTitle}>CFE Saatlik Veri Yükleme</div>
-            <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-              Beklenen CSV formatı: <code style={{ background: "#F3F4F6", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
+            <p style={{ fontSize: 13, color: "#5c7a72", marginBottom: 16 }}>
+              Beklenen CSV formatı: <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
               <br />Maksimum 10 MB · Yıllık ~8760 satır
             </p>
 
@@ -560,10 +560,10 @@ export default function InstallationDetailPage() {
                   {csvFile ? (
                     <div>
                       <div style={{ fontWeight: 600 }}>{csvFile.name}</div>
-                      <div style={{ fontSize: 12, color: "#6B7280" }}>{(csvFile.size / 1024).toFixed(0)} KB</div>
+                      <div style={{ fontSize: 12, color: "#5c7a72" }}>{(csvFile.size / 1024).toFixed(0)} KB</div>
                     </div>
                   ) : (
-                    <div style={{ color: "#9CA3AF" }}>
+                    <div style={{ color: "#5c7a72" }}>
                       CSV dosyasını sürükleyin veya tıklayın
                     </div>
                   )}
@@ -584,7 +584,7 @@ export default function InstallationDetailPage() {
                   <div style={{ fontWeight: 700, color: "#065F46", fontSize: 15, marginBottom: 4 }}>
                     CFE Skoru: {csvResult.cfeScore.toFixed(1)}%
                   </div>
-                  <div style={{ fontSize: 13, color: "#374151" }}>
+                  <div style={{ fontSize: 13, color: "#1a3530" }}>
                     {csvResult.rowCount} satır işlendi
                     {csvResult.errorCount > 0 && ` · ${csvResult.errorCount} satır atlandı`}
                   </div>

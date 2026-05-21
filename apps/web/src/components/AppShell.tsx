@@ -8,39 +8,35 @@ interface NavGroup { title: string; items: NavItem[]; }
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: "Veri Girişi",
+    title: "Ürünler",
     items: [
-      { icon: "🏭", label: "Tesisler", path: "/cbam" },
-      { icon: "🌿", label: "CBAM",     path: "/cbam" },
-    ],
-  },
-  {
-    title: "Analiz & İzleme",
-    items: [
-      { icon: "📊", label: "Dashboard", path: "/dashboard" },
-      { icon: "⚡", label: "24/7 CFE",  path: "/cfe" },
-      { icon: "🌍", label: "EF Veri",   path: "/ef-data" },
+      { icon: "🔬", label: "Granüler Hesaplama", path: "/gec" },
+      { icon: "⚡", label: "24/7 CFE Matching",  path: "/cfe" },
+      { icon: "🏛️", label: "CBAM Emissions",     path: "/cbam" },
+      { icon: "📡", label: "EF Veri Servisi",    path: "/ef-data" },
     ],
   },
   {
     title: "Raporlama",
     items: [
-      { icon: "📋", label: "CBAM Raporu",  path: "/reports/cbam" },
-      { icon: "📋", label: "CDP Raporu",   path: "/reports/cdp" },
-      { icon: "📋", label: "ISO 14064",    path: "/reports/iso14064" },
-      { icon: "📋", label: "GHG Protocol", path: "/reports/ghg" },
+      { icon: "📄", label: "CBAM Teknik Dosya", path: "/reports/cbam" },
+      { icon: "📄", label: "CDP Raporu",         path: "/reports/cdp" },
+      { icon: "📄", label: "ISO 14064",          path: "/reports/iso14064" },
+      { icon: "📄", label: "GHG Protocol",       path: "/reports/ghg" },
     ],
   },
   {
-    title: "Sistem",
+    title: "Genel",
     items: [
-      { icon: "⚙️", label: "Ayarlar", path: "/settings" },
+      { icon: "📊", label: "Dashboard", path: "/dashboard" },
+      { icon: "⚙️", label: "Ayarlar",  path: "/settings" },
     ],
   },
 ];
 
 function isActive(path: string, pathname: string): boolean {
   if (path === "/cbam") return pathname === "/cbam" || pathname.startsWith("/installations");
+  if (path === "/gec")  return pathname === "/gec";
   return pathname === path || pathname.startsWith(path + "/");
 }
 
@@ -50,36 +46,44 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const sidebarStyle: React.CSSProperties = {
     position: "fixed", top: 0, left: 0, width: 240, height: "100vh",
-    background: "#0F172A", display: "flex", flexDirection: "column",
+    background: "#0a1f1a", display: "flex", flexDirection: "column",
     overflowY: "auto", zIndex: 50,
   };
   const logoArea: React.CSSProperties = {
-    padding: "20px 16px 12px", borderBottom: "1px solid rgba(255,255,255,.08)",
+    padding: "20px 16px 14px", borderBottom: "1px solid rgba(255,255,255,.07)",
   };
   const navArea: React.CSSProperties = { flex: 1, padding: "8px 8px" };
   const groupTitle: React.CSSProperties = {
-    fontSize: 10, color: "rgba(255,255,255,.35)", textTransform: "uppercase",
-    letterSpacing: ".08em", padding: "16px 14px 4px",
+    fontSize: 10, color: "rgba(255,255,255,.3)", textTransform: "uppercase",
+    letterSpacing: ".09em", padding: "16px 14px 4px", fontWeight: 700,
   };
   const itemBase: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
-    borderRadius: 7, fontSize: 14, cursor: "pointer", textDecoration: "none",
-    color: "rgba(255,255,255,.65)", transition: "background .15s",
-    marginBottom: 2,
+    borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer",
+    textDecoration: "none", color: "rgba(255,255,255,.6)",
+    transition: "background .15s, color .15s", marginBottom: 2,
   };
   const itemActive: React.CSSProperties = {
-    background: "#0066CC", color: "#fff", fontWeight: 600,
+    background: "#00b87a", color: "#fff", fontWeight: 700,
   };
   const bottomArea: React.CSSProperties = {
-    padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,.08)",
+    padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,.07)",
   };
 
   return (
     <>
       <aside style={sidebarStyle}>
         <div style={logoArea}>
-          <div style={{ fontWeight: 700, fontSize: 18, color: "#fff" }}>Voltfox</div>
-          <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>CBAM Platform</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+              background: "linear-gradient(135deg,#00b87a,#009966)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 15, fontWeight: 900, color: "#fff",
+            }}>V</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: "#fff", letterSpacing: "-.01em" }}>Voltfox</div>
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,.35)", fontWeight: 500, paddingLeft: 2 }}>Emisyon Yönetim Platformu</div>
         </div>
 
         <nav style={navArea}>
@@ -93,8 +97,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     key={item.label + item.path}
                     to={item.path}
                     style={{ ...itemBase, ...(active ? itemActive : {}) }}
-                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.08)"; }}
-                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(0,184,122,.12)"; (e.currentTarget as HTMLElement).style.color = "#fff"; } }}
+                    onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.6)"; } }}
                   >
                     <span style={{ width: 18, flexShrink: 0, textAlign: "center" }}>{item.icon}</span>
                     {item.label}
@@ -120,7 +124,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main style={{ marginLeft: 240, minHeight: "100vh", background: "#F8FAFC" }}>
+      <main style={{ marginLeft: 240, minHeight: "100vh", background: "var(--bg, #f4fbf8)" }}>
         {children}
       </main>
     </>

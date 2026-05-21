@@ -1,208 +1,299 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, Legend,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { EFEntry, DefaultResult } from "../lib/api.js";
-import { fmt } from "../lib/chart-utils.js";
+import type { EFZoneEntry, EFZoneSummary, EFMonthlyPoint } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
-  page:   { maxWidth: 1100, margin: "0 auto", padding: "32px 28px" },
-  h1:     { fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4 },
-  sub:    { fontSize: 14, color: "#6B7280", marginBottom: 24 },
-  card:   { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 20 },
-  cardH:  { fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 14 },
-  row2:   { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 },
-  input:  { padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box" as const },
-  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 },
-  btn:    { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: "#0066CC", color: "#fff" },
-  badge:  { display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 },
-  detailBox: { background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8, padding: 14, marginTop: 12, fontSize: 13 },
-  row:    { display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #F3F4F6" },
-  err:    { color: "#DC2626", fontSize: 13, marginBottom: 10 },
+  page:    { maxWidth: 1200, margin: "0 auto", padding: "32px 28px" },
+  h1:      { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
+  sub:     { fontSize: 14, color: "#5c7a72", marginBottom: 24 },
+  grid:    { display: "grid", gridTemplateColumns: "320px 1fr", gap: 20, alignItems: "start" },
+  card:    { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
+  cardH:   { fontSize: 13, fontWeight: 700, color: "#0a1f1a", marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  zoneRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", borderRadius: 7, cursor: "pointer", marginBottom: 2 },
+  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 },
+  kpiBox:  { background: "#eef7f3", borderRadius: 9, padding: "14px 16px" },
+  kpiL:    { fontSize: 11, color: "#5c7a72", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: ".06em" },
+  kpiV:    { fontSize: 22, fontWeight: 800, color: "#0a1f1a" },
+  kpiU:    { fontSize: 11, color: "#5c7a72", marginTop: 2 },
+  badge:   { padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, display: "inline-block" },
+  input:   { width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4", fontSize: 13, outline: "none" },
+  searchWrap: { position: "relative" as const, marginBottom: 10 },
+  empty:   { textAlign: "center" as const, color: "#5c7a72", padding: "40px 20px", fontSize: 14 },
+  pill:    { padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#e6f9f2", color: "#00b87a", display: "inline-block" },
 };
 
-function efColor(ef: number): string {
-  return ef < 0.3 ? "#059669" : ef < 0.5 ? "#D97706" : "#DC2626";
+function ciColor(ci: number): string {
+  if (ci < 100) return "#059669";
+  if (ci < 200) return "#10b981";
+  if (ci < 350) return "#d97706";
+  if (ci < 500) return "#ef4444";
+  return "#991b1b";
 }
 
-interface CountryEF { iso2: string; name: string; ef: number; }
+function CIBadge({ ci }: { ci: number }) {
+  const color = ciColor(ci);
+  const label = ci < 100 ? "Çok Temiz" : ci < 200 ? "Temiz" : ci < 350 ? "Orta" : ci < 500 ? "Yoğun" : "Çok Yoğun";
+  return (
+    <span style={{ ...s.badge, background: color + "20", color }}>
+      {ci.toFixed(0)} g · {label}
+    </span>
+  );
+}
 
 export default function EfDataPage() {
-  const [countries, setCountries] = useState<CountryEF[]>([]);
-  const [dataVersion, setDataVersion] = useState("");
-  const [search, setSearch]         = useState("");
-  const [loading, setLoading]       = useState(true);
-  const [selected, setSelected]     = useState<EFEntry | null>(null);
-  const [compare, setCompare]       = useState<string[]>([]);
-  const [detail, setDetail]         = useState<EFEntry | null>(null);
+  const [zones, setZones]             = useState<EFZoneEntry[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState("");
+  const [selected, setSelected]       = useState<EFZoneEntry | null>(null);
+  const [summary, setSummary]         = useState<EFZoneSummary | null>(null);
+  const [monthly, setMonthly]         = useState<EFMonthlyPoint[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
-
-  // CBAM default lookup
-  const [cnCode, setCnCode]       = useState("");
-  const [country, setCountry]     = useState("TR");
-  const [lookupResult, setLookupResult] = useState<DefaultResult | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupErr, setLookupErr] = useState("");
+  const [dbEmpty, setDbEmpty]         = useState(false);
 
   useEffect(() => {
-    api.defaults.efList().then(r => {
-      setCountries(r.countries.sort((a, b) => b.ef - a.ef));
-      setDataVersion(r.dataVersion);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    api.ef.zones()
+      .then((r) => {
+        setZones(r.zones);
+        setLoading(false);
+        if (r.count === 0) setDbEmpty(true);
+        else if (r.zones.length > 0) selectZone(r.zones.find(z => z.zoneId === "TR") ?? r.zones[0]);
+      })
+      .catch(() => { setLoading(false); setDbEmpty(true); });
   }, []);
 
-  const filtered = countries.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.iso2.toLowerCase().includes(search.toLowerCase())
+  const selectZone = useCallback(async (zone: EFZoneEntry) => {
+    setSelected(zone);
+    setDetailLoading(true);
+    setSummary(null);
+    setMonthly([]);
+    try {
+      const [sum, mon] = await Promise.all([
+        api.ef.zone(zone.zoneId),
+        api.ef.monthly(zone.zoneId, 2024),
+      ]);
+      setSummary(sum);
+      setMonthly(mon.months);
+    } catch { /* zone data might not be ready */ }
+    setDetailLoading(false);
+  }, []);
+
+  const filtered = zones.filter((z) =>
+    z.country.toLowerCase().includes(search.toLowerCase()) ||
+    z.zoneId.toLowerCase().includes(search.toLowerCase()) ||
+    z.zoneName.toLowerCase().includes(search.toLowerCase())
   );
 
-  async function showDetail(iso2: string) {
-    setDetailLoading(true); setDetail(null);
-    try { setDetail(await api.defaults.efLookup(iso2)); } catch { /* skip */ }
-    setDetailLoading(false);
+  // Group by country
+  const countryGroups: Record<string, EFZoneEntry[]> = {};
+  for (const z of filtered) {
+    (countryGroups[z.country] ??= []).push(z);
   }
-
-  function toggleCompare(iso2: string) {
-    setCompare(prev =>
-      prev.includes(iso2) ? prev.filter(c => c !== iso2) : prev.length < 8 ? [...prev, iso2] : prev
-    );
-  }
-
-  async function lookup() {
-    if (!cnCode.trim() || !country.trim()) return;
-    setLookupErr(""); setLookupLoading(true); setLookupResult(null);
-    try { setLookupResult(await api.defaults.lookup(country.toUpperCase(), cnCode.trim())); }
-    catch (e: unknown) { setLookupErr(e instanceof Error ? e.message : "Bulunamadı"); }
-    setLookupLoading(false);
-  }
-
-  const compareData = countries.filter(c => compare.includes(c.iso2));
 
   return (
     <div style={s.page}>
-      <div style={s.h1}>EF Veri Görselleştirme</div>
+      <div style={s.h1}>EF Veri Servisi</div>
       <div style={s.sub}>
-        {loading ? "Yükleniyor..." : `${countries.length} ülke · Veri versiyonu: ${dataVersion}`}
+        {loading ? "Yükleniyor..." : dbEmpty
+          ? "Emisyon faktörü verisi henüz yüklenmemiş"
+          : `${zones.length} zone · 2024 · Saatlik granüler EF verisi · Kaynak: Electricity Maps`
+        }
       </div>
 
-      {/* Arama */}
-      <div style={{ marginBottom: 16 }}>
-        <input style={{ ...s.input, maxWidth: 360 }} placeholder="Ülke adı veya ISO-2 ile ara..." value={search}
-          onChange={e => setSearch(e.target.value)} />
-      </div>
-
-      <div style={s.row2}>
-        {/* EF Ranking Chart */}
-        <div style={s.card}>
-          <div style={s.cardH}>EF Sıralaması (tCO₂/MWh) — Yüksekten Düşüğe</div>
-          {loading ? (
-            <div style={{ background: "#F3F4F6", borderRadius: 8, height: 400 }} />
-          ) : (
-            <div style={{ maxHeight: 500, overflowY: "auto" }}>
-              <ResponsiveContainer width="100%" height={Math.max(filtered.length * 26 + 40, 100)}>
-                <BarChart layout="vertical" data={filtered} margin={{ left: 10, right: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="iso2" tick={{ fontSize: 11 }} width={32}
-                    tickFormatter={(v: string) => v} />
-                  <Tooltip formatter={(v: number, _n: string, props: { payload?: CountryEF }) =>
-                    [`${fmt(v, 3)} tCO₂/MWh`, props.payload?.name ?? ""]
-                  } />
-                  <Bar dataKey="ef" name="EF (tCO₂/MWh)">
-                    {filtered.map((c, i) => (
-                      <Cell key={i}
-                        fill={efColor(c.ef)}
-                        stroke={c.iso2 === "TR" ? "#111827" : "transparent"}
-                        strokeWidth={c.iso2 === "TR" ? 2 : 0}
-                        cursor="pointer"
-                        onClick={() => { setSelected(c as unknown as EFEntry); showDetail(c.iso2); }}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+      {dbEmpty ? (
+        <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>📡</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#0a1f1a", marginBottom: 8 }}>
+            EF Verisi İçe Aktarılıyor
+          </div>
+          <div style={{ fontSize: 14, color: "#5c7a72", maxWidth: 480, margin: "0 auto" }}>
+            347 zone için 2024 saatlik emisyon faktörü verisi import ediliyor.
+            Supabase Dashboard → SQL Editor'den <code>TRUNCATE TABLE emission_factors RESTART IDENTITY;</code> çalıştırın, ardından import scripti yeniden başlatın.
+          </div>
         </div>
+      ) : (
+        <div style={s.grid}>
+          {/* Sol: Zone Listesi */}
+          <div>
+            <div style={s.card}>
+              <div style={s.searchWrap}>
+                <input
+                  style={s.input}
+                  placeholder="Zone, ülke ara..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div style={{ maxHeight: 640, overflowY: "auto" }}>
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} style={{ background: "#eef7f3", borderRadius: 7, height: 38, marginBottom: 4, opacity: 0.6 - i * 0.05 }} />
+                  ))
+                ) : Object.entries(countryGroups).map(([country, czones]) => (
+                  <div key={country}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase", letterSpacing: ".08em", padding: "10px 10px 4px" }}>
+                      {country}
+                    </div>
+                    {czones.map((z) => {
+                      const active = selected?.zoneId === z.zoneId;
+                      return (
+                        <div
+                          key={z.zoneId}
+                          style={{
+                            ...s.zoneRow,
+                            background: active ? "#00b87a" : "transparent",
+                            color: active ? "#fff" : "#0a1f1a",
+                          }}
+                          onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "#eef7f3"; }}
+                          onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                          onClick={() => selectZone(z)}
+                        >
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: 13 }}>{z.zoneId}</span>
+                            {z.zoneId !== z.zoneName && (
+                              <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.7 }}>{z.zoneName}</span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: 11, opacity: 0.7 }}>
+                            {(z.rowCount / 1000).toFixed(1)}k
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-        {/* Sağ panel: detay + karşılaştırma + CBAM lookup */}
-        <div>
-          {/* Ülke detayı */}
-          <div style={s.card}>
-            <div style={s.cardH}>Ülke Detayı</div>
-            {selected ? (
-              detailLoading ? <div style={{ color: "#6B7280", fontSize: 13 }}>Yükleniyor...</div> :
-              detail ? (
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{detail.name} ({detail.iso2})</div>
-                  <div style={s.row}><span style={{ color: "#6B7280", fontSize: 13 }}>EF Değeri</span><span style={{ fontWeight: 700, fontSize: 14, color: efColor(detail.ef) }}>{fmt(detail.ef, 3)} tCO₂/MWh</span></div>
-                  <div style={s.row}><span style={{ color: "#6B7280", fontSize: 13 }}>Kaynak</span><span style={{ fontSize: 13 }}>{detail.source}</span></div>
-                  <div style={s.row}><span style={{ color: "#6B7280", fontSize: 13 }}>Yıl</span><span style={{ fontSize: 13 }}>{detail.year}</span></div>
-                  <div style={s.row}><span style={{ color: "#6B7280", fontSize: 13 }}>Veri Versiyonu</span><span style={{ fontSize: 12, fontFamily: "monospace" }}>{detail.dataVersion}</span></div>
-                  {detail.notes && <div style={{ fontSize: 12, color: "#6B7280", marginTop: 8 }}>{detail.notes}</div>}
+          {/* Sağ: Zone Detayı */}
+          <div>
+            {!selected ? (
+              <div style={{ ...s.card, ...s.empty }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+                Sol listeden bir zone seçin
+              </div>
+            ) : detailLoading ? (
+              <div style={{ ...s.card, ...s.empty }}>
+                <div style={{ color: "#5c7a72" }}>Yükleniyor...</div>
+              </div>
+            ) : (
+              <>
+                {/* Header */}
+                <div style={{ ...s.card, marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#0a1f1a" }}>
+                        {selected.zoneId}
+                        <span style={{ fontSize: 14, fontWeight: 500, color: "#5c7a72", marginLeft: 8 }}>
+                          {selected.zoneName}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: "#5c7a72", marginTop: 2 }}>{selected.country}</div>
+                    </div>
+                    <span style={s.pill}>2024 · Saatlik</span>
+                  </div>
+
+                  {summary && (
+                    <div style={{ ...s.kpiGrid, marginTop: 16 }}>
+                      <div style={s.kpiBox}>
+                        <div style={s.kpiL}>Yıllık Ort. CI (Direkt)</div>
+                        <div style={{ ...s.kpiV, color: ciColor(summary.ciDirect.avg) }}>
+                          {summary.ciDirect.avg.toFixed(0)}
+                        </div>
+                        <div style={s.kpiU}>gCO₂eq/kWh</div>
+                      </div>
+                      <div style={s.kpiBox}>
+                        <div style={s.kpiL}>Karbon Serbest Enerji %</div>
+                        <div style={{ ...s.kpiV, color: "#00b87a" }}>
+                          {summary.cfePct.avg.toFixed(1)}%
+                        </div>
+                        <div style={s.kpiU}>CFE — 2024 ortalaması</div>
+                      </div>
+                      <div style={s.kpiBox}>
+                        <div style={s.kpiL}>Yenilenebilir Enerji %</div>
+                        <div style={{ ...s.kpiV, color: "#009966" }}>
+                          {summary.rePct.avg.toFixed(1)}%
+                        </div>
+                        <div style={s.kpiU}>RE — 2024 ortalaması</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {summary && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                      <CIBadge ci={summary.ciDirect.avg} />
+                      <span style={{ fontSize: 12, color: "#5c7a72", alignSelf: "center" }}>
+                        Min: {summary.ciDirect.min.toFixed(0)} · Max: {summary.ciDirect.max.toFixed(0)} gCO₂/kWh
+                      </span>
+                      <span style={{ fontSize: 12, color: "#5c7a72", alignSelf: "center" }}>
+                        {summary.rowCount.toLocaleString()} saatlik veri
+                      </span>
+                    </div>
+                  )}
                 </div>
-              ) : <div style={{ color: "#9CA3AF", fontSize: 13 }}>Detay yüklenemedi</div>
-            ) : <div style={{ color: "#9CA3AF", fontSize: 13 }}>Grafikten bir ülke seçin</div>}
-          </div>
 
-          {/* Karşılaştırma */}
-          <div style={s.card}>
-            <div style={s.cardH}>Ülke Karşılaştırması (max 8)</div>
-            <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6, marginBottom: 12 }}>
-              {countries.slice(0, 20).map(c => (
-                <label key={c.iso2} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, cursor: "pointer" }}>
-                  <input type="checkbox" checked={compare.includes(c.iso2)}
-                    onChange={() => toggleCompare(c.iso2)}
-                    disabled={!compare.includes(c.iso2) && compare.length >= 8} />
-                  {c.iso2}
-                </label>
-              ))}
-            </div>
-            {compareData.length > 0 && (
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={compareData} margin={{ bottom: 20 }}>
-                  <XAxis dataKey="iso2" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => [`${fmt(v, 3)} tCO₂/MWh`, "EF"]} />
-                  <Bar dataKey="ef">
-                    {compareData.map((c, i) => <Cell key={i} fill={efColor(c.ef)} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+                {/* Aylık CI Grafiği */}
+                {monthly.length > 0 && (
+                  <div style={s.card}>
+                    <div style={s.cardH}>Aylık Ortalama Emisyon Yoğunluğu — 2024</div>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={monthly} margin={{ top: 4, right: 16, bottom: 0, left: -10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
+                        <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: "#5c7a72" }} />
+                        <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit=" g" />
+                        <Tooltip
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          formatter={(v: any) => [`${Number(v).toFixed(1)} gCO₂/kWh`] as any}
+                          labelStyle={{ fontWeight: 600, color: "#0a1f1a" }}
+                        />
+                        <Bar dataKey="avgCiDirect" name="CI Direkt" fill="#0a1f1a" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
 
-          {/* CBAM Default Arama */}
-          <div style={s.card}>
-            <div style={s.cardH}>CBAM Default Değeri Ara</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={s.label}>CN Kodu</label>
-                <input style={s.input} value={cnCode} onChange={e => setCnCode(e.target.value)} placeholder="7208" />
-              </div>
-              <div>
-                <label style={s.label}>İthalat Ülkesi (ISO-2)</label>
-                <input style={s.input} value={country} onChange={e => setCountry(e.target.value)} maxLength={2} />
-              </div>
-            </div>
-            {lookupErr && <div style={s.err}>{lookupErr}</div>}
-            <button style={s.btn} disabled={lookupLoading || !cnCode.trim()} onClick={lookup}>
-              {lookupLoading ? "Aranıyor..." : "Ara"}
-            </button>
-            {lookupResult && (
-              <div style={s.detailBox}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>CN {lookupResult.cnCode} — {lookupResult.country}</div>
-                <div style={s.row}><span style={{ color: "#0369A1" }}>AB Default</span><span style={{ fontWeight: 700 }}>{fmt(lookupResult.totalDefault, 4)} tCO₂e/t</span></div>
-                {lookupResult.directDefault !== null && <div style={s.row}><span style={{ color: "#0369A1" }}>Direkt</span><span>{fmt(lookupResult.directDefault, 4)} tCO₂e/t</span></div>}
-                {lookupResult.indirectDefault !== null && <div style={s.row}><span style={{ color: "#0369A1" }}>Dolaylı</span><span>{fmt(lookupResult.indirectDefault, 4)} tCO₂e/t</span></div>}
-                <div style={{ marginTop: 8, fontSize: 12, color: "#0369A1" }}>Veri: {lookupResult.dataVersion}</div>
-              </div>
+                {/* CFE & RE Aylık */}
+                {monthly.length > 0 && (
+                  <div style={s.card}>
+                    <div style={s.cardH}>Karbon Serbest & Yenilenebilir Enerji % — 2024</div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={monthly} margin={{ top: 4, right: 16, bottom: 0, left: -10 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
+                        <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: "#5c7a72" }} />
+                        <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit="%" domain={[0, 100]} />
+                        <Tooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`] as any} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Line dataKey="avgCfePct" name="CFE %" stroke="#00b87a" strokeWidth={2} dot={false} />
+                        <Line dataKey="avgRePct"  name="RE %"  stroke="#009966" strokeWidth={2} dot={false} strokeDasharray="4 2" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* API Erişim Bilgisi */}
+                <div style={s.card}>
+                  <div style={s.cardH}>API Erişimi</div>
+                  <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 8 }}>
+                    Bu zone için saatlik EF verisi API üzerinden erişilebilir:
+                  </div>
+                  <code style={{ display: "block", background: "#0a1f1a", color: "#00b87a", borderRadius: 7, padding: "12px 14px", fontSize: 12, fontFamily: "monospace", overflowX: "auto" }}>
+                    GET /api/v1/ef/zones/{selected.zoneId}/hourly?start=2024-01-01&end=2024-01-31
+                  </code>
+                  <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                    <span style={{ ...s.pill, fontSize: 11 }}>JSON</span>
+                    <span style={{ ...s.pill, fontSize: 11 }}>8784 veri noktası/yıl</span>
+                    <span style={{ ...s.pill, fontSize: 11 }}>gCO₂eq/kWh</span>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -9,22 +9,22 @@ import { fmt } from "../lib/chart-utils.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:    { maxWidth: 1100, margin: "0 auto", padding: "32px 28px" },
-  h1:      { fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4 },
-  sub:     { fontSize: 14, color: "#6B7280", marginBottom: 24 },
+  h1:      { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
+  sub:     { fontSize: 14, color: "#5c7a72", marginBottom: 24 },
   kpiRow:  { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 },
-  kpi:     { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "18px 20px" },
-  kpiL:    { fontSize: 12, color: "#6B7280", marginBottom: 4 },
-  kpiV:    { fontSize: 24, fontWeight: 700, color: "#111827" },
-  card:    { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 20 },
-  cardH:   { fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 16 },
+  kpi:     { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "18px 20px" },
+  kpiL:    { fontSize: 12, color: "#5c7a72", marginBottom: 4 },
+  kpiV:    { fontSize: 24, fontWeight: 700, color: "#0a1f1a" },
+  card:    { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 20 },
+  cardH:   { fontSize: 14, fontWeight: 600, color: "#0a1f1a", marginBottom: 16 },
   row2:    { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 },
   select:  { padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, background: "#fff", cursor: "pointer" },
-  btn:     { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: "#0066CC", color: "#fff" },
+  btn:     { padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, background: "#00b87a", color: "#fff" },
   modal:   { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto" as const },
   mCard:   { background: "#fff", borderRadius: 12, padding: "32px", width: 480, margin: "20px auto", boxShadow: "0 8px 32px rgba(0,0,0,.15)" },
   mTitle:  { fontSize: 17, fontWeight: 700, marginBottom: 16 },
   dzone:   { border: "2px dashed #D1D5DB", borderRadius: 8, padding: "24px", textAlign: "center" as const, cursor: "pointer", marginBottom: 14 },
-  dzA:     { borderColor: "#0066CC", background: "#EFF6FF" },
+  dzA:     { borderColor: "#00b87a", background: "#e6f9f2" },
   err:     { color: "#DC2626", fontSize: 13, marginBottom: 10 },
 };
 
@@ -47,7 +47,7 @@ function CfeGauge({ score }: { score: number }) {
   const color = cfeColor(score);
   return (
     <svg viewBox="0 0 160 160" width={160} height={160} style={{ display: "block", margin: "0 auto" }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={16} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#eef7f3" strokeWidth={16} />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={16}
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`} />
@@ -127,7 +127,7 @@ export default function CfePage() {
     if (file) setCsvFile(file);
   }
 
-  if (loading) return <div style={{ ...s.page, color: "#6B7280" }}>Yükleniyor...</div>;
+  if (loading) return <div style={{ ...s.page, color: "#5c7a72" }}>Yükleniyor...</div>;
 
   return (
     <div style={s.page}>
@@ -180,13 +180,13 @@ export default function CfePage() {
                 ].map(x => (
                   <div key={x.label}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: x.color }}>{x.value}</div>
-                    <div style={{ fontSize: 11, color: "#6B7280" }}>{x.label} saat</div>
+                    <div style={{ fontSize: 11, color: "#5c7a72" }}>{x.label} saat</div>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            <div style={{ color: "#9CA3AF", fontSize: 13, padding: "20px 0" }}>Bu dönem için CFE verisi yok</div>
+            <div style={{ color: "#5c7a72", fontSize: 13, padding: "20px 0" }}>Bu dönem için CFE verisi yok</div>
           )}
         </div>
 
@@ -194,11 +194,11 @@ export default function CfePage() {
         <div style={s.card}>
           <div style={s.cardH}>CFE Skorları — Tüm Dönemler</div>
           {barData.length === 0 ? (
-            <div style={{ color: "#9CA3AF", fontSize: 13 }}>CFE verisi olan dönem yok</div>
+            <div style={{ color: "#5c7a72", fontSize: 13 }}>CFE verisi olan dönem yok</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={barData} margin={{ bottom: 40, top: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eef7f3" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => [`${fmt(v, 1)}%`, "CFE"]} />
@@ -221,15 +221,15 @@ export default function CfePage() {
           <div style={s.cardH}>Aylık CFE Analizi — {selected?.facilityName} › {selected?.periodName}</div>
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart data={monthlyData} margin={{ top: 5, right: 30, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef7f3" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis yAxisId="kwh" tick={{ fontSize: 11 }} />
               <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} />
               <Tooltip />
               <Legend />
-              <Bar yAxisId="kwh" dataKey="consumptionKwh" name="Tüketim (kWh)" fill="#E5E7EB" />
+              <Bar yAxisId="kwh" dataKey="consumptionKwh" name="Tüketim (kWh)" fill="#d4ece4" />
               <Bar yAxisId="kwh" dataKey="matchedKwh"     name="Eşleşen (kWh)"  fill="#059669" />
-              <Line yAxisId="pct" type="monotone" dataKey="cfeRate" name="CFE %" stroke="#0066CC" dot={false} strokeWidth={2} />
+              <Line yAxisId="pct" type="monotone" dataKey="cfeRate" name="CFE %" stroke="#00b87a" dot={false} strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -240,8 +240,8 @@ export default function CfePage() {
         <div style={s.modal} onClick={e => e.target === e.currentTarget && setShowCsvModal(false)}>
           <div style={s.mCard}>
             <div style={s.mTitle}>CFE Saatlik Veri Yükleme</div>
-            <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 14 }}>
-              Format: <code style={{ background: "#F3F4F6", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
+            <p style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14 }}>
+              Format: <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
             </p>
             {csvErr && <div style={s.err}>{csvErr}</div>}
             {!csvResult ? (
@@ -252,15 +252,15 @@ export default function CfePage() {
                   onDrop={handleDrop}
                   onClick={() => fileRef.current?.click()}>
                   {csvFile
-                    ? <div><div style={{ fontWeight: 600 }}>{csvFile.name}</div><div style={{ fontSize: 12, color: "#6B7280" }}>{(csvFile.size / 1024).toFixed(0)} KB</div></div>
-                    : <div style={{ color: "#9CA3AF" }}>CSV sürükleyin veya tıklayın</div>}
+                    ? <div><div style={{ fontWeight: 600 }}>{csvFile.name}</div><div style={{ fontSize: 12, color: "#5c7a72" }}>{(csvFile.size / 1024).toFixed(0)} KB</div></div>
+                    : <div style={{ color: "#5c7a72" }}>CSV sürükleyin veya tıklayın</div>}
                   <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
                     onChange={e => setCsvFile(e.target.files?.[0] ?? null)} />
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#F3F4F6", color: "#374151" }}
+                  <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#eef7f3", color: "#1a3530" }}
                     onClick={() => setShowCsvModal(false)}>İptal</button>
-                  <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#0066CC", color: "#fff" }}
+                  <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
                     disabled={!csvFile || csvUploading} onClick={uploadCsv}>
                     {csvUploading ? "Yükleniyor..." : "Yükle & Hesapla"}
                   </button>
@@ -270,9 +270,9 @@ export default function CfePage() {
               <>
                 <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 14, marginBottom: 14 }}>
                   <div style={{ fontWeight: 700, color: "#065F46" }}>CFE Skoru: {csvResult.cfeScore.toFixed(1)}%</div>
-                  <div style={{ fontSize: 13, color: "#374151" }}>{csvResult.rowCount} satır işlendi{csvResult.errorCount > 0 && ` · ${csvResult.errorCount} atlandı`}</div>
+                  <div style={{ fontSize: 13, color: "#1a3530" }}>{csvResult.rowCount} satır işlendi{csvResult.errorCount > 0 && ` · ${csvResult.errorCount} atlandı`}</div>
                 </div>
-                <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#0066CC", color: "#fff" }}
+                <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
                   onClick={() => setShowCsvModal(false)}>Kapat</button>
               </>
             )}

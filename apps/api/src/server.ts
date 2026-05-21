@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -29,6 +30,7 @@ import { cfeImportRoutes }     from "./routes/cfe-import.js";
 import { apiKeysRoutes }       from "./routes/api-keys.js";
 import { webhooksRoutes }      from "./routes/webhooks.js";
 import { onboardingRoutes }    from "./routes/onboarding.js";
+import { efRoutes }            from "./routes/ef.js";
 
 const app = Fastify({
   logger: {
@@ -85,6 +87,7 @@ await app.register(membersRoutes,       { prefix: v1 });
 await app.register(apiKeysRoutes,       { prefix: v1 });
 await app.register(webhooksRoutes,      { prefix: v1 });
 await app.register(onboardingRoutes,    { prefix: v1 });
+await app.register(efRoutes,            { prefix: v1 });
 
 // Health check — kamuya açık
 app.get("/health", { config: { public: true } }, async () => ({

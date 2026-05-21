@@ -4,32 +4,32 @@ import { api } from "../lib/api.js";
 import type { Period, EmbeddedEmission, MonthlyBreakdown } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
-  nav:    { background: "#0066CC", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
+  nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
   back:   { color: "rgba(255,255,255,.8)", textDecoration: "none", fontSize: 13 },
   brand:  { fontWeight: 700, fontSize: 18, color: "#fff" },
   page:   { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
   h1:     { fontSize: 22, fontWeight: 700, marginBottom: 4 },
-  sub:    { color: "#6B7280", fontSize: 14, marginBottom: 28 },
+  sub:    { color: "#5c7a72", fontSize: 14, marginBottom: 28 },
   grid:   { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 28 },
-  kpi:    { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "18px 20px" },
-  kpiL:   { fontSize: 12, color: "#6B7280", marginBottom: 4 },
-  kpiV:   { fontSize: 22, fontWeight: 700, color: "#111827" },
+  kpi:    { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "18px 20px" },
+  kpiL:   { fontSize: 12, color: "#5c7a72", marginBottom: 4 },
+  kpiV:   { fontSize: 22, fontWeight: 700, color: "#0a1f1a" },
   kpiG:   { color: "#059669" },
   kpiR:   { color: "#DC2626" },
-  section:{ fontSize: 13, fontWeight: 600, color: "#6B7280", marginTop: 28, marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: ".05em" },
-  card:   { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 16 },
-  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F3F4F6" },
-  rowL:   { fontSize: 13, color: "#6B7280" },
-  rowV:   { fontSize: 14, fontWeight: 600, color: "#111827" },
+  section:{ fontSize: 13, fontWeight: 600, color: "#5c7a72", marginTop: 28, marginBottom: 12, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  card:   { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
+  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #eef7f3" },
+  rowL:   { fontSize: 13, color: "#5c7a72" },
+  rowV:   { fontSize: 14, fontWeight: 600, color: "#0a1f1a" },
   btn:    { padding: "10px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, marginRight: 10 },
-  btnP:   { background: "#0066CC", color: "#fff" },
+  btnP:   { background: "#00b87a", color: "#fff" },
   btnG:   { background: "#059669", color: "#fff" },
   btnR:   { background: "#EF4444", color: "#fff" },
   bar:    { display: "flex", alignItems: "center", gap: 8, padding: "6px 0" },
-  barL:   { width: 60, fontSize: 12, color: "#6B7280", flexShrink: 0 },
-  barW:   { flex: 1, height: 8, background: "#F3F4F6", borderRadius: 4, overflow: "hidden" },
-  barF:   { height: "100%", borderRadius: 4, background: "#0066CC", transition: "width .3s" },
-  barV:   { width: 50, fontSize: 12, fontWeight: 600, color: "#374151", textAlign: "right" as const },
+  barL:   { width: 60, fontSize: 12, color: "#5c7a72", flexShrink: 0 },
+  barW:   { flex: 1, height: 8, background: "#eef7f3", borderRadius: 4, overflow: "hidden" },
+  barF:   { height: "100%", borderRadius: 4, background: "#00b87a", transition: "width .3s" },
+  barV:   { width: 50, fontSize: 12, fontWeight: 600, color: "#1a3530", textAlign: "right" as const },
 };
 
 function DataQualityBadge({ quality }: { quality: string }) {
@@ -38,7 +38,7 @@ function DataQualityBadge({ quality }: { quality: string }) {
     calculated: { bg: "#FEF3C7", color: "#92400E", label: "Hesaplanan" },
     estimated:  { bg: "#FED7AA", color: "#C2410C", label: "Tahmini" },
   };
-  const c = colors[quality] ?? { bg: "#F3F4F6", color: "#6B7280", label: quality };
+  const c = colors[quality] ?? { bg: "#eef7f3", color: "#5c7a72", label: quality };
   return (
     <span style={{ background: c.bg, color: c.color, padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
       {c.label}
@@ -90,13 +90,13 @@ export default function PeriodDetailPage() {
     setShareLoad(false);
   }
 
-  if (!period) return <div style={{ padding: 40, textAlign: "center", color: "#6B7280" }}>Yükleniyor...</div>;
+  if (!period) return <div style={{ padding: 40, textAlign: "center", color: "#5c7a72" }}>Yükleniyor...</div>;
 
   return (
     <>
       <div style={s.page}>
-        <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 8 }}>
-          <Link to={`/installations/${installationId}`} style={{ color: "#0066CC", textDecoration: "none" }}>← {installationId}</Link>
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
+          <Link to={`/installations/${installationId}`} style={{ color: "#00b87a", textDecoration: "none" }}>← {installationId}</Link>
         </div>
         <div style={s.h1}>{period.periodName}</div>
         <div style={s.sub}>{period.startDate?.slice(0,10)} – {period.endDate?.slice(0,10)} · CN: {period.cnCode} · {period.importCountry}</div>
@@ -134,7 +134,7 @@ export default function PeriodDetailPage() {
               </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-              <label style={{ fontSize: 12, color: "#6B7280" }}>TTL (gün):</label>
+              <label style={{ fontSize: 12, color: "#5c7a72" }}>TTL (gün):</label>
               <input type="number" min={1} max={90} value={shareTtl}
                 onChange={e => setShareTtl(parseInt(e.target.value) || 30)}
                 style={{ width: 60, padding: "4px 8px", borderRadius: 5, border: "1px solid #DDD6FE", fontSize: 12 }} />
@@ -151,7 +151,7 @@ export default function PeriodDetailPage() {
             <div style={s.grid}>
               <div style={s.kpi}>
                 <div style={s.kpiL}>SEE Baseline</div>
-                <div style={s.kpiV}>{emission.seeBaseline.toFixed(4)}<span style={{ fontSize: 12, color: "#6B7280", fontWeight: 400 }}> tCO₂e/t</span></div>
+                <div style={s.kpiV}>{emission.seeBaseline.toFixed(4)}<span style={{ fontSize: 12, color: "#5c7a72", fontWeight: 400 }}> tCO₂e/t</span></div>
               </div>
               <div style={s.kpi}>
                 <div style={s.kpiL}>SEE Voltfox</div>
@@ -179,12 +179,12 @@ export default function PeriodDetailPage() {
                   <div style={{ ...s.kpi, border: "1px solid #FECACA", background: "#FFF5F5" }}>
                     <div style={s.kpiL}>AB Default SEE</div>
                     <div style={{ ...s.kpiV, ...s.kpiR }}>{emission.defaultSee.toFixed(4)}<span style={{ fontSize: 12, color: "#DC2626", fontWeight: 400 }}> tCO₂e/t</span></div>
-                    <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Yüksek — CBAM Ek-IV referans değeri</div>
+                    <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>Yüksek — CBAM Ek-IV referans değeri</div>
                   </div>
                   <div style={{ ...s.kpi, border: "1px solid #A7F3D0", background: "#F0FDF4" }}>
                     <div style={s.kpiL}>Actual SEE (Voltfox)</div>
                     <div style={{ ...s.kpiV, ...s.kpiG }}>{emission.seeVoltfox.toFixed(4)}<span style={{ fontSize: 12, color: "#059669", fontWeight: 400 }}> tCO₂e/t</span></div>
-                    <div style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>Düşük — Gerçek ölçüm verisi</div>
+                    <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>Düşük — Gerçek ölçüm verisi</div>
                   </div>
                 </div>
 
@@ -210,13 +210,13 @@ export default function PeriodDetailPage() {
                           €{emission.savingsVsDefaultEur.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}/yıl
                         </span>
                       </div>
-                      <div style={{ fontSize: 12, color: "#6B7280", marginTop: 10, padding: "10px 12px", background: "#F9FAFB", borderRadius: 6 }}>
+                      <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 10, padding: "10px 12px", background: "#f4fbf8", borderRadius: 6 }}>
                         CN kodu {period.cnCode} için AB default değeri {emission.defaultSee.toFixed(4)} tCO₂e/t'dir.
                         Actual emissions {emission.seeVoltfox.toFixed(4)} tCO₂e/t ile daha düşük — CBAM maliyetinizi düşürür.
                       </div>
                     </>
                   )}
-                  <div style={{ marginTop: 12, padding: "12px 14px", background: "#EFF6FF", borderLeft: "3px solid #0066CC", borderRadius: "0 6px 6px 0", fontSize: 12, color: "#1E40AF" }}>
+                  <div style={{ marginTop: 12, padding: "12px 14px", background: "#e6f9f2", borderLeft: "3px solid #00b87a", borderRadius: "0 6px 6px 0", fontSize: 12, color: "#009966" }}>
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>Audit Kanıtı</div>
                     <div>Motor: {emission.calcEngineVersion} · EF Veri: {emission.efDataVersion}</div>
                     <div style={{ marginTop: 2 }}>Hesaplanma: {new Date(emission.calculatedAt).toLocaleString("tr-TR")}</div>
@@ -239,7 +239,7 @@ export default function PeriodDetailPage() {
               </div>
               <div style={s.kpi}>
                 <div style={s.kpiL}>Toplam Tüketim</div>
-                <div style={s.kpiV}>{(cfe as any).totalConsumptionKwh?.toLocaleString() ?? "—"}<span style={{ fontSize: 12, color: "#6B7280" }}> kWh</span></div>
+                <div style={s.kpiV}>{(cfe as any).totalConsumptionKwh?.toLocaleString() ?? "—"}<span style={{ fontSize: 12, color: "#5c7a72" }}> kWh</span></div>
               </div>
               <div style={s.kpi}>
                 <div style={s.kpiL}>Eşleşen</div>
@@ -279,8 +279,8 @@ export default function PeriodDetailPage() {
         </div>
 
         {emission && (
-          <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: 14, fontSize: 12, color: "#64748B" }}>
-            <div style={{ fontWeight: 600, color: "#6B7280", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: ".05em", fontSize: 11 }}>Hesaplama Kaydı</div>
+          <div style={{ background: "#f4fbf8", border: "1px solid #E2E8F0", borderRadius: 8, padding: 14, fontSize: 12, color: "#64748B" }}>
+            <div style={{ fontWeight: 600, color: "#5c7a72", marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: ".05em", fontSize: 11 }}>Hesaplama Kaydı</div>
             <div>Motor Versiyonu: <span style={{ fontFamily: "monospace" }}>{emission.calcEngineVersion}</span></div>
             <div style={{ marginTop: 4 }}>EF Veri Versiyonu: <span style={{ fontFamily: "monospace" }}>{emission.efDataVersion}</span></div>
             <div style={{ marginTop: 4 }}>Hesaplanma Tarihi: {new Date(emission.calculatedAt).toLocaleString("tr-TR")}</div>

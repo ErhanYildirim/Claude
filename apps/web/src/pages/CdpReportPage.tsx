@@ -5,13 +5,13 @@ import { fmt } from "../lib/chart-utils.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:  { maxWidth: 900, margin: "0 auto", padding: "32px 28px" },
-  h1:    { fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4 },
-  sub:   { fontSize: 14, color: "#6B7280", marginBottom: 24 },
-  card:  { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", marginBottom: 16 },
-  cardH: { fontSize: 14, fontWeight: 600, color: "#111827", marginBottom: 12 },
-  row:   { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F3F4F6" },
-  rowL:  { fontSize: 13, color: "#6B7280" },
-  rowV:  { fontSize: 13, fontWeight: 600, color: "#111827" },
+  h1:    { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
+  sub:   { fontSize: 14, color: "#5c7a72", marginBottom: 24 },
+  card:  { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
+  cardH: { fontSize: 14, fontWeight: 600, color: "#0a1f1a", marginBottom: 12 },
+  row:   { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #eef7f3" },
+  rowL:  { fontSize: 13, color: "#5c7a72" },
+  rowV:  { fontSize: 13, fontWeight: 600, color: "#0a1f1a" },
   select:{ padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, background: "#fff", minWidth: 220 },
   warn:  { background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#92400E", marginBottom: 16 },
   note:  { background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: "#92400E", marginTop: 16 },
@@ -51,14 +51,14 @@ export default function CdpReportPage() {
 
       <div style={{ display: "flex", gap: 12, alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap" as const }}>
         <div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 4 }}>Tesis</div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 4 }}>Tesis</div>
           <select style={s.select} value={selectedInstId} onChange={e => setSelectedInstId(e.target.value)}>
             <option value="">— Tesis Seçin —</option>
             {installations.map(i => <option key={i.id} value={i.id}>{i.facilityName}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 4 }}>Dönem</div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 4 }}>Dönem</div>
           <select style={s.select} value={selectedPeriodId} onChange={e => setSelectedPeriodId(e.target.value)} disabled={!instDetail}>
             <option value="">— Dönem Seçin —</option>
             {instDetail?.periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
@@ -66,7 +66,7 @@ export default function CdpReportPage() {
         </div>
       </div>
 
-      {loading && <div style={{ color: "#6B7280", fontSize: 14 }}>Yükleniyor...</div>}
+      {loading && <div style={{ color: "#5c7a72", fontSize: 14 }}>Yükleniyor...</div>}
       {period && !emission && !loading && (
         <div style={s.warn}>Bu dönem için henüz hesaplama yapılmamış. Dönem detayına gidip SEE Hesapla butonuna basın.</div>
       )}

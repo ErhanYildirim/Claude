@@ -13,6 +13,7 @@ import CbamReportPage         from "./pages/CbamReportPage.js";
 import CdpReportPage          from "./pages/CdpReportPage.js";
 import Iso14064Page           from "./pages/Iso14064Page.js";
 import GhgProtocolPage        from "./pages/GhgProtocolPage.js";
+import GecPage               from "./pages/GecPage.js";
 import InstallationDetailPage from "./pages/InstallationDetailPage.js";
 import PeriodDetailPage       from "./pages/PeriodDetailPage.js";
 import SharePage              from "./pages/SharePage.js";
@@ -42,7 +43,7 @@ function AppRouter() {
 
   if (loading || onboardLoading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#6B7280" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#5c7a72" }}>
         Yükleniyor...
       </div>
     );
@@ -77,7 +78,8 @@ function AppRouter() {
 
         {/* Authenticated routes — wrapped in AppShell */}
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/cbam" replace />} />
+          <Route path="/" element={<Navigate to="/gec" replace />} />
+          <Route path="/gec"                                               element={<GecPage />} />
           <Route path="/dashboard"                                         element={<DashboardPage />} />
           <Route path="/cbam"                                              element={<CbamPage />} />
           <Route path="/cfe"                                               element={<CfePage />} />
@@ -89,7 +91,7 @@ function AppRouter() {
           <Route path="/settings"                                          element={<SettingsPage />} />
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
-          <Route path="*"                                                  element={<Navigate to="/cbam" replace />} />
+          <Route path="*"                                                  element={<Navigate to="/gec" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

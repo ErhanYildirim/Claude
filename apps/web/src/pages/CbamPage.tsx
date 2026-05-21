@@ -7,29 +7,29 @@ import { SECTOR_COLORS, SECTOR_LABELS } from "../lib/chart-utils.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:      { maxWidth: 1000, margin: "0 auto", padding: "32px 28px" },
-  h1:        { fontSize: 22, fontWeight: 700, color: "#111827", marginBottom: 4 },
-  sub:       { fontSize: 14, color: "#6B7280", marginBottom: 24 },
+  h1:        { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
+  sub:       { fontSize: 14, color: "#5c7a72", marginBottom: 24 },
   kpiRow:    { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 24 },
-  kpi:       { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "16px 18px" },
-  kpiL:      { fontSize: 12, color: "#6B7280", marginBottom: 4 },
-  kpiV:      { fontSize: 22, fontWeight: 700, color: "#111827" },
-  addBtn:    { display: "inline-flex", alignItems: "center", gap: 6, background: "#0066CC", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 },
+  kpi:       { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "16px 18px" },
+  kpiL:      { fontSize: 12, color: "#5c7a72", marginBottom: 4 },
+  kpiV:      { fontSize: 22, fontWeight: 700, color: "#0a1f1a" },
+  addBtn:    { display: "inline-flex", alignItems: "center", gap: 6, background: "#00b87a", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 },
   grid:      { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(270px, 1fr))", gap: 16 },
-  card:      { background: "#fff", borderRadius: 10, border: "1px solid #E5E7EB", padding: "20px", textDecoration: "none", color: "inherit", display: "block", transition: "box-shadow .15s" },
-  cardTitle: { fontWeight: 600, fontSize: 15, color: "#111827", marginBottom: 4 },
-  cardSub:   { fontSize: 13, color: "#6B7280", marginBottom: 12 },
+  card:      { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", textDecoration: "none", color: "inherit", display: "block", transition: "box-shadow .15s" },
+  cardTitle: { fontWeight: 600, fontSize: 15, color: "#0a1f1a", marginBottom: 4 },
+  cardSub:   { fontSize: 13, color: "#5c7a72", marginBottom: 12 },
   badge:     { display: "inline-block", borderRadius: 4, padding: "2px 8px", fontSize: 12, fontWeight: 600 },
   modal:     { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 },
   mCard:     { background: "#fff", borderRadius: 12, padding: "32px", width: 440, boxShadow: "0 8px 32px rgba(0,0,0,.15)" },
   mTitle:    { fontSize: 17, fontWeight: 700, marginBottom: 20 },
-  label:     { display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 },
+  label:     { display: "block", fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 5 },
   input:     { width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, outline: "none", marginBottom: 14, boxSizing: "border-box" as const },
   row:       { display: "flex", gap: 10 },
   btn:       { flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14 },
-  btnP:      { background: "#0066CC", color: "#fff" },
-  btnS:      { background: "#F3F4F6", color: "#374151" },
+  btnP:      { background: "#00b87a", color: "#fff" },
+  btnS:      { background: "#eef7f3", color: "#1a3530" },
   err:       { color: "#DC2626", fontSize: 13, marginBottom: 12 },
-  empty:     { textAlign: "center" as const, padding: "60px 0", color: "#6B7280" },
+  empty:     { textAlign: "center" as const, padding: "60px 0", color: "#5c7a72" },
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -87,8 +87,8 @@ export default function CbamPage() {
         <div style={s.h1}>CBAM Tesisleri</div>
         <div style={s.sub}>
           CBAM kapsamındaki üretim tesislerinizi yönetin
-          {myRole && <span style={{ marginLeft: 10, background: "#EFF6FF", color: "#1D4ED8", borderRadius: 4, padding: "2px 8px", fontSize: 12 }}>{ROLE_LABELS[myRole] ?? myRole}</span>}
-          <button style={{ marginLeft: 10, background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 12 }} onClick={() => supabase.auth.signOut()}>Çıkış</button>
+          {myRole && <span style={{ marginLeft: 10, background: "#e6f9f2", color: "#009966", borderRadius: 4, padding: "2px 8px", fontSize: 12 }}>{ROLE_LABELS[myRole] ?? myRole}</span>}
+          <button style={{ marginLeft: 10, background: "none", border: "none", color: "#5c7a72", cursor: "pointer", fontSize: 12 }} onClick={() => supabase.auth.signOut()}>Çıkış</button>
         </div>
 
         {/* KPI özet */}
@@ -120,7 +120,7 @@ export default function CbamPage() {
           <div style={s.grid}>
             {installations.map(inst => {
               const sec = (inst as Installation & { sector?: string }).sector ?? "steel";
-              const sectorColor = SECTOR_COLORS[sec] ?? "#6B7280";
+              const sectorColor = SECTOR_COLORS[sec] ?? "#5c7a72";
               const sectorLabel = SECTOR_LABELS[sec] ?? sec;
               return (
                 <div key={inst.id} style={{ position: "relative" }}>
@@ -131,7 +131,7 @@ export default function CbamPage() {
                       <span style={{ ...s.badge, background: sectorColor + "20", color: sectorColor }}>
                         {sectorLabel}
                       </span>
-                      <span style={{ ...s.badge, background: "#EFF6FF", color: "#1D4ED8" }}>
+                      <span style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>
                         {inst._count?.periods ?? 0} dönem
                       </span>
                     </div>

@@ -58,6 +58,10 @@ export const api = {
       request<CFEResult>("POST", `/installations/${installationId}/periods/${periodId}/cfe`, body),
     get: (installationId: string, periodId: string) =>
       request<CFEResult>("GET", `/installations/${installationId}/periods/${periodId}/cfe`),
+    certificateUrl: (installationId: string, periodId: string, eacRef?: string) => {
+      const q = eacRef ? `?eacRef=${encodeURIComponent(eacRef)}` : "";
+      return `${BASE}/installations/${installationId}/periods/${periodId}/cfe/certificate${q}`;
+    },
     importCsv: async (installationId: string, periodId: string, file: File): Promise<CsvImportResult> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Oturum bulunamadı.");

@@ -69,6 +69,7 @@ export default function CfePage() {
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvResult, setCsvResult]   = useState<{ rowCount: number; errorCount: number; errors: string[]; cfeScore: number } | null>(null);
   const [csvErr, setCsvErr]         = useState("");
+  const [eacRef, setEacRef]         = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -151,7 +152,7 @@ export default function CfePage() {
       </div>
 
       {/* Period selector + CSV */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
         <select style={s.select} value={selectedKey} onChange={e => setSelectedKey(e.target.value)}>
           <option value="">— Dönem Seçin —</option>
           {entries.map(e => (
@@ -163,6 +164,14 @@ export default function CfePage() {
         <button style={s.btn} disabled={!selectedKey} onClick={() => { setCsvResult(null); setCsvErr(""); setCsvFile(null); setShowCsvModal(true); }}>
           Saatlik Veri Yükle
         </button>
+        {selected?.cfe && (
+          <button
+            style={{ ...s.btn, background: "#059669" }}
+            onClick={() => window.open(api.cfe.certificateUrl(selected.installationId, selected.periodId, eacRef || undefined), "_blank")}
+          >
+            CFE Sertifikası İndir
+          </button>
+        )}
       </div>
 
       <div style={s.row2}>
@@ -174,15 +183,30 @@ export default function CfePage() {
               <CfeGauge score={selected.cfe.cfeScore} />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 16, textAlign: "center" }}>
                 {[
-                  { label: "Eşleşen", value: selected.cfe.matchedHours, color: "#059669" },
-                  { label: "Kısmi",   value: selected.cfe.partialHours,  color: "#D97706" },
-                  { label: "Eşleşmez",value: selected.cfe.unmatchedHours,color: "#DC2626" },
+                  { label: "Eşleşen",   value: selected.cfe.matchedHours,   color: "#059669" },
+                  { label: "Kısmi",     value: selected.cfe.partialHours,   color: "#D97706" },
+                  { label: "Eşleşmez", value: selected.cfe.unmatchedHours, color: "#DC2626" },
                 ].map(x => (
                   <div key={x.label}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: x.color }}>{x.value}</div>
                     <div style={{ fontSize: 11, color: "#5c7a72" }}>{x.label} saat</div>
                   </div>
                 ))}
+              </div>
+              {/* EAC / I-REC referans no */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, color: "#5c7a72", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: ".05em" }}>
+                  EAC / I-REC Referans No (isteğe bağlı)
+                </div>
+                <input
+                  value={eacRef}
+                  onChange={e => setEacRef(e.target.value)}
+                  placeholder="Örn: I-REC-TR-2024-000123"
+                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12, background: "#f4fbf8", boxSizing: "border-box" as const }}
+                />
+                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>
+                  Sertifikaya dahil edilir
+                </div>
               </div>
             </>
           ) : (
@@ -201,7 +225,7 @@ export default function CfePage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#eef7f3" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [`${fmt(v, 1)}%`, "CFE"]} />
+                <Tooltip formatter={(v: unknown) => [`${fmt(Number(v), 1)}%`, "CFE"] as [string, string]} />
                 <ReferenceLine y={70} stroke="#059669" strokeDasharray="4 4"
                   label={{ value: "Hedef %70", fill: "#059669", fontSize: 10, position: "right" }} />
                 <Bar dataKey="cfeScore" name="CFE Skoru (%)">
@@ -232,6 +256,44 @@ export default function CfePage() {
               <Line yAxisId="pct" type="monotone" dataKey="cfeRate" name="CFE %" stroke="#00b87a" dot={false} strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Aylık Detay Tablosu */}
+      {monthlyData.length > 0 && (
+        <div style={s.card}>
+          <div style={s.cardH}>Aylık Detay — {selected?.facilityName} › {selected?.periodName}</div>
+          <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
+            <thead>
+              <tr>
+                {["Ay", "Tüketim (MWh)", "Üretim (MWh)", "Eşleşen (MWh)", "CFE Oranı"].map(h => (
+                  <th key={h} style={{ textAlign: h === "Ay" ? "left" : "right" as const, fontSize: 11, color: "#5c7a72", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".05em", padding: "8px 12px", borderBottom: "1px solid #d4ece4" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyData.map((m, i) => {
+                const rate = m.cfeRate;
+                const color = rate >= 70 ? "#059669" : rate >= 40 ? "#D97706" : "#DC2626";
+                return (
+                  <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#f9fdfb" }}>
+                    <td style={{ padding: "10px 12px", fontSize: 13, color: "#0a1f1a", borderBottom: "1px solid #eef7f3" }}>{m.month}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3" }}>{(m.consumptionKwh / 1000).toFixed(1)}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3", color: "#5c7a72" }}>{(((m as unknown as {productionKwh?: number}).productionKwh ?? 0) / 1000).toFixed(1)}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3", color: "#059669", fontWeight: 600 }}>{(m.matchedKwh / 1000).toFixed(1)}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3" }}>
+                      <span style={{ color, fontWeight: 700 }}>{rate.toFixed(1)}%</span>
+                      <div style={{ marginTop: 2, height: 4, background: "#eef7f3", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.min(rate, 100)}%`, background: color, borderRadius: 2 }} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 

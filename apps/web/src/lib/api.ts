@@ -138,6 +138,26 @@ export const api = {
     },
   },
 
+  gec: {
+    calculate: async (file: File, zoneId?: string): Promise<GecResult> => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Oturum bulunamadı.");
+      const form = new FormData();
+      form.append("file", file);
+      const qs = zoneId ? `?zoneId=${zoneId}` : "";
+      const res = await fetch(`${BASE}/gec/calculate${qs}`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session.access_token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw Object.assign(new Error(err.message ?? err.error ?? "GEC hesaplama hatası"), { status: res.status, body: err });
+      }
+      return res.json();
+    },
+  },
+
   shareLinks: {
     create: (installationId: string, periodId: string, ttlDays?: number) =>
       request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays }),
@@ -250,6 +270,17 @@ export interface EFHourlyPoint { hour: string; ciDirect: number; ciLifecycle: nu
 export interface EFHourlyData { zoneId: string; start: string; end: string; count: number; unit: string; data: EFHourlyPoint[]; }
 export interface EFMonthlyPoint { month: number; monthName: string; avgCiDirect: number; avgCfePct: number; avgRePct: number; dataPoints: number; }
 export interface EFMonthlyData { zoneId: string; year: number; months: EFMonthlyPoint[]; }
+
+export interface GecMonthlyPoint {
+  month: number; monthName: string;
+  consumptionKwh: number; tco2: number; avgEfGco2Kwh: number; hours: number;
+}
+export interface GecResult {
+  zoneId: string; totalConsumptionKwh: number; totalTco2: number;
+  avgEfGco2Kwh: number; matchedHours: number; totalRows: number;
+  monthly: GecMonthlyPoint[];
+  methodology: string;
+}
 
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }
 export interface CreatePeriodBody {

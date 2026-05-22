@@ -1095,7 +1095,7 @@ export default function SettingsPage() {
   return (
     <>
       <nav style={s.nav}>
-        <Link to="/" style={s.back}>← Tesisler</Link>
+        <Link to="/cbam" style={s.back}>← Tesisler</Link>
         <span style={s.brand}>Ayarlar</span>
       </nav>
       <div style={s.page}>

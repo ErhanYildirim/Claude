@@ -49,6 +49,7 @@ function DataQualityBadge({ quality }: { quality: string }) {
 export default function PeriodDetailPage() {
   const { installationId, periodId } = useParams<{ installationId: string; periodId: string }>();
   const [period,   setPeriod]   = useState<Period | null>(null);
+  const [facilityName, setFacilityName] = useState<string | null>(null);
   const [emission, setEmission] = useState<EmbeddedEmission | null>(null);
   const [cfe,      setCfe]      = useState<CFEResult | null>(null);
   const [calcLoad, setCalcLoad]   = useState(false);
@@ -61,6 +62,7 @@ export default function PeriodDetailPage() {
   useEffect(() => {
     if (!installationId || !periodId) return;
     api.installations.get(installationId).then(inst => {
+      setFacilityName(inst.facilityName);
       const p = inst.periods.find(x => x.id === periodId);
       if (p) { setPeriod(p); if (p.result) setEmission(p.result); }
     });
@@ -99,7 +101,7 @@ export default function PeriodDetailPage() {
     <>
       <div style={s.page}>
         <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
-          <Link to={`/installations/${installationId}`} style={{ color: "#00b87a", textDecoration: "none" }}>← {installationId}</Link>
+          <Link to={`/installations/${installationId}`} style={{ color: "#00b87a", textDecoration: "none" }}>← {facilityName ?? installationId}</Link>
         </div>
         <div style={s.h1}>{period.periodName}</div>
         <div style={s.sub}>{period.startDate?.slice(0,10)} – {period.endDate?.slice(0,10)} · CN: {period.cnCode} · {period.importCountry}</div>

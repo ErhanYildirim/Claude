@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api.js";
 import type { Installation } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
@@ -145,13 +145,13 @@ export default function ImportWizardPage() {
       {/* Stepper */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
         {([1, 2, 3] as Step[]).map((s, i) => (
-          <>
-            <div key={s} style={stepStyle(s)}>{s}</div>
+          <Fragment key={s}>
+            <div style={stepStyle(s)}>{s}</div>
             <div style={{ fontSize: 13, color: step >= s ? "#1d4ed8" : "#6b7280", fontWeight: step === s ? 600 : 400 }}>
               {["Dosya Yükle", "Önizleme", "Tamamlandı"][i]}
             </div>
             {i < 2 && <div style={{ flex: 1, height: 1, background: "#e5e7eb", margin: "0 4px" }} />}
-          </>
+          </Fragment>
         ))}
       </div>
 

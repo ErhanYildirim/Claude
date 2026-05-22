@@ -4,6 +4,10 @@ import { api } from "../lib/api.js";
 import type { Installation } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
 import { SECTOR_COLORS, SECTOR_LABELS } from "../lib/chart-utils.js";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ReferenceLine,
+} from "recharts";
 
 const s: Record<string, React.CSSProperties> = {
   page:      { maxWidth: 1000, margin: "0 auto", padding: "32px 28px" },
@@ -48,6 +52,11 @@ export default function CbamPage() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
   const [myRole, setMyRole]   = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"installations" | "comparison">("installations");
+  const [compData, setCompData] = useState<Array<{
+    label: string; facilityName: string; periodName: string; reportYear: number;
+    seeBaseline: number; seeVoltfox: number; defaultSee: number | null;
+  }>>([]);
 
   useEffect(() => {
     api.installations.list().then(data => {
@@ -55,6 +64,27 @@ export default function CbamPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
     api.members.me().then(r => setMyRole(r.role)).catch(() => {});
+    // Load comparison data
+    api.installations.list().then(async list => {
+      const rows: typeof compData = [];
+      for (const inst of list) {
+        const detail = await api.installations.get(inst.id).catch(() => null);
+        if (!detail) continue;
+        for (const p of detail.periods) {
+          if (!p.result) continue;
+          rows.push({
+            label: `${inst.facilityName.slice(0, 10)} / ${p.periodName.slice(0, 8)}`,
+            facilityName: inst.facilityName,
+            periodName:   p.periodName,
+            reportYear:   p.reportYear,
+            seeBaseline:  p.result.seeBaseline,
+            seeVoltfox:   p.result.seeVoltfox,
+            defaultSee:   p.result.defaultSee,
+          });
+        }
+      }
+      setCompData(rows.sort((a, b) => a.reportYear - b.reportYear));
+    }).catch(() => {});
   }, []);
 
   function openCreate() {
@@ -134,45 +164,141 @@ export default function CbamPage() {
           <div style={s.kpi}><div style={s.kpiL}>Hesaplanmış Dönem</div><div style={{ ...s.kpiV, color: "#059669" }}>—</div></div>
         </div>
 
-        {canEdit && <button style={s.addBtn} onClick={openCreate}>+ Yeni Tesis</button>}
+        {/* Tab bar */}
+        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #d4ece4", marginBottom: 20 }}>
+          {(["installations", "comparison"] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              padding: "8px 18px", border: "none", cursor: "pointer", fontWeight: 600,
+              fontSize: 13, borderRadius: "6px 6px 0 0",
+              background: activeTab === tab ? "#fff" : "transparent",
+              color: activeTab === tab ? "#0a1f1a" : "#5c7a72",
+              borderBottom: activeTab === tab ? "2px solid #00b87a" : "2px solid transparent",
+            }}>
+              {tab === "installations" ? "Tesisler" : "Dönem Karşılaştırması"}
+            </button>
+          ))}
+        </div>
 
-        {loading ? (
-          <div style={s.empty}>Yükleniyor...</div>
-        ) : installations.length === 0 ? (
-          <div style={s.empty}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🏭</div>
-            <div>Henüz tesis eklenmemiş. İlk tesisinizi ekleyin.</div>
-          </div>
-        ) : (
-          <div style={s.grid}>
-            {installations.map(inst => {
-              const sec = (inst as Installation & { sector?: string }).sector ?? "steel";
-              const sectorColor = SECTOR_COLORS[sec] ?? "#5c7a72";
-              const sectorLabel = SECTOR_LABELS[sec] ?? sec;
-              return (
-                <div key={inst.id} style={{ position: "relative" }}>
-                  <Link to={`/installations/${inst.id}`} style={s.card}>
-                    <div style={s.cardTitle}>{inst.facilityName}</div>
-                    <div style={s.cardSub}>{inst.operator} · {inst.facilityCountry}</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ ...s.badge, background: sectorColor + "20", color: sectorColor }}>{sectorLabel}</span>
-                      <span style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>{inst._count?.periods ?? 0} dönem</span>
-                    </div>
-                  </Link>
-                  {canEdit && (
-                    <div style={s.actBtns}>
-                      <button
-                        style={{ background: "#e6f9f2", border: "none", borderRadius: 5, color: "#009966", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600 }}
-                        onClick={e => openEdit(e, inst)}>Düzenle</button>
-                      <button
-                        style={{ background: "#FEE2E2", border: "none", borderRadius: 5, color: "#DC2626", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600 }}
-                        onClick={e => deleteInstallation(e, inst.id, inst.facilityName)}>Sil</button>
-                    </div>
-                  )}
+        {activeTab === "comparison" ? (
+          <div>
+            {compData.length === 0 ? (
+              <div style={s.empty}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+                <div>Hesaplanmış dönem yok. Tesis → Dönem → SEE Hesapla adımlarını tamamlayın.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", letterSpacing: ".08em",
+                                textTransform: "uppercase", marginBottom: 14 }}>
+                    Spesifik Gömülü Emisyon (SEE) — tCO₂e/tonne ürün
+                  </div>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={compData} margin={{ top: 5, right: 20, bottom: 60, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 11 }} unit=" t" width={52} />
+                      <Tooltip
+                        formatter={(v: unknown, name: unknown) =>
+                          [`${Number(v).toFixed(4)} tCO₂e/t`, String(name)] as [string, string]
+                        }
+                        contentStyle={{ borderRadius: 8, border: "1px solid #d4ece4", fontSize: 12 }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                      {compData.some(d => d.defaultSee !== null) && (
+                        <Bar dataKey="defaultSee" name="CBAM Default SEE" fill="#fca5a5" />
+                      )}
+                      <Bar dataKey="seeBaseline" name="SEE Baseline" fill="#d4ece4" />
+                      <Bar dataKey="seeVoltfox"  name="SEE Actual (Voltfox)" fill="#00b87a" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-              );
-            })}
+
+                {/* Comparison table */}
+                <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", letterSpacing: ".08em",
+                                textTransform: "uppercase", marginBottom: 12 }}>Detaylı Karşılaştırma</div>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        {["Tesis", "Dönem", "Yıl", "SEE Baseline", "SEE Actual", "Azaltım %", "CBAM Default"].map(h => (
+                          <th key={h} style={{ textAlign: h === "Tesis" || h === "Dönem" ? "left" : "right",
+                                               fontSize: 11, color: "#5c7a72", fontWeight: 700,
+                                               textTransform: "uppercase", letterSpacing: ".04em",
+                                               padding: "8px 12px", borderBottom: "1px solid #d4ece4" } as React.CSSProperties}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compData.map((d, i) => {
+                        const pct = d.seeBaseline > 0 ? ((d.seeBaseline - d.seeVoltfox) / d.seeBaseline * 100) : 0;
+                        return (
+                          <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#f9fdfb" }}>
+                            <td style={{ padding: "10px 12px", fontSize: 13, borderBottom: "1px solid #eef7f3" }}>{d.facilityName}</td>
+                            <td style={{ padding: "10px 12px", fontSize: 13, borderBottom: "1px solid #eef7f3" }}>{d.periodName}</td>
+                            <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right", borderBottom: "1px solid #eef7f3" }}>{d.reportYear}</td>
+                            <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right", borderBottom: "1px solid #eef7f3" }}>{d.seeBaseline.toFixed(4)}</td>
+                            <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right", fontWeight: 600, color: "#059669", borderBottom: "1px solid #eef7f3" }}>{d.seeVoltfox.toFixed(4)}</td>
+                            <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right", color: "#059669", borderBottom: "1px solid #eef7f3" }}>%{pct.toFixed(1)}</td>
+                            <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right", color: d.defaultSee !== null ? "#ef4444" : "#5c7a72", borderBottom: "1px solid #eef7f3" }}>
+                              {d.defaultSee !== null ? d.defaultSee.toFixed(4) : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
+        ) : null}
+
+        {activeTab === "installations" && canEdit && (
+          <button style={s.addBtn} onClick={openCreate}>+ Yeni Tesis</button>
+        )}
+
+        {activeTab === "installations" && (
+          loading ? (
+            <div style={s.empty}>Yükleniyor...</div>
+          ) : installations.length === 0 ? (
+            <div style={s.empty}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🏭</div>
+              <div>Henüz tesis eklenmemiş. İlk tesisinizi ekleyin.</div>
+            </div>
+          ) : (
+            <div style={s.grid}>
+              {installations.map(inst => {
+                const sec = (inst as Installation & { sector?: string }).sector ?? "steel";
+                const sectorColor = SECTOR_COLORS[sec] ?? "#5c7a72";
+                const sectorLabel = SECTOR_LABELS[sec] ?? sec;
+                return (
+                  <div key={inst.id} style={{ position: "relative" }}>
+                    <Link to={`/installations/${inst.id}`} style={s.card}>
+                      <div style={s.cardTitle}>{inst.facilityName}</div>
+                      <div style={s.cardSub}>{inst.operator} · {inst.facilityCountry}</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ ...s.badge, background: sectorColor + "20", color: sectorColor }}>{sectorLabel}</span>
+                        <span style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>{inst._count?.periods ?? 0} dönem</span>
+                      </div>
+                    </Link>
+                    {canEdit && (
+                      <div style={s.actBtns}>
+                        <button
+                          style={{ background: "#e6f9f2", border: "none", borderRadius: 5, color: "#009966", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600 }}
+                          onClick={e => openEdit(e, inst)}>Düzenle</button>
+                        <button
+                          style={{ background: "#FEE2E2", border: "none", borderRadius: 5, color: "#DC2626", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600 }}
+                          onClick={e => deleteInstallation(e, inst.id, inst.facilityName)}>Sil</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
 

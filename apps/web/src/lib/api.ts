@@ -186,6 +186,15 @@ export const api = {
     subscription: () => request<TenantSubscription>("GET", "/tenant/subscription"),
   },
 
+  notifications: {
+    list:        () => request<NotificationList>("GET", "/notifications"),
+    markRead:    (id: string) => request<void>("PATCH", `/notifications/${id}/read`),
+    markAllRead: () => request<void>("PATCH", "/notifications/read-all"),
+    delete:      (id: string) => request<void>("DELETE", `/notifications/${id}`),
+    preferences: () => request<NotificationPrefs>("GET", "/notifications/preferences"),
+    updatePrefs: (body: Partial<NotificationPrefs>) => request<NotificationPrefs>("PATCH", "/notifications/preferences", body),
+  },
+
   shareLinks: {
     create: (installationId: string, periodId: string, ttlDays?: number) =>
       request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays }),
@@ -322,6 +331,19 @@ export interface TenantProfile {
   createdAt: string;
 }
 export type TenantProfileUpdate = { name?: string; logoUrl?: string | null; brandColor?: string | null; timezone?: string };
+// Notification types
+export interface NotificationItem {
+  id: string; tenantId: string; userId: string;
+  type: string; title: string; body: string | null;
+  resource: string | null; resourceId: string | null;
+  read: boolean; createdAt: string;
+}
+export interface NotificationList { notifications: NotificationItem[]; unreadCount: number; }
+export interface NotificationPrefs {
+  calculationDone: boolean; cfeDone: boolean;
+  memberInvited: boolean; periodCreated: boolean;
+}
+
 export interface TenantSubscription {
   plan: string; planName: string; planExpires: string | null;
   limits: { seats: number; installs: number };

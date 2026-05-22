@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { api } from "../lib/api.js";
+import type { NotificationPrefs } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 720, margin: "0 auto", padding: "32px 28px" },
@@ -58,11 +59,14 @@ export default function ProfilePage() {
 
   const [signOutAllLoading, setSignOutAllLoading] = useState(false);
   const [leaveLoading,     setLeaveLoading]      = useState(false);
+  const [prefs,            setPrefs]             = useState<NotificationPrefs | null>(null);
+  const [prefsSaving,      setPrefsSaving]       = useState(false);
 
   useEffect(() => {
     if (user?.user_metadata?.display_name) {
       setDisplayName(user.user_metadata.display_name as string);
     }
+    api.notifications.preferences().then(setPrefs).catch(() => {});
   }, [user]);
 
   async function saveName(e: React.FormEvent) {
@@ -231,6 +235,37 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Bildirim Tercihleri */}
+      {prefs && (
+        <div style={s.card}>
+          <div style={s.cardH}>Bildirim Tercihleri</div>
+          {([
+            { key: "calculationDone", label: "Emisyon hesaplama tamamlandı" },
+            { key: "cfeDone",         label: "CFE matching tamamlandı" },
+            { key: "memberInvited",   label: "Yeni üye davet edildi" },
+            { key: "periodCreated",   label: "Yeni dönem oluşturuldu" },
+          ] as const).map(({ key, label }) => (
+            <div key={key} style={{ ...s.row, ...(key === "periodCreated" ? { borderBottom: "none" } : {}) }}>
+              <div style={{ fontSize: 14, color: "#0a1f1a" }}>{label}</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox"
+                  checked={prefs[key]}
+                  disabled={prefsSaving}
+                  onChange={async e => {
+                    const updated = { ...prefs, [key]: e.target.checked };
+                    setPrefs(updated);
+                    setPrefsSaving(true);
+                    await api.notifications.updatePrefs({ [key]: e.target.checked }).catch(() => {});
+                    setPrefsSaving(false);
+                  }}
+                  style={{ width: 16, height: 16, accentColor: "#00b87a" }} />
+                <span style={{ fontSize: 12, color: "#5c7a72" }}>{prefs[key] ? "Açık" : "Kapalı"}</span>
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Veri & Gizlilik */}
       <div style={s.card}>

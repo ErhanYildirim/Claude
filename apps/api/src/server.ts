@@ -34,6 +34,7 @@ import { onboardingRoutes }    from "./routes/onboarding.js";
 import { efRoutes }            from "./routes/ef.js";
 import { gecRoutes }           from "./routes/gec.js";
 import { tenantRoutes }        from "./routes/tenant.js";
+import { notificationsRoutes } from "./routes/notifications.js";
 
 const app = Fastify({
   logger: {
@@ -93,6 +94,7 @@ await app.register(onboardingRoutes,    { prefix: v1 });
 await app.register(efRoutes,            { prefix: v1 });
 await app.register(gecRoutes,           { prefix: v1 });
 await app.register(tenantRoutes,        { prefix: v1 });
+await app.register(notificationsRoutes, { prefix: v1 });
 
 // Health check — kamuya açık, detaylı DB + uygulama durumu
 app.get("/health", { config: { public: true } }, async (_req, reply) => {

@@ -23,12 +23,14 @@ model Tenant {
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
 
-  installations Installation[]
-  shareLinks    ShareLink[]
-  auditLogs     AuditLog[]
-  members       TenantMember[]
-  apiKeys       ApiKey[]
-  webhooks      WebhookSubscription[]
+  installations           Installation[]
+  shareLinks              ShareLink[]
+  auditLogs               AuditLog[]
+  members                 TenantMember[]
+  apiKeys                 ApiKey[]
+  webhooks                WebhookSubscription[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@map("tenants")
 }
@@ -252,6 +254,41 @@ model AuditLog {
   @@index([tenantId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ── Notification ─────────────────────────────────────────────────────────────
+model Notification {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id") @db.Uuid
+
+  type       String
+  title      String
+  body       String?
+  resource   String?
+  resourceId String?  @map("resource_id") @db.Uuid
+  read       Boolean  @default(false)
+
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// ── NotificationPreference ────────────────────────────────────────────────────
+model NotificationPreference {
+  tenantId       String  @map("tenant_id") @db.Uuid
+  tenant         Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId         String  @map("user_id") @db.Uuid
+
+  calculationDone Boolean @default(true) @map("calculation_done")
+  cfeDone         Boolean @default(true) @map("cfe_done")
+  memberInvited   Boolean @default(true) @map("member_invited")
+  periodCreated   Boolean @default(true) @map("period_created")
+
+  @@id([tenantId, userId])
+  @@map("notification_preferences")
 }
 
 // ── HourlyConsumption (Saatlik Tüketim Verisi) ───────────────────────────────

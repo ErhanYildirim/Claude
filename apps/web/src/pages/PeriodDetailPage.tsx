@@ -110,9 +110,15 @@ export default function PeriodDetailPage() {
               <button style={{ ...s.btn, ...s.btnG }} onClick={openReport}>PDF İndir</button>
               <button
                 style={{ ...s.btn, background: "#1a3530", color: "#fff" }}
-                onClick={() => window.open(api.periods.exportUrl(installationId!, periodId!), "_blank")}
+                onClick={() => window.open(api.periods.exportUrl(installationId!, periodId!, "json"), "_blank")}
               >
                 JSON İndir
+              </button>
+              <button
+                style={{ ...s.btn, background: "#0284c7", color: "#fff" }}
+                onClick={() => window.open(api.periods.exportUrl(installationId!, periodId!, "xml"), "_blank")}
+              >
+                XML İndir
               </button>
               <button style={{ ...s.btn, background: "#7C3AED", color: "#fff" }} onClick={createShareLink} disabled={shareLoad}>
                 {shareLoad ? "..." : "İthalatçıyla Paylaş"}

@@ -2,6 +2,15 @@ import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "@voltfox/db";
 import { buildPdfReport } from "../lib/pdf-report.js";
 
+function escapeXml(val: unknown): string {
+  return String(val ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 export const reportsRoutes: FastifyPluginAsync = async (app) => {
 
   // GET /installations/:installationId/periods/:periodId/export?format=json
@@ -99,6 +108,82 @@ export const reportsRoutes: FastifyPluginAsync = async (app) => {
     };
 
     const ref = installation.facilityRef ?? installationId.slice(0, 8);
+    const format = (request.query as { format?: string }).format ?? "json";
+
+    if (format === "xml") {
+      const x = (val: unknown) => escapeXml(val);
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<CBAMTechnicalFile xmlns="urn:voltfox:cbam:1.0"
+  schemaVersion="1.0"
+  regulation="EU 2023/1773 Annex IV Method A"
+  generatedAt="${x(doc.generatedAt)}"
+  generatedBy="Voltfox Platform">
+
+  <Facility>
+    <Name>${x(doc.facility.name)}</Name>
+    <Operator>${x(doc.facility.operator)}</Operator>
+    <Country>${x(doc.facility.country)}</Country>
+    <Sector>${x(doc.facility.sector)}</Sector>
+    <InstallationRef>${x(doc.facility.installationRef)}</InstallationRef>
+  </Facility>
+
+  <ReportingPeriod>
+    <Name>${x(doc.reportingPeriod.name)}</Name>
+    <StartDate>${x(doc.reportingPeriod.startDate)}</StartDate>
+    <EndDate>${x(doc.reportingPeriod.endDate)}</EndDate>
+    <ReportYear>${x(doc.reportingPeriod.reportYear)}</ReportYear>
+    <ImportCountry>${x(doc.reportingPeriod.importCountry)}</ImportCountry>
+    <CnCode>${x(doc.reportingPeriod.cnCode)}</CnCode>
+    <ProductionVolumeTonne>${x(doc.reportingPeriod.productionVolumeTonne)}</ProductionVolumeTonne>
+  </ReportingPeriod>
+
+  <Scope1DirectEmissions>
+    <TotalTco2>${x(doc.scope1DirectEmissions.tco2)}</TotalTco2>
+    <DataQuality>${x(doc.scope1DirectEmissions.dataQuality)}</DataQuality>
+    <AuditNote>${x(doc.scope1DirectEmissions.auditNote)}</AuditNote>
+  </Scope1DirectEmissions>
+
+  <Scope2IndirectEmissions methodology="${x(doc.scope2IndirectEmissions.methodology)}">
+    <ElectricityConsumedKwh>${x(doc.scope2IndirectEmissions.electricityConsumedKwh)}</ElectricityConsumedKwh>
+    <BaselineEfTco2PerMwh>${x(doc.scope2IndirectEmissions.baselineEfTco2PerMwh)}</BaselineEfTco2PerMwh>
+    <CfeMatchingRatePct>${x(doc.scope2IndirectEmissions.cfeMatchingRatePct)}</CfeMatchingRatePct>
+    <RenewableEfTco2PerMwh>${x(doc.scope2IndirectEmissions.renewableEfTco2PerMwh)}</RenewableEfTco2PerMwh>
+    <BaselineTco2>${x(doc.scope2IndirectEmissions.baselineTco2)}</BaselineTco2>
+    <ActualTco2>${x(doc.scope2IndirectEmissions.actualTco2)}</ActualTco2>
+    <ReductionTco2>${x(doc.scope2IndirectEmissions.reductionTco2)}</ReductionTco2>
+    <ReductionPct>${x(doc.scope2IndirectEmissions.reductionPct)}</ReductionPct>
+  </Scope2IndirectEmissions>
+
+  <SpecificEmbeddedEmission unit="${x(doc.specificEmbeddedEmission.unit)}">
+    <Baseline>${x(doc.specificEmbeddedEmission.baseline)}</Baseline>
+    <Actual>${x(doc.specificEmbeddedEmission.actual)}</Actual>
+    <ReductionPct>${x(doc.specificEmbeddedEmission.reductionPct)}</ReductionPct>
+  </SpecificEmbeddedEmission>
+
+  ${doc.cbamDefaultComparison ? `<CbamDefaultComparison>
+    <DefaultSee>${x(doc.cbamDefaultComparison.defaultSee)}</DefaultSee>
+    <ActualSee>${x(doc.cbamDefaultComparison.actualSee)}</ActualSee>
+    <ImprovementTco2PerTonne>${x(doc.cbamDefaultComparison.improvementTco2PerTonne)}</ImprovementTco2PerTonne>
+    <ImprovementPct>${x(doc.cbamDefaultComparison.improvementPct.toFixed(2))}</ImprovementPct>
+    <CarbonPriceEur>${x(doc.cbamDefaultComparison.carbonPriceEur)}</CarbonPriceEur>
+    <AnnualSavingsEur>${x(doc.cbamDefaultComparison.annualSavingsEur)}</AnnualSavingsEur>
+  </CbamDefaultComparison>` : "<CbamDefaultComparison/>"}
+
+  <DataLineage>
+    <CalcEngineVersion>${x(doc.dataLineage.calcEngineVersion)}</CalcEngineVersion>
+    <CalcMethodology>${x(doc.dataLineage.calcMethodology)}</CalcMethodology>
+    <EfDataVersion>${x(doc.dataLineage.efDataVersion)}</EfDataVersion>
+    <CalculatedAt>${x(doc.dataLineage.calculatedAt)}</CalculatedAt>
+  </DataLineage>
+
+</CBAMTechnicalFile>`;
+
+      const xmlFilename = `voltfox-cbam-${ref}-${period.reportYear}.xml`;
+      reply.header("Content-Type", "application/xml; charset=utf-8");
+      reply.header("Content-Disposition", `attachment; filename="${xmlFilename}"`);
+      return reply.send(xml);
+    }
+
     const filename = `voltfox-cbam-${ref}-${period.reportYear}.json`;
     reply.header("Content-Disposition", `attachment; filename="${filename}"`);
     return reply.send(doc);

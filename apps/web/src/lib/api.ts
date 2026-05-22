@@ -100,6 +100,8 @@ export const api = {
       request<{ member: unknown; invited: boolean; message: string }>("POST", "/members/invite", body),
     update: (userId: string, role: string) => request("PATCH", `/members/${userId}`, { role }),
     remove: (userId: string) => request<void>("DELETE", `/members/${userId}`),
+    exportDataUrl: () => `${BASE}/members/me/export`,
+    leave: () => request<void>("DELETE", "/members/me"),
   },
 
   apiKeys: {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { api } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 720, margin: "0 auto", padding: "32px 28px" },
@@ -56,6 +57,7 @@ export default function ProfilePage() {
   const [pwdSaving, setPwdSaving] = useState(false);
 
   const [signOutAllLoading, setSignOutAllLoading] = useState(false);
+  const [leaveLoading,     setLeaveLoading]      = useState(false);
 
   useEffect(() => {
     if (user?.user_metadata?.display_name) {
@@ -118,6 +120,24 @@ export default function ProfilePage() {
       /* ignore */
     } finally {
       setSignOutAllLoading(false);
+    }
+  }
+
+  function downloadData() {
+    window.open("/api/v1/members/me/export", "_blank");
+  }
+
+  async function leaveOrganization() {
+    if (!confirm("Bu şirketteki hesabınızı kapatmak istediğinizden emin misiniz? Bu işlem geri alınamaz.")) return;
+    setLeaveLoading(true);
+    try {
+      await api.members.leave();
+      await supabase.auth.signOut();
+      navigate("/");
+    } catch (err: unknown) {
+      alert((err as Error).message ?? "İşlem başarısız. Son owner iseniz önce başka birine yetki verin.");
+    } finally {
+      setLeaveLoading(false);
     }
   }
 
@@ -206,12 +226,36 @@ export default function ProfilePage() {
               Tüm cihaz ve tarayıcılardaki oturumları sonlandırır.
             </div>
           </div>
-          <button
-            style={{ ...s.btn, ...s.btnR }}
-            onClick={signOutAll}
-            disabled={signOutAllLoading}
-          >
+          <button style={{ ...s.btn, ...s.btnR }} onClick={signOutAll} disabled={signOutAllLoading}>
             {signOutAllLoading ? "Kapatılıyor…" : "Tümünü Kapat"}
+          </button>
+        </div>
+      </div>
+
+      {/* Veri & Gizlilik */}
+      <div style={s.card}>
+        <div style={s.cardH}>Veri & Gizlilik (GDPR)</div>
+        <div style={s.row}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0a1f1a" }}>Verilerimi İndir</div>
+            <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+              Üyelik bilgileri ve işlem geçmişinizi JSON formatında indirin.
+            </div>
+          </div>
+          <button style={{ ...s.btn, ...s.btnGh, border: "1px solid #d4ece4" }}
+            onClick={downloadData}>
+            ↓ İndir
+          </button>
+        </div>
+        <div style={{ ...s.row, borderBottom: "none" }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#DC2626" }}>Şirketten Ayrıl</div>
+            <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+              Bu tenant'taki üyeliğinizi kalıcı olarak sonlandırır.
+            </div>
+          </div>
+          <button style={{ ...s.btn, ...s.btnR }} onClick={leaveOrganization} disabled={leaveLoading}>
+            {leaveLoading ? "İşleniyor…" : "Ayrıl"}
           </button>
         </div>
       </div>

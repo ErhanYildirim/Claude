@@ -165,4 +165,72 @@ export const membersRoutes: FastifyPluginAsync = async (app) => {
     if (!member) return reply.status(403).send({ error: "NOT_MEMBER" });
     return reply.send({ role: member.role });
   });
+
+  // GET /members/me/export — GDPR veri dışa aktarma (kullanıcıya ait tüm veriler)
+  app.get("/members/me/export", async (request, reply) => {
+    if (!request.userId) return reply.status(401).send({ error: "UNAUTHORIZED" });
+
+    const [member, auditLogs] = await Promise.all([
+      prisma.tenantMember.findUnique({
+        where:  { tenantId_userId: { tenantId: request.tenantId, userId: request.userId } },
+        select: { role: true, createdAt: true },
+      }),
+      prisma.auditLog.findMany({
+        where:   { tenantId: request.tenantId, userId: request.userId },
+        orderBy: { createdAt: "desc" },
+        take:    500,
+        select:  { action: true, resource: true, resourceId: true, createdAt: true, ipAddress: true },
+      }),
+    ]);
+
+    if (!member) return reply.status(403).send({ error: "NOT_MEMBER" });
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      userId:     request.userId,
+      tenantId:   request.tenantId,
+      membership: { role: member.role, joinedAt: member.createdAt.toISOString() },
+      auditLog:   auditLogs.map(l => ({
+        action:     l.action,
+        resource:   l.resource,
+        resourceId: l.resourceId,
+        at:         l.createdAt.toISOString(),
+        ip:         l.ipAddress,
+      })),
+    };
+
+    reply.header("Content-Disposition", `attachment; filename="voltfox-data-export-${new Date().toISOString().slice(0, 10)}.json"`);
+    reply.header("Content-Type", "application/json");
+    return reply.send(JSON.stringify(exportData, null, 2));
+  });
+
+  // DELETE /members/me — hesaptan ayrıl (kendi kaydını sil)
+  app.delete("/members/me", async (request, reply) => {
+    if (!request.userId) return reply.status(401).send({ error: "UNAUTHORIZED" });
+
+    // Owner tenant'ı tek başına bırakamaz
+    const [member, ownerCount] = await Promise.all([
+      prisma.tenantMember.findUnique({
+        where:  { tenantId_userId: { tenantId: request.tenantId, userId: request.userId } },
+      }),
+      prisma.tenantMember.count({
+        where: { tenantId: request.tenantId, role: "owner" },
+      }),
+    ]);
+
+    if (!member) return reply.status(404).send({ error: "NOT_FOUND" });
+
+    if (member.role === "owner" && ownerCount <= 1) {
+      return reply.status(400).send({
+        error:   "LAST_OWNER",
+        message: "Tenant'ın son owner'ısınız. Ayrılmadan önce başka birine owner rolü verin.",
+      });
+    }
+
+    await prisma.tenantMember.delete({
+      where: { tenantId_userId: { tenantId: request.tenantId, userId: request.userId } },
+    });
+
+    return reply.status(204).send();
+  });
 };

@@ -1,29 +1,34 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth.js";
 import { api } from "./lib/api.js";
-import AppShell               from "./components/AppShell.js";
-import LoginPage              from "./pages/LoginPage.js";
-import OnboardingPage         from "./pages/OnboardingPage.js";
-import DashboardPage          from "./pages/DashboardPage.js";
-import CbamPage               from "./pages/CbamPage.js";
-import CfePage                from "./pages/CfePage.js";
-import EfDataPage             from "./pages/EfDataPage.js";
-import CbamReportPage         from "./pages/CbamReportPage.js";
-import CdpReportPage          from "./pages/CdpReportPage.js";
-import Iso14064Page           from "./pages/Iso14064Page.js";
-import GhgProtocolPage        from "./pages/GhgProtocolPage.js";
-import GecPage               from "./pages/GecPage.js";
-import InstallationDetailPage from "./pages/InstallationDetailPage.js";
-import PeriodDetailPage       from "./pages/PeriodDetailPage.js";
-import SharePage              from "./pages/SharePage.js";
-import SettingsPage           from "./pages/SettingsPage.js";
-import ProfilePage            from "./pages/ProfilePage.js";
+import AppShell       from "./components/AppShell.js";
+import PageSkeleton   from "./components/PageSkeleton.js";
+import LoginPage      from "./pages/LoginPage.js";
+import OnboardingPage from "./pages/OnboardingPage.js";
+import SharePage      from "./pages/SharePage.js";
+
+// Code-split — each page is a separate async chunk
+const DashboardPage          = lazy(() => import("./pages/DashboardPage.js"));
+const GecPage                = lazy(() => import("./pages/GecPage.js"));
+const CbamPage               = lazy(() => import("./pages/CbamPage.js"));
+const CfePage                = lazy(() => import("./pages/CfePage.js"));
+const EfDataPage             = lazy(() => import("./pages/EfDataPage.js"));
+const CbamReportPage         = lazy(() => import("./pages/CbamReportPage.js"));
+const CdpReportPage          = lazy(() => import("./pages/CdpReportPage.js"));
+const Iso14064Page           = lazy(() => import("./pages/Iso14064Page.js"));
+const GhgProtocolPage        = lazy(() => import("./pages/GhgProtocolPage.js"));
+const InstallationDetailPage = lazy(() => import("./pages/InstallationDetailPage.js"));
+const PeriodDetailPage       = lazy(() => import("./pages/PeriodDetailPage.js"));
+const SettingsPage           = lazy(() => import("./pages/SettingsPage.js"));
+const ProfilePage            = lazy(() => import("./pages/ProfilePage.js"));
 
 function AppLayout() {
   return (
     <AppShell>
-      <Outlet />
+      <Suspense fallback={<PageSkeleton />}>
+        <Outlet />
+      </Suspense>
     </AppShell>
   );
 }
@@ -77,7 +82,7 @@ function AppRouter() {
         {/* Public routes — no AppShell */}
         <Route path="/share/:token" element={<SharePage />} />
 
-        {/* Authenticated routes — wrapped in AppShell */}
+        {/* Authenticated routes — wrapped in AppShell + Suspense */}
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/gec" replace />} />
           <Route path="/gec"                                               element={<GecPage />} />

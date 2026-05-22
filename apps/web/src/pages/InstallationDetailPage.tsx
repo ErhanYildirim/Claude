@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { InstallationDetail, Period, CreatePeriodBody, EFEntry } from "../lib/api.js";
+import type { InstallationDetail, Period, CreatePeriodBody, EFEntry, CbamProduct } from "../lib/api.js";
 import { Scope1Calculator } from "../components/Scope1Calculator.js";
 
 const s: Record<string, React.CSSProperties> = {
@@ -326,6 +326,7 @@ export default function InstallationDetailPage() {
             </tbody>
           </table>
         )}
+        <CbamProductsSection installationId={installation.id} />
       </div>
 
       {/* ── Dönem oluşturma / düzenleme modal ── */}
@@ -674,5 +675,168 @@ export default function InstallationDetailPage() {
         />
       )}
     </>
+  );
+}
+
+// ── CBAM Ürünleri bölümü (InstallationDetailPage içinde) ─────────────────────
+function csBadge(color: string): React.CSSProperties {
+  return {
+    display: "inline-block", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
+    background: color === "green" ? "#d1fae5" : "#dbeafe",
+    color:      color === "green" ? "#065f46" : "#1e40af",
+  };
+}
+
+function CbamProductsSection({ installationId }: { installationId: string }) {
+  const [products,  setProducts]  = useState<CbamProduct[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [showForm,  setShowForm]  = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [form, setForm] = useState({
+    productName: "", cnCode: "", description: "",
+    unit: "tonne", isCbamScope: true, energyAllocationMode: "facility" as "facility" | "band",
+  });
+
+  useEffect(() => {
+    api.cbamProducts.list(installationId)
+      .then(r => setProducts(r.products))
+      .finally(() => setLoading(false));
+  }, [installationId]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.cbamProducts.create(installationId, form);
+      const r = await api.cbamProducts.list(installationId);
+      setProducts(r.products);
+      setShowForm(false);
+      setForm({ productName: "", cnCode: "", description: "", unit: "tonne", isCbamScope: true, energyAllocationMode: "facility" });
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  }
+
+  async function del(productId: string) {
+    if (!confirm("Bu ürünü ve tüm dönemlerini silmek istiyor musunuz?")) return;
+    await api.cbamProducts.delete(installationId, productId).catch(() => {});
+    setProducts(p => p.filter(x => x.id !== productId));
+  }
+
+  const cs: Record<string, React.CSSProperties> = {
+    sec:   { marginTop: 32, marginBottom: 4 },
+    secH:  { fontSize: 13, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 12 },
+    card:  { background: "#fff", border: "1px solid #d4ece4", borderRadius: 10, padding: "16px 18px",
+              display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+    name:  { fontWeight: 600, fontSize: 14, color: "#0a1f1a" },
+    meta:  { fontSize: 12, color: "#5c7a72", marginTop: 2 },
+    addBtn:{ background: "#00b87a", color: "#fff", border: "none", borderRadius: 7,
+              padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+    inp:   { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #D1D5DB",
+              fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" as const, marginBottom: 10 },
+    sel:   { width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #D1D5DB",
+              fontSize: 13, background: "#fff", marginBottom: 10, boxSizing: "border-box" as const },
+    lbl:   { fontSize: 12, color: "#5c7a72", marginBottom: 4, display: "block" as const },
+    formCard: { background: "#f0faf5", border: "1px solid #d4ece4", borderRadius: 10, padding: "18px", marginBottom: 12 },
+  };
+
+  return (
+    <div style={cs.sec}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={cs.secH}>CBAM Ürünleri</div>
+        <button style={cs.addBtn} onClick={() => setShowForm(v => !v)}>
+          {showForm ? "İptal" : "+ Ürün Ekle"}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={cs.formCard}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 4 }}>
+            <div>
+              <label style={cs.lbl}>Ürün Adı *</label>
+              <input style={cs.inp} placeholder="Örn: Çelik Profil, Alüminyum Levha"
+                value={form.productName} onChange={e => setForm(f => ({ ...f, productName: e.target.value }))} />
+            </div>
+            <div>
+              <label style={cs.lbl}>CN Kodu</label>
+              <input style={cs.inp} placeholder="Örn: 7206, 7601, 2523"
+                value={form.cnCode} onChange={e => setForm(f => ({ ...f, cnCode: e.target.value }))} />
+            </div>
+            <div>
+              <label style={cs.lbl}>Birim</label>
+              <select style={cs.sel} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}>
+                <option value="tonne">Ton</option>
+                <option value="MWh">MWh</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
+            <div>
+              <label style={cs.lbl}>Enerji Dağıtım Modu *</label>
+              <select style={cs.sel} value={form.energyAllocationMode}
+                onChange={e => setForm(f => ({ ...f, energyAllocationMode: e.target.value as "facility" | "band" }))}>
+                <option value="facility">Tesis (orantılı dağıtım)</option>
+                <option value="band">Band (doğrudan atama)</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ ...cs.lbl, display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={form.isCbamScope}
+                onChange={e => setForm(f => ({ ...f, isCbamScope: e.target.checked }))} />
+              CBAM Kapsamında
+            </label>
+          </div>
+          <button style={{ ...cs.addBtn, opacity: saving ? 0.6 : 1 }}
+            onClick={save} disabled={saving || !form.productName.trim()}>
+            {saving ? "Kaydediliyor…" : "Kaydet"}
+          </button>
+        </div>
+      )}
+
+      {loading && <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor...</div>}
+
+      {!loading && products.length === 0 && !showForm && (
+        <div style={{ color: "#5c7a72", fontSize: 13, padding: "12px 0" }}>
+          Bu tesis için henüz CBAM ürünü tanımlanmamış.
+        </div>
+      )}
+
+      {products.map(p => (
+        <div key={p.id} style={cs.card}>
+          <div>
+            <div style={cs.name}>{p.productName}</div>
+            <div style={cs.meta}>
+              {p.cnCode && <span style={{ marginRight: 8 }}>CN: {p.cnCode}</span>}
+              <span style={csBadge(p.isCbamScope ? "green" : "blue")}>
+                {p.isCbamScope ? "CBAM Kapsam İçi" : "Kapsam Dışı"}
+              </span>
+              <span style={{ marginLeft: 6, ...csBadge("blue") }}>
+                {p.energyAllocationMode === "band" ? "Band Modu" : "Tesis Modu"}
+              </span>
+              {p.productPeriods.length > 0 && (
+                <span style={{ marginLeft: 6, color: "#5c7a72" }}>
+                  {p.productPeriods.length} dönem
+                  {p.productPeriods[0].see ? ` · SEE: ${parseFloat(p.productPeriods[0].see).toFixed(4)} tCO₂/${p.unit}` : ""}
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link
+              to={`/installations/${installationId}/products/${p.id}`}
+              style={{ padding: "6px 14px", borderRadius: 6, background: "#d1fae5",
+                       color: "#065f46", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+            >
+              Dönemler →
+            </Link>
+            <button
+              onClick={() => del(p.id)}
+              style={{ padding: "6px 10px", borderRadius: 6, border: "none",
+                       background: "#fee2e2", color: "#dc2626", fontSize: 13, cursor: "pointer", fontWeight: 600 }}
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

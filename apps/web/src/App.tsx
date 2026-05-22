@@ -31,6 +31,7 @@ const EmissionTargetsPage    = lazy(() => import("./pages/EmissionTargetsPage.js
 const ImportWizardPage       = lazy(() => import("./pages/ImportWizardPage.js"));
 const BenchmarkPage          = lazy(() => import("./pages/BenchmarkPage.js"));
 const CsrdReportPage         = lazy(() => import("./pages/CsrdReportPage.js"));
+const CbamProductPage        = lazy(() => import("./pages/CbamProductPage.js"));
 
 // Admin pages (super-admin only)
 const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
@@ -143,6 +144,7 @@ function AppRouter() {
           <Route path="/csrd"                                              element={<CsrdReportPage />} />
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
+          <Route path="/installations/:installationId/products/:productId" element={<CbamProductPage />} />
           <Route path="*"                                                  element={<Navigate to="/gec" replace />} />
         </Route>
       </Routes>

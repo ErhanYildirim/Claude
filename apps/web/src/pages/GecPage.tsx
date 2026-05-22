@@ -231,6 +231,114 @@ function UploadView({
 }
 
 /* ── Result view ─────────────────────────────────────────────────────────── */
+function printGecReport(result: GecResult) {
+  const rows = result.monthly.map(m => `
+    <tr>
+      <td>${m.monthName}</td>
+      <td style="text-align:right">${(m.consumptionKwh / 1000).toFixed(2)}</td>
+      <td style="text-align:right">${m.avgEfGco2Kwh.toFixed(1)}</td>
+      <td style="text-align:right;font-weight:700">${m.tco2.toFixed(3)}</td>
+      <td style="text-align:right;color:#555">${m.hours}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<title>GEC Raporu — ${result.zoneId}</title>
+<style>
+  body{font-family:Arial,sans-serif;color:#0a1f1a;margin:0;padding:32px 48px;font-size:13px}
+  .logo{font-size:22px;font-weight:900;color:#00b87a;margin-bottom:4px}
+  .title{font-size:18px;font-weight:700;margin-bottom:2px}
+  .sub{font-size:12px;color:#5c7a72;margin-bottom:24px}
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  .kpi{border:1px solid #d4ece4;border-radius:8px;padding:14px}
+  .kpi-l{font-size:10px;color:#5c7a72;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .kpi-v{font-size:22px;font-weight:800}
+  .kpi-u{font-size:10px;color:#5c7a72;margin-top:2px}
+  table{width:100%;border-collapse:collapse;margin-bottom:24px}
+  th{text-align:left;font-size:11px;color:#5c7a72;font-weight:700;text-transform:uppercase;padding:8px 10px;border-bottom:2px solid #d4ece4}
+  td{padding:8px 10px;border-bottom:1px solid #eef7f3;font-size:12px}
+  tr:last-child td{font-weight:700;background:#f4fbf8}
+  .method{background:#f4fbf8;border-radius:8px;padding:14px 16px;font-size:11px;color:#5c7a72;line-height:1.8}
+  .footer{margin-top:32px;padding-top:12px;border-top:1px solid #d4ece4;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+  @media print{body{padding:24px 32px}}
+</style>
+</head>
+<body>
+<div class="logo">Voltfox</div>
+<div class="title">Granüler Emisyon Hesaplama Raporu</div>
+<div class="sub">
+  Zone: <strong>${result.zoneId}</strong> &nbsp;·&nbsp;
+  Metodoloji: Saatlik tüketim × Lokasyon bazlı EF &nbsp;·&nbsp;
+  Hesaplama tarihi: ${new Date().toLocaleDateString("tr-TR", { day:"2-digit",month:"long",year:"numeric" })}
+</div>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-l">Toplam Emisyon</div>
+    <div class="kpi-v">${result.totalTco2.toFixed(2)}</div>
+    <div class="kpi-u">tCO₂eq · Scope 2</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-l">Toplam Tüketim</div>
+    <div class="kpi-v">${(result.totalConsumptionKwh / 1000).toFixed(1)}</div>
+    <div class="kpi-u">MWh</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-l">Ort. Emisyon Faktörü</div>
+    <div class="kpi-v">${result.avgEfGco2Kwh.toFixed(0)}</div>
+    <div class="kpi-u">gCO₂/kWh</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-l">Eşleşen Saat</div>
+    <div class="kpi-v">${result.matchedHours.toLocaleString()}</div>
+    <div class="kpi-u">${result.totalRows > 0 ? `${((result.matchedHours / result.totalRows) * 100).toFixed(0)}% kapsam` : "saat"}</div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Ay</th>
+      <th style="text-align:right">Tüketim (MWh)</th>
+      <th style="text-align:right">Ort. EF (gCO₂/kWh)</th>
+      <th style="text-align:right">Emisyon (tCO₂eq)</th>
+      <th style="text-align:right">Saat</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows}
+    <tr>
+      <td>Toplam</td>
+      <td style="text-align:right">${(result.totalConsumptionKwh / 1000).toFixed(2)}</td>
+      <td style="text-align:right">${result.avgEfGco2Kwh.toFixed(1)}</td>
+      <td style="text-align:right">${result.totalTco2.toFixed(3)}</td>
+      <td style="text-align:right;color:#555">${result.matchedHours}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="method">
+  <strong>Hesaplama:</strong> Σ(tüketimKwh × ci_direct_gCO₂/kWh) ÷ 1.000.000 = tCO₂eq<br/>
+  <strong>EF Kaynağı:</strong> Electricity Maps · ${result.zoneId} · 2024 saatlik · lokasyon bazlı<br/>
+  <strong>Kapsam:</strong> GHG Protocol Scope 2 — market-based (saatlik granüler)<br/>
+  <strong>Referans:</strong> EU 2023/1773 Ek IV · ISO 14064-1:2018
+</div>
+
+<div class="footer">
+  <span>Voltfox Platform v1.0 | ISO 14064-1 uyumlu</span>
+  <span>${new Date().toISOString().slice(0, 10)}</span>
+</div>
+
+<script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank", "width=900,height=700");
+  if (w) { w.document.write(html); w.document.close(); }
+}
+
 function ResultView({
   result,
   onReset,
@@ -254,9 +362,14 @@ function ResultView({
             </span>
           )}
         </span>
-        <button style={{ ...s.btnSm, marginLeft: "auto", whiteSpace: "nowrap" }} onClick={onReset}>
-          Yeni Hesap
-        </button>
+        <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+          <button style={{ ...s.btnSm, whiteSpace: "nowrap" }} onClick={() => printGecReport(result)}>
+            ↓ PDF İndir
+          </button>
+          <button style={{ ...s.btnSm, whiteSpace: "nowrap" }} onClick={onReset}>
+            Yeni Hesap
+          </button>
+        </div>
       </div>
 
       {/* KPI row */}

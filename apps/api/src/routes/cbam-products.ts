@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { prisma, Prisma } from "@voltfox/db";
 import { requireRole } from "../plugins/rbac.js";
+import { dispatchWebhookEvent } from "./webhooks.js";
 import {
   calculateCbamProductEmission,
   RENEWABLE_SOURCE_EF,
@@ -353,6 +354,17 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
         resourceId: periodId,
         payload:    { see: result.see, effectiveEf: result.effectiveEf, unmatchedEfSource: result.unmatchedEfSource },
       },
+    }).catch(() => {});
+
+    // Fire webhook for calculation.completed event
+    dispatchWebhookEvent(request.tenantId, "calculation.completed", {
+      type:        "cbam_product_period",
+      periodId,
+      productId:   period.cbamProductId,
+      see:         result.see,
+      effectiveEf: result.effectiveEf,
+      unmatchedEfSource: result.unmatchedEfSource,
+      calculatedAt: new Date().toISOString(),
     }).catch(() => {});
 
     return reply.send({ period: updated, result });

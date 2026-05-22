@@ -153,7 +153,8 @@ export const api = {
       const q = year ? `?year=${year}` : "";
       return request<EFMonthlyData>("GET", `/ef/zones/${zoneId}/monthly${q}`);
     },
-    coverage: () => request<EFCoverageData>("GET", "/ef/coverage"),
+    coverage:     () => request<EFCoverageData>("GET", "/ef/coverage"),
+    importStatus: () => request<EFImportStatus>("GET", "/ef/import-status"),
   },
 
   gec: {
@@ -312,6 +313,18 @@ export interface EFMonthlyData { zoneId: string; year: number; months: EFMonthly
 export interface EFCoverageYear { year: number; rowCount: number; complete: boolean; }
 export interface EFCoverageZone { zoneId: string; zoneName: string; country: string; years: EFCoverageYear[]; }
 export interface EFCoverageData { zones: EFCoverageZone[]; availableYears: number[]; }
+
+export interface EFImportLog {
+  id: string; year: number; zoneId: string | null;
+  rowsAdded: number; status: string; message: string | null;
+  startedAt: string; endedAt: string; createdAt: string;
+}
+export interface EFImportStatus {
+  lastImport: EFImportLog | null;
+  totalRows: number;
+  nextScheduledRun: string;
+  schedule: string;
+}
 
 export interface GecMonthlyPoint {
   month: number; monthName: string;

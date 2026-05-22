@@ -31,11 +31,12 @@ import { cfeImportRoutes }     from "./routes/cfe-import.js";
 import { apiKeysRoutes }       from "./routes/api-keys.js";
 import { webhooksRoutes }      from "./routes/webhooks.js";
 import { onboardingRoutes }    from "./routes/onboarding.js";
-import { efRoutes }            from "./routes/ef.js";
+import { efRoutes, runEfImport } from "./routes/ef.js";
 import { gecRoutes }           from "./routes/gec.js";
 import { tenantRoutes }        from "./routes/tenant.js";
 import { notificationsRoutes } from "./routes/notifications.js";
 import { invitesRoutes }       from "./routes/invites.js";
+import cron from "node-cron";
 
 const app = Fastify({
   logger: {
@@ -129,6 +130,14 @@ const port = parseInt(process.env.PORT ?? "3000");
 try {
   await app.listen({ port, host: "0.0.0.0" });
   app.log.info(`Voltfox API port ${port}'de çalışıyor`);
+
+  // EF otomatik güncelleme — her gün 02:00 UTC
+  cron.schedule("0 2 * * *", async () => {
+    app.log.info("[EF Cron] Günlük EF import başlıyor…");
+    await runEfImport().catch(err => app.log.error({ err }, "[EF Cron] Import hatası"));
+    app.log.info("[EF Cron] Tamamlandı.");
+  }, { timezone: "UTC" });
+
 } catch (err) {
   app.log.error(err);
   process.exit(1);

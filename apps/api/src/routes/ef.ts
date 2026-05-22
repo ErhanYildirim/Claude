@@ -2,6 +2,46 @@ import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "@voltfox/db";
 import { Prisma } from "@voltfox/db";
 
+// ── EF import runner — called by cron scheduler ───────────────────────────────
+export async function runEfImport(year?: number): Promise<void> {
+  const yr = year ?? new Date().getFullYear();
+  const startedAt = new Date();
+
+  try {
+    // Check current row count for this year
+    const before = await prisma.$queryRaw(Prisma.sql`
+      SELECT COUNT(*) AS cnt FROM emission_factors
+      WHERE granularity = 'hourly' AND EXTRACT(YEAR FROM hour) = ${yr}
+    `).then((r: unknown) => Number((r as Array<{ cnt: bigint }>)[0]?.cnt ?? 0));
+
+    // In production: exec the import-ef-year.ts script or call ENTSO-E API.
+    // For now: record a status check log (no-op import, actual import via CLI).
+    const endedAt = new Date();
+    await prisma.efImportLog.create({
+      data: {
+        year:      yr,
+        rowsAdded: 0,
+        status:    "ok",
+        message:   `Scheduled check: ${before.toLocaleString()} rows for ${yr}. Run CLI import to add new data.`,
+        startedAt,
+        endedAt,
+      },
+    });
+  } catch (err) {
+    const endedAt = new Date();
+    await prisma.efImportLog.create({
+      data: {
+        year:      yr,
+        rowsAdded: 0,
+        status:    "error",
+        message:   String(err),
+        startedAt,
+        endedAt,
+      },
+    }).catch(() => {});
+  }
+}
+
 // ── EF Veri Servisi — Granular Emission Factors API ───────────────────────────
 // All endpoints are public (no auth required) — reference data, not tenant data.
 
@@ -204,6 +244,36 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
         avgRePct:    Number(r.avg_re),
         dataPoints:  Number(r.data_points),
       })),
+    });
+  });
+
+  // GET /ef/import-status — son import durumu ve zamanlama bilgisi
+  app.get("/ef/import-status", { config: { public: true } }, async (_req, reply) => {
+    const [lastLog, totalRows] = await Promise.all([
+      prisma.efImportLog.findFirst({ orderBy: { createdAt: "desc" } }),
+      prisma.$queryRaw(Prisma.sql`SELECT COUNT(*) AS cnt FROM emission_factors WHERE granularity = 'hourly'`)
+        .then((r: unknown) => Number((r as Array<{ cnt: bigint }>)[0]?.cnt ?? 0)),
+    ]);
+
+    const nextRun = new Date();
+    nextRun.setUTCHours(2, 0, 0, 0);
+    if (nextRun <= new Date()) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
+
+    return reply.send({
+      lastImport: lastLog ? {
+        id:        lastLog.id,
+        year:      lastLog.year,
+        zoneId:    lastLog.zoneId,
+        rowsAdded: lastLog.rowsAdded,
+        status:    lastLog.status,
+        message:   lastLog.message,
+        startedAt: lastLog.startedAt.toISOString(),
+        endedAt:   lastLog.endedAt.toISOString(),
+        createdAt: lastLog.createdAt.toISOString(),
+      } : null,
+      totalRows,
+      nextScheduledRun: nextRun.toISOString(),
+      schedule: "0 2 * * *", // every day at 02:00 UTC
     });
   });
 };

@@ -4,7 +4,7 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { EFZoneEntry, EFZoneSummary, EFMonthlyPoint, EFCoverageData } from "../lib/api.js";
+import type { EFZoneEntry, EFZoneSummary, EFMonthlyPoint, EFCoverageData, EFImportStatus } from "../lib/api.js";
 
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 const s: Record<string, React.CSSProperties> = {
@@ -182,7 +182,7 @@ data = r.json()["data"]  # list of hourly EF points`)}
 }
 
 /* ── Coverage View ──────────────────────────────────────────────────────── */
-function CoverageView({ coverage }: { coverage: EFCoverageData | null }) {
+function CoverageView({ coverage, importStatus }: { coverage: EFCoverageData | null; importStatus: EFImportStatus | null }) {
   if (!coverage) {
     return (
       <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
@@ -265,9 +265,49 @@ function CoverageView({ coverage }: { coverage: EFCoverageData | null }) {
       </div>
 
       <div style={{ ...s.card, marginTop: 16 }}>
-        <div style={s.cardH}>2025 Veri İmport</div>
-        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 10, lineHeight: 1.7 }}>
-          2025 EF verisi için CSV dosyalarını <code>Emissions Factors/2025/2025/</code> klasörüne koyun ve aşağıdaki komutu çalıştırın:
+        <div style={s.cardH}>Otomatik Güncelleme Durumu</div>
+        {importStatus ? (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+              <div style={{ background: "#f4fbf8", borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, color: "#5c7a72", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Son Çalışma</div>
+                {importStatus.lastImport ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: importStatus.lastImport.status === "ok" ? "#059669" : "#DC2626" }}>
+                      {importStatus.lastImport.status === "ok" ? "✓ Başarılı" : "✗ Hata"}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+                      {new Date(importStatus.lastImport.createdAt).toLocaleString("tr-TR")}
+                    </div>
+                    {importStatus.lastImport.message && (
+                      <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4, lineHeight: 1.5 }}>
+                        {importStatus.lastImport.message}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: "#94a3b8" }}>Henüz çalışmadı</div>
+                )}
+              </div>
+              <div style={{ background: "#f4fbf8", borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, color: "#5c7a72", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Sonraki Çalışma</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#0a1f1a" }}>
+                  {new Date(importStatus.nextScheduledRun).toLocaleString("tr-TR")}
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 2 }}>
+                  Zamanlama: {importStatus.schedule} (UTC)
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 2 }}>
+                  Toplam: {importStatus.totalRows.toLocaleString()} satır
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: "#5c7a72" }}>Durum bilgisi yükleniyor…</div>
+        )}
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 10, lineHeight: 1.7, marginTop: 12 }}>
+          Manuel import için CLI komutu:
         </div>
         <pre style={{ background: "#0a1f1a", color: "#00b87a", borderRadius: 8,
                       padding: "12px 16px", fontSize: 12, fontFamily: "monospace",
@@ -303,6 +343,7 @@ export default function EfDataPage() {
   const [selectedYear,  setSelectedYear]  = useState(2024);
   const [availableYears,setAvailableYears]= useState<number[]>([2024]);
   const [coverage,      setCoverage]      = useState<EFCoverageData | null>(null);
+  const [importStatus,  setImportStatus]  = useState<EFImportStatus | null>(null);
 
   /* selectZone — önce tanımla, sonra useEffect içinde kullan */
   async function selectZone(zone: EFZoneEntry, year = selectedYear) {
@@ -328,7 +369,9 @@ export default function EfDataPage() {
     Promise.all([
       api.ef.zones(),
       api.ef.coverage().catch(() => null),
-    ]).then(([zonesRes, cov]) => {
+      api.ef.importStatus().catch(() => null),
+    ]).then(([zonesRes, cov, imp]) => {
+      if (imp) setImportStatus(imp);
       setLoading(false);
       if (cov) {
         setCoverage(cov);
@@ -415,7 +458,7 @@ export default function EfDataPage() {
       {activeTab === "api" ? (
         <ApiDocsView zones={zones} />
       ) : activeTab === "coverage" ? (
-        <CoverageView coverage={coverage} />
+        <CoverageView coverage={coverage} importStatus={importStatus} />
       ) : dbEmpty ? (
         <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📡</div>

@@ -71,6 +71,7 @@ export default function CbamProductPage() {
   const [renewSources,    setRenewSources]    = useState<RenewableSource[]>([]);
   const [countryEfs,      setCountryEfs]      = useState<CbamCountryEf[]>([]);
   const [facilityCountry, setFacilityCountry] = useState("");
+  const [annexIvDefault,  setAnnexIvDefault]  = useState<{ total: number; direct: number | null; indirect: number | null } | null>(null);
   const [loading,         setLoading]         = useState(true);
   const [showForm,        setShowForm]        = useState(false);
   const [form,            setForm]            = useState({ ...EMPTY_PERIOD });
@@ -91,9 +92,18 @@ export default function CbamProductPage() {
       setPeriods(r.periods);
       setRenewSources(ref.renewableSources);
       setCountryEfs(ref.cbamCountryEf);
-      // Load facility country for ENTSO-E lookup
+      // Load facility country + Annex IV default SEE
       api.installations.get(r.product.installationId)
-        .then(inst => setFacilityCountry(inst.facilityCountry ?? ""))
+        .then(inst => {
+          const country = inst.facilityCountry ?? "";
+          setFacilityCountry(country);
+          const cn = r.product.cnCode;
+          if (cn && country) {
+            api.defaults.lookup(country, cn)
+              .then(d => setAnnexIvDefault({ total: d.totalDefault, direct: d.directDefault, indirect: d.indirectDefault }))
+              .catch(() => {});
+          }
+        })
         .catch(() => {});
     }).finally(() => setLoading(false));
   }, [installationId, productId]);
@@ -200,6 +210,66 @@ export default function CbamProductPage() {
           ? "Band modu: Her üretim bandının kendi enerji sayacı var. Yenilenebilir enerji doğrudan bu ürün bandına atanır."
           : "Tesis modu: Yenilenebilir enerji tüm tesise ait. Tesis toplam tüketimi ve bu ürünün elektrik payı girilir; yenilenebilir orantılı dağıtılır."}
       </div>
+
+      {/* Annex IV Default SEE Karşılaştırması */}
+      {annexIvDefault && (
+        <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10,
+                      padding: "14px 18px", marginBottom: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#0369a1", marginBottom: 8 }}>
+            CBAM Annex IV Default SEE — {product.cnCode} ({facilityCountry})
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+            <div style={{ background: "#fff", borderRadius: 8, padding: "10px 14px", border: "1px solid #bae6fd" }}>
+              <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Default Toplam SEE</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#dc2626" }}>
+                {annexIvDefault.total != null ? annexIvDefault.total.toFixed(4) : "—"}
+              </div>
+              <div style={{ fontSize: 11, color: "#5c7a72" }}>tCO₂e/{product.unit}</div>
+            </div>
+            {annexIvDefault.direct != null && (
+              <div style={{ background: "#fff", borderRadius: 8, padding: "10px 14px", border: "1px solid #bae6fd" }}>
+                <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Scope 1 (Direkt)</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#0a1f1a" }}>
+                  {annexIvDefault.direct.toFixed(4)}
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72" }}>tCO₂e/{product.unit}</div>
+              </div>
+            )}
+            {annexIvDefault.indirect != null && (
+              <div style={{ background: "#fff", borderRadius: 8, padding: "10px 14px", border: "1px solid #bae6fd" }}>
+                <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Scope 2 (Dolaylı)</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#0a1f1a" }}>
+                  {annexIvDefault.indirect.toFixed(4)}
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72" }}>tCO₂e/{product.unit}</div>
+              </div>
+            )}
+          </div>
+          {(() => {
+            const latestCalc = periods.find(p => p.see != null);
+            if (!latestCalc?.see || !annexIvDefault.total) return null;
+            const actualSee = parseFloat(latestCalc.see);
+            const diff = annexIvDefault.total - actualSee;
+            const pct  = (diff / annexIvDefault.total * 100).toFixed(1);
+            const vol  = parseFloat(latestCalc.productionVolumeTonne);
+            const savedTco2 = diff * vol;
+            if (diff <= 0) return null;
+            return (
+              <div style={{ marginTop: 12, padding: "10px 14px", background: "#d1fae5",
+                            borderRadius: 8, display: "flex", gap: 20, alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "#065f46", fontWeight: 700 }}>
+                  Tasarruf: {diff.toFixed(4)} tCO₂e/t (%{pct} daha az)
+                </span>
+                {vol > 0 && (
+                  <span style={{ fontSize: 12, color: "#065f46" }}>
+                    {latestCalc.periodName} için: {savedTco2.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} tCO₂e tasarruf
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Dönem Ekleme Formu */}
       {showForm && (

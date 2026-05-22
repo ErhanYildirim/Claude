@@ -60,6 +60,30 @@ export const defaultsRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  // GET /defaults?country=DE&cnCode=7206100000 — tek CN kodu lookup
+  app.get("/defaults", { config: { public: true } }, async (request, reply) => {
+    const { country, cnCode } = request.query as { country?: string; cnCode?: string };
+    if (!country || !cnCode) return reply.status(400).send({ error: "country ve cnCode zorunlu" });
+
+    const rows = CBAM.countries[country];
+    if (!rows) return reply.status(404).send({ error: "COUNTRY_NOT_FOUND" });
+
+    const row = rows.find(r => r[0] === cnCode);
+    if (!row) return reply.status(404).send({ error: "CN_NOT_FOUND",
+      message: `${country}/${cnCode} için default değer bulunamadı.` });
+
+    const [cn, direct, indirect, total] = row;
+    return reply.send({
+      cnCode:         cn,
+      country,
+      description:    CBAM.cn[cn]?.d ?? "",
+      totalDefault:   total,
+      directDefault:  direct,
+      indirectDefault:indirect,
+      dataVersion:    CBAM.meta.version,
+    });
+  });
+
   // ── Grid EF endpoints ──────────────────────────────────────────────────────
 
   // GET /defaults/ef — desteklenen tüm ülkelerin grid EF listesi

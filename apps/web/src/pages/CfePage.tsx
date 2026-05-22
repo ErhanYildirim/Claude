@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ComposedChart, Line, Legend, Cell,
@@ -59,6 +59,74 @@ interface PeriodEntry {
 
 function cfeColor(score: number) {
   return score >= 70 ? "#059669" : score >= 40 ? "#D97706" : "#DC2626";
+}
+
+const MONTH_NAMES_TR = ["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
+
+function CfeHeatmap({ monthly }: { monthly: MonthlyBreakdown[] }) {
+  const [tip, setTip] = React.useState<{ x: number; y: number; data: MonthlyBreakdown } | null>(null);
+
+  // index by month number (1-based)
+  const byMonth = new Map<number, MonthlyBreakdown>();
+  for (const m of monthly) {
+    const d = new Date(m.month);
+    byMonth.set(d.getUTCMonth() + 1, m);
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(mon => {
+          const d = byMonth.get(mon);
+          const rate = d?.cfeRate ?? null;
+          const bg = rate === null ? "#f1f5f9"
+            : rate >= 70 ? "#d1fae5" : rate >= 40 ? "#fef3c7" : "#fee2e2";
+          const textColor = rate === null ? "#94a3b8"
+            : rate >= 70 ? "#065f46" : rate >= 40 ? "#92400e" : "#991b1b";
+          return (
+            <div
+              key={mon}
+              style={{ background: bg, borderRadius: 8, padding: "12px 8px", textAlign: "center",
+                       cursor: d ? "pointer" : "default", transition: "transform .1s",
+                       border: `1px solid ${rate === null ? "#e2e8f0" : rate >= 70 ? "#a7f3d0" : rate >= 40 ? "#fcd34d" : "#fca5a5"}` }}
+              onMouseEnter={e => d && setTip({ x: (e.target as HTMLElement).getBoundingClientRect().left, y: (e.target as HTMLElement).getBoundingClientRect().top, data: d })}
+              onMouseLeave={() => setTip(null)}
+            >
+              <div style={{ fontSize: 11, color: textColor, fontWeight: 600, marginBottom: 4 }}>
+                {MONTH_NAMES_TR[mon - 1]}
+              </div>
+              {rate !== null ? (
+                <>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: textColor, lineHeight: 1 }}>
+                    {rate.toFixed(0)}%
+                  </div>
+                  <div style={{ marginTop: 5, height: 4, background: "rgba(0,0,0,.08)", borderRadius: 2 }}>
+                    <div style={{ height: "100%", width: `${Math.min(rate, 100)}%`,
+                                  background: cfeColor(rate), borderRadius: 2 }} />
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: 12, color: "#cbd5e1" }}>—</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {tip && (
+        <div style={{ position: "fixed", left: tip.x + 8, top: tip.y - 80, background: "#0a1f1a",
+                      color: "#fff", borderRadius: 8, padding: "10px 14px", fontSize: 12,
+                      zIndex: 999, pointerEvents: "none", whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,.25)" }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>
+            {new Date(tip.data.month).toLocaleString("tr-TR", { month: "long", year: "numeric", timeZone: "UTC" })}
+          </div>
+          <div>CFE: <strong>{tip.data.cfeRate.toFixed(1)}%</strong></div>
+          <div>Tüketim: {(tip.data.consumptionKwh / 1000).toFixed(1)} MWh</div>
+          <div>Eşleşen: {(tip.data.matchedKwh / 1000).toFixed(1)} MWh</div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function CfeGauge({ score }: { score: number }) {
@@ -265,6 +333,14 @@ export default function CfePage() {
           )}
         </div>
       </div>
+
+      {/* Aylık CFE Isı Haritası */}
+      {monthlyData.length > 0 && (
+        <div style={s.card}>
+          <div style={s.cardH}>Aylık CFE Isı Haritası — {selected?.facilityName} › {selected?.periodName}</div>
+          <CfeHeatmap monthly={selected!.cfe!.monthlyBreakdown} />
+        </div>
+      )}
 
       {/* Aylık Breakdown */}
       {monthlyData.length > 0 && (

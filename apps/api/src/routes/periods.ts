@@ -5,6 +5,7 @@ import { calculateScope2 } from "../../../../src/cbam/scope2.js";
 import { calculateSEE } from "../../../../src/cbam/see.js";
 import { compareWithDefault, lookupDefault } from "../../../../src/cbam/comparison.js";
 import { lookupGridEF } from "../../../../src/cbam/ef-data.js";
+import { dispatchWebhookEvent } from "./webhooks.js";
 
 const require = createRequire(import.meta.url);
 const CBAM_DATA: {
@@ -213,6 +214,18 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
         },
       }),
     ]);
+
+    // Fire-and-forget webhook (calculation.completed)
+    dispatchWebhookEvent(request.tenantId, "calculation.completed", {
+      periodId,
+      installationId,
+      cfeScore:          null,
+      seeBaseline:       result.seeBaseline,
+      seeVoltfox:        result.seeVoltfox,
+      reductionPct:      result.reductionPct,
+      calcEngineVersion: CALC_ENGINE_VERSION,
+      calculatedAt:      result.calculatedAt,
+    }).catch(() => {});
 
     return reply.send({
       period,

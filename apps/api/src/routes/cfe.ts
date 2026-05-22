@@ -3,6 +3,7 @@ import { prisma } from "@voltfox/db";
 import { calculateCFEMatching } from "../../../../src/cbam/cfe-matching.js";
 import type { HourlySlot } from "../../../../src/cbam/cfe-matching.js";
 import { buildCfeCertificate } from "../lib/pdf-cfe-certificate.js";
+import { dispatchWebhookEvent } from "./webhooks.js";
 
 export const cfeRoutes: FastifyPluginAsync = async (app) => {
 
@@ -108,6 +109,17 @@ export const cfeRoutes: FastifyPluginAsync = async (app) => {
 
       return cfe;
     });
+
+    // Fire-and-forget webhook (cfe.completed)
+    dispatchWebhookEvent(request.tenantId, "cfe.completed", {
+      periodId,
+      installationId,
+      cfeScore:            result.cfeScore,
+      totalConsumptionKwh: result.totalConsumptionKwh,
+      totalMatchedKwh:     result.totalMatchedKwh,
+      matchedHours:        result.matchedHours,
+      calculatedAt:        stored.calculatedAt,
+    }).catch(() => {});
 
     return reply.status(201).send({
       stored,

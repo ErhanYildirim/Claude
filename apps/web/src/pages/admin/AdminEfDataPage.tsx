@@ -69,6 +69,16 @@ export default function AdminEfDataPage() {
     api.admin.ef.zones(q).then(r => setZones(r.zones)).finally(() => setLoading(false));
   }
 
+  async function deleteZone(zoneCode: string) {
+    if (!confirm(`"${zoneCode}" zone'u ve tüm EF verilerini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) return;
+    try {
+      await api.admin.ef.deleteZone(zoneCode);
+      setZones(prev => prev.filter(z => z.zoneCode !== zoneCode));
+    } catch (e: unknown) {
+      alert(`Silme başarısız: ${(e as Error)?.message ?? "Bilinmeyen hata"}`);
+    }
+  }
+
   function loadEntsoData() {
     api.admin.entso_e.zones().then(r => setEntsoZones(r.zones)).catch(() => {});
     setLogsLoading(true);
@@ -161,6 +171,7 @@ export default function AdminEfDataPage() {
                     <th style={{ textAlign: "left", padding: "10px 16px", color: "#374151", fontWeight: 600 }}>Zone Adı</th>
                     <th style={{ textAlign: "left", padding: "10px 16px", color: "#374151", fontWeight: 600 }}>Ülke</th>
                     <th style={{ textAlign: "left", padding: "10px 16px", color: "#374151", fontWeight: 600 }}>Son Güncelleme</th>
+                    <th style={{ padding: "10px 16px" }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -171,6 +182,16 @@ export default function AdminEfDataPage() {
                       <td style={{ padding: "11px 16px", color: "#374151" }}>{z.country}</td>
                       <td style={{ padding: "11px 16px", fontSize: 12, color: "#6b7280" }}>
                         {z.updatedAt ? new Date(z.updatedAt).toLocaleString("tr-TR") : "—"}
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        <button
+                          onClick={() => deleteZone(z.zoneCode)}
+                          style={{ padding: "4px 10px", borderRadius: 5, border: "1px solid #fca5a5",
+                                   background: "#fee2e2", color: "#991b1b", fontSize: 12,
+                                   fontWeight: 600, cursor: "pointer" }}
+                        >
+                          Sil
+                        </button>
                       </td>
                     </tr>
                   ))}

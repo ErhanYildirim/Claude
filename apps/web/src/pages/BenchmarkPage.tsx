@@ -119,16 +119,6 @@ export default function BenchmarkPage() {
 
       {!loading && (
         <>
-          {/* Referans değerleri */}
-          {sectors.slice(0, 3).map(sector => {
-            const sample = rows.find(r => r.sector === sector);
-            if (!sample) return null;
-            const b = sample.benchmark;
-            return (
-              <div key={sector} style={{ display: "none" }} /> // legend sadece seçili sektörde gösterilecek
-            );
-          })}
-
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {filtered.map(row => {
               const pc = row.percentile ? PERCENTILE_LABEL[row.percentile] : null;

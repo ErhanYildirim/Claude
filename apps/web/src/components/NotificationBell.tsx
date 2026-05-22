@@ -71,8 +71,10 @@ export default function NotificationBell() {
     if (!n.read) markRead(n.id);
     if (n.resource === "Installation" && n.resourceId) {
       navigate(`/installations/${n.resourceId}`);
-    } else if (n.resource === "ReportingPeriod" && n.resourceId) {
-      navigate(`/installations`);
+    } else if (n.resource === "ReportingPeriod") {
+      navigate("/cbam");
+    } else if (n.resource === "CFEMatchingResult") {
+      navigate("/cfe");
     }
     setOpen(false);
   }

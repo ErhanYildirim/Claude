@@ -112,6 +112,47 @@ const ENDPOINTS: { group: string; items: Endpoint[] }[] = [
     ],
   },
   {
+    group: "Sektör Benchmark",
+    items: [
+      { id: "bench-list",    method: "GET", path: "/api/v1/benchmark",         label: "Tüm tesisler — benchmark karşılaştırma" },
+      { id: "bench-sectors", method: "GET", path: "/api/v1/benchmark/sectors", label: "Sektör referans değerleri (public)" },
+    ],
+  },
+  {
+    group: "Emisyon Hedefleri",
+    items: [
+      { id: "target-list",     method: "GET",    path: "/api/v1/emission-targets",              label: "Hedef listesi" },
+      { id: "target-progress", method: "GET",    path: "/api/v1/emission-targets/progress",     label: "Hedef ilerleme (gerçekleşen vs hedef)" },
+      { id: "target-create",   method: "POST",   path: "/api/v1/emission-targets",              label: "Hedef oluştur / güncelle",
+        body: JSON.stringify({ year: 2025, metric: "see_voltfox", targetValue: 0.3, baselineValue: 0.45, notes: "SEE azaltım hedefi" }, null, 2) },
+      { id: "target-delete",   method: "DELETE", path: "/api/v1/emission-targets/:id",          label: "Hedef sil", note: ":id yerine hedef UUID" },
+    ],
+  },
+  {
+    group: "Karbon Fiyatları",
+    items: [
+      { id: "price-list",   method: "GET",    path: "/api/v1/carbon-prices",        label: "Fiyat geçmişi" },
+      { id: "price-latest", method: "GET",    path: "/api/v1/carbon-prices/latest", label: "En güncel ETS/CBAM fiyatı" },
+      { id: "price-create", method: "POST",   path: "/api/v1/carbon-prices",        label: "Fiyat ekle (super-admin)",
+        body: JSON.stringify({ date: "2025-05-01", etsPriceEur: 65.40, cbamEstEur: 68.20, source: "ICE Endex", notes: "Aylık kapanış" }, null, 2) },
+    ],
+  },
+  {
+    group: "Arama",
+    items: [
+      { id: "search-all",  method: "GET", path: "/api/v1/search?q=çelik&type=all&limit=10",          label: "Genel arama (tesis + dönem)" },
+      { id: "search-inst", method: "GET", path: "/api/v1/search?q=Türkiye&type=installation&limit=5", label: "Sadece tesis arama" },
+    ],
+  },
+  {
+    group: "Dönem CSV Import",
+    items: [
+      { id: "import-preview", method: "POST", path: "/api/v1/installations/:id/periods/import/preview", label: "CSV önizleme (doğrulama)", note: ":id yerine tesis UUID — multipart/form-data" },
+      { id: "import-confirm", method: "POST", path: "/api/v1/installations/:id/periods/import/confirm", label: "CSV import onayla",         note: ":id yerine tesis UUID — multipart/form-data",
+        body: JSON.stringify({ rows: [{ periodName: "2024-Q1", startDate: "2024-01-01", endDate: "2024-03-31", reportYear: 2024, importCountry: "DE", cnCode: "7206100000", prodVolumeTonne: 1000, scope1DirectTco2: 450, scope1Quality: "measured", electricityKwh: 500000, renewableEf: 0.0, matchingRatePct: 0 }] }, null, 2) },
+    ],
+  },
+  {
     group: "CBAM Ürün Hesaplama",
     items: [
       { id: "cbam-ref",          method: "GET",    path: "/api/v1/cbam/reference",                                           label: "Referans veriler (kaynak EF, ülke EF)" },

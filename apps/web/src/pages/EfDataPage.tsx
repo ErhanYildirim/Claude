@@ -658,11 +658,11 @@ export default function EfDataPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                     <div style={s.cardH}>Saatlik Emisyon Yoğunluğu</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input type="date" value={hourlyStart} min="2024-01-01" max="2024-12-25"
+                      <input type="date" value={hourlyStart} min={`${selectedYear}-01-01`} max={`${selectedYear}-12-25`}
                         onChange={e => setHourlyStart(e.target.value)}
                         style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12 }} />
                       <span style={{ fontSize: 12, color: "#5c7a72" }}>→</span>
-                      <input type="date" value={hourlyEnd} min="2024-01-07" max="2024-12-31"
+                      <input type="date" value={hourlyEnd} min={`${selectedYear}-01-07`} max={`${selectedYear}-12-31`}
                         onChange={e => setHourlyEnd(e.target.value)}
                         style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12 }} />
                     </div>

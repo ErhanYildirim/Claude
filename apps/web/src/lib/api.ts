@@ -208,6 +208,11 @@ export const api = {
     },
   },
 
+  benchmark: {
+    list:    () => request<{ results: BenchmarkResult[]; benchmarks: Record<string, BenchmarkRef> }>("GET", "/benchmark"),
+    sectors: () => request<{ benchmarks: Record<string, BenchmarkRef> }>("GET", "/benchmark/sectors"),
+  },
+
   emissionTargets: {
     list:     (year?: number) => request<{ targets: EmissionTargetEntry[] }>("GET", `/emission-targets${year ? `?year=${year}` : ""}`),
     progress: (year?: number) => request<{ year: number; progress: EmissionTargetProgress[] }>("GET", `/emission-targets/progress${year ? `?year=${year}` : ""}`),
@@ -402,6 +407,16 @@ export interface EFImportStatus {
   totalRows: number;
   nextScheduledRun: string;
   schedule: string;
+}
+
+export interface BenchmarkRef {
+  p25: number; median: number; p75: number; best: number; unit: string;
+}
+export interface BenchmarkResult {
+  installationId: string; facilityName: string; facilityCountry: string;
+  sector: string; latestYear: number | null; periodName: string | null;
+  seeVoltfox: number | null; seeBaseline: number | null; defaultSee: number | null;
+  benchmark: BenchmarkRef; percentile: string | null; vsMedianPct: number | null;
 }
 
 export interface EmissionTargetEntry {

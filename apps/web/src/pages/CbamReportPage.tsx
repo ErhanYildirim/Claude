@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../lib/api.js";
 import type {
   Installation, InstallationDetail, Period, EmbeddedEmission, CFEResult,
-  CbamProduct, CbamProductPeriod,
+  CbamProduct, CbamProductPeriod, DefaultResult,
 } from "../lib/api.js";
 import { fmt, fmtEur } from "../lib/chart-utils.js";
 
@@ -195,8 +195,9 @@ function PeriodReport({ installations }: { installations: Installation[] }) {
 
 // ── Ürün Bazlı Teknik Dosya ───────────────────────────────────────────────────
 interface ProductWithPeriod {
-  product: CbamProduct;
-  period:  CbamProductPeriod | null;
+  product:    CbamProduct;
+  period:     CbamProductPeriod | null;
+  annexIvDef: DefaultResult | null;
 }
 
 function ProductReport({ installations }: { installations: Installation[] }) {
@@ -214,11 +215,16 @@ function ProductReport({ installations }: { installations: Installation[] }) {
     setInstDetail(inst);
     setLoading(true);
     api.cbamProducts.list(selectedInstId)
-      .then(({ products }) => {
-        const mapped: ProductWithPeriod[] = products.map(p => {
+      .then(async ({ products }) => {
+        const country = inst?.facilityCountry ?? "";
+        const mapped: ProductWithPeriod[] = await Promise.all(products.map(async p => {
           const pp = p.productPeriods.find(x => x.reportYear === selectedYear) ?? null;
-          return { product: p, period: pp };
-        });
+          let annexIvDef: DefaultResult | null = null;
+          if (p.cnCode && country) {
+            annexIvDef = await api.defaults.lookup(country, p.cnCode).catch(() => null);
+          }
+          return { product: p, period: pp, annexIvDef };
+        }));
         setRows(mapped);
       })
       .catch(() => setRows([]))
@@ -377,17 +383,22 @@ function ProductReport({ installations }: { installations: Installation[] }) {
                   <th style={s.thR}>Scope 1 (tCO₂)</th>
                   <th style={s.thR}>Scope 2 (tCO₂)</th>
                   <th style={s.thR}>SEE (tCO₂e/t)</th>
+                  <th style={s.thR}>Default SEE</th>
+                  <th style={s.thR}>Tasarruf</th>
                   <th style={s.th}>Eşleşme</th>
                   <th style={s.th}>EF Kaynağı</th>
                   <th style={s.th}>Durum</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ product: p, period: pp }) => {
+                {rows.map(({ product: p, period: pp, annexIvDef }) => {
                   const hasResult = pp?.see != null;
                   const matchedKwh   = parseFloat(pp?.matchedKwh ?? "0");
                   const allocatedKwh = parseFloat(pp?.allocatedElecKwh ?? "0");
                   const matchPct     = allocatedKwh > 0 ? (matchedKwh / allocatedKwh * 100).toFixed(1) : null;
+                  const defTotal     = annexIvDef?.totalDefault ?? null;
+                  const actualSee    = pp?.see != null ? parseFloat(pp.see) : null;
+                  const saving       = defTotal != null && actualSee != null ? defTotal - actualSee : null;
                   return (
                     <tr key={p.id}>
                       <td style={s.td}>
@@ -414,6 +425,13 @@ function ProductReport({ installations }: { installations: Installation[] }) {
                       <td style={{ ...s.tdR, color: hasResult ? "#059669" : "#9ca3af", fontWeight: hasResult ? 700 : 400 }}>
                         {hasResult ? n(pp!.see, 4) : "—"}
                       </td>
+                      <td style={{ ...s.tdR, color: "#dc2626" }}>
+                        {defTotal != null ? defTotal.toFixed(4) : "—"}
+                      </td>
+                      <td style={{ ...s.tdR, color: saving != null && saving > 0 ? "#059669" : "#9ca3af",
+                                   fontWeight: saving != null && saving > 0 ? 700 : 400 }}>
+                        {saving != null && saving > 0 ? `+${saving.toFixed(4)}` : saving != null ? saving.toFixed(4) : "—"}
+                      </td>
                       <td style={s.td}>{matchPct != null ? `${matchPct}%` : "—"}</td>
                       <td style={s.td}>
                         {pp?.unmatchedEfSource
@@ -436,7 +454,8 @@ function ProductReport({ installations }: { installations: Installation[] }) {
                     <td style={s.tdBR}>{totalProdVol.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}</td>
                     <td style={s.tdBR}>{totalScope1.toFixed(4)}</td>
                     <td style={s.tdBR}>{totalScope2.toFixed(4)}</td>
-                    <td style={s.tdBR} colSpan={4}>{totalEmbedded.toFixed(4)} tCO₂e</td>
+                    <td style={s.tdBR}>{totalEmbedded.toFixed(4)} tCO₂e</td>
+                    <td style={s.tdB} colSpan={6}></td>
                   </tr>
                 )}
               </tbody>

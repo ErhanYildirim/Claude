@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { useTheme } from "../contexts/ThemeContext.js";
 
 interface NavItem { icon: string; label: string; path: string; }
 interface NavGroup { title: string; items: NavItem[]; }
@@ -46,6 +47,7 @@ const MOBILE_BP = 768;
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { user }  = useAuth();
+  const { theme, toggle } = useTheme();
   const [mobile,   setMobile]   = useState(window.innerWidth < MOBILE_BP);
   const [sideOpen, setSideOpen] = useState(false);
 
@@ -181,12 +183,23 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </div>
             </Link>
           )}
-          <button
-            style={{ width: "100%", padding: "7px 0", background: "rgba(255,255,255,.08)", border: "none", borderRadius: 6, color: "rgba(255,255,255,.65)", fontSize: 13, cursor: "pointer" }}
-            onClick={() => supabase.auth.signOut()}
-          >
-            Çıkış
-          </button>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <button
+              style={{ flex: 1, padding: "7px 0", background: "rgba(255,255,255,.08)", border: "none",
+                       borderRadius: 6, color: "rgba(255,255,255,.65)", fontSize: 12, cursor: "pointer" }}
+              onClick={toggle}
+              title={theme === "dark" ? "Açık temaya geç" : "Koyu temaya geç"}
+            >
+              {theme === "dark" ? "☀ Açık" : "☾ Koyu"}
+            </button>
+            <button
+              style={{ flex: 1, padding: "7px 0", background: "rgba(255,255,255,.08)", border: "none",
+                       borderRadius: 6, color: "rgba(255,255,255,.65)", fontSize: 12, cursor: "pointer" }}
+              onClick={() => supabase.auth.signOut()}
+            >
+              Çıkış
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -195,6 +208,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
         marginTop: mobile ? 52 : 0,
         minHeight: "100vh",
         background: "var(--bg, #f4fbf8)",
+        color: "var(--text, #0a1f1a)",
+        transition: "background .2s, color .2s",
       }}>
         {children}
       </main>

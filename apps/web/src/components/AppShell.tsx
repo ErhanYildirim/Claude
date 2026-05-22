@@ -26,6 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: "📄", label: "CDP Raporu",         path: "/reports/cdp" },
       { icon: "📄", label: "ISO 14064",          path: "/reports/iso14064" },
       { icon: "📄", label: "GHG Protocol",       path: "/reports/ghg" },
+      { icon: "🌍", label: "CSRD E1",            path: "/csrd" },
     ],
   },
   {

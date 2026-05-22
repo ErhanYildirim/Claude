@@ -30,6 +30,7 @@ const ComparisonPage         = lazy(() => import("./pages/ComparisonPage.js"));
 const EmissionTargetsPage    = lazy(() => import("./pages/EmissionTargetsPage.js"));
 const ImportWizardPage       = lazy(() => import("./pages/ImportWizardPage.js"));
 const BenchmarkPage          = lazy(() => import("./pages/BenchmarkPage.js"));
+const CsrdReportPage         = lazy(() => import("./pages/CsrdReportPage.js"));
 
 // Admin pages (super-admin only)
 const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
@@ -139,6 +140,7 @@ function AppRouter() {
           <Route path="/emission-targets"                                  element={<EmissionTargetsPage />} />
           <Route path="/import"                                            element={<ImportWizardPage />} />
           <Route path="/benchmark"                                         element={<BenchmarkPage />} />
+          <Route path="/csrd"                                              element={<CsrdReportPage />} />
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
           <Route path="*"                                                  element={<Navigate to="/gec" replace />} />

@@ -206,30 +206,57 @@ function ProductReport({ installations }: { installations: Installation[] }) {
   const [rows,           setRows]           = useState<ProductWithPeriod[]>([]);
   const [loading,        setLoading]        = useState(false);
   const [instDetail,     setInstDetail]     = useState<Installation | null>(null);
+  const [batchCalc,      setBatchCalc]      = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  useEffect(() => {
-    if (!selectedInstId) { setRows([]); return; }
-    const inst = installations.find(i => i.id === selectedInstId) ?? null;
+  async function loadRows(instId: string, year: number) {
+    if (!instId) { setRows([]); return; }
+    const inst = installations.find(i => i.id === instId) ?? null;
     setInstDetail(inst);
     setLoading(true);
-    api.cbamProducts.list(selectedInstId)
-      .then(async ({ products }) => {
-        const country = inst?.facilityCountry ?? "";
-        const mapped: ProductWithPeriod[] = await Promise.all(products.map(async p => {
-          const pp = p.productPeriods.find(x => x.reportYear === selectedYear) ?? null;
-          let annexIvDef: DefaultResult | null = null;
-          if (p.cnCode && country) {
-            annexIvDef = await api.defaults.lookup(country, p.cnCode).catch(() => null);
-          }
-          return { product: p, period: pp, annexIvDef };
-        }));
-        setRows(mapped);
-      })
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false));
-  }, [selectedInstId, selectedYear, installations]);
+    try {
+      const { products } = await api.cbamProducts.list(instId);
+      const country = inst?.facilityCountry ?? "";
+      const mapped: ProductWithPeriod[] = await Promise.all(products.map(async p => {
+        const pp = p.productPeriods.find(x => x.reportYear === year) ?? null;
+        let annexIvDef: DefaultResult | null = null;
+        if (p.cnCode && country) {
+          annexIvDef = await api.defaults.lookup(country, p.cnCode).catch(() => null);
+        }
+        return { product: p, period: pp, annexIvDef };
+      }));
+      setRows(mapped);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadRows(selectedInstId, selectedYear); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedInstId, selectedYear, installations]);
+
+  async function batchCalculate() {
+    const toCalc = rows.filter(r => r.period != null);
+    if (toCalc.length === 0) return;
+    setBatchCalc({ running: true, done: 0, total: toCalc.length });
+    for (let i = 0; i < toCalc.length; i++) {
+      const { product: p, period: pp } = toCalc[i];
+      if (!pp) continue;
+      try {
+        const r = await api.cbamProducts.periods.calculate(selectedInstId, p.id, pp.id);
+        setRows(prev => prev.map(row =>
+          row.product.id === p.id
+            ? { ...row, period: r.period }
+            : row
+        ));
+      } catch { /* continue on error */ }
+      setBatchCalc(b => ({ ...b, done: b.done + 1 }));
+    }
+    setBatchCalc(b => ({ ...b, running: false }));
+  }
 
   const calculated = rows.filter(r => r.period?.see != null);
 
@@ -326,10 +353,25 @@ function ProductReport({ installations }: { installations: Installation[] }) {
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        {calculated.length > 0 && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ ...s.btn, ...s.btnG }} onClick={downloadXml}>XML İndir</button>
-            <button style={{ ...s.btn, ...s.btnD }} onClick={downloadJson}>JSON İndir</button>
+        {rows.length > 0 && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" as const }}>
+            {rows.some(r => r.period != null) && (
+              <button
+                style={{ ...s.btn, background: "#1a3530", color: "#fff", opacity: batchCalc.running ? 0.6 : 1 }}
+                disabled={batchCalc.running}
+                onClick={batchCalculate}
+              >
+                {batchCalc.running
+                  ? `Hesaplanıyor… ${batchCalc.done}/${batchCalc.total}`
+                  : "Tümünü Hesapla"}
+              </button>
+            )}
+            {calculated.length > 0 && (
+              <>
+                <button style={{ ...s.btn, ...s.btnG }} onClick={downloadXml}>XML İndir</button>
+                <button style={{ ...s.btn, ...s.btnD }} onClick={downloadJson}>JSON İndir</button>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -151,12 +151,15 @@ export const api = {
   },
 
   gec: {
-    calculate: async (file: File, zoneId?: string): Promise<GecResult> => {
+    calculate: async (file: File, zoneId?: string, periodId?: string): Promise<GecResult> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Oturum bulunamadı.");
       const form = new FormData();
       form.append("file", file);
-      const qs = zoneId ? `?zoneId=${zoneId}` : "";
+      const q = new URLSearchParams();
+      if (zoneId)   q.set("zoneId",   zoneId);
+      if (periodId) q.set("periodId", periodId);
+      const qs = q.toString() ? "?" + q : "";
       const res = await fetch(`${BASE}/gec/calculate${qs}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${session.access_token}` },
@@ -292,6 +295,7 @@ export interface GecResult {
   avgEfGco2Kwh: number; matchedHours: number; totalRows: number;
   monthly: GecMonthlyPoint[];
   methodology: string;
+  savedToPeriod?: boolean;
 }
 
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }

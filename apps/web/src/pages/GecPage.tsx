@@ -4,7 +4,7 @@ import {
   CartesianGrid, Tooltip, Cell,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { GecResult, GecMonthlyPoint, EFZoneEntry } from "../lib/api.js";
+import type { GecResult, GecMonthlyPoint, EFZoneEntry, Installation, Period } from "../lib/api.js";
 
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 const s: Record<string, React.CSSProperties> = {
@@ -64,17 +64,30 @@ function UploadView({
 }: {
   onResult: (r: GecResult) => void;
 }) {
-  const [file, setFile]       = useState<File | null>(null);
-  const [drag, setDrag]       = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr]         = useState("");
-  const [zoneId, setZoneId]   = useState("TR");
-  const [zones, setZones]     = useState<EFZoneEntry[]>([]);
-  const inputRef              = useRef<HTMLInputElement>(null);
+  const [file, setFile]                   = useState<File | null>(null);
+  const [drag, setDrag]                   = useState(false);
+  const [loading, setLoading]             = useState(false);
+  const [err, setErr]                     = useState("");
+  const [zoneId, setZoneId]               = useState("TR");
+  const [zones, setZones]                 = useState<EFZoneEntry[]>([]);
+  const [installations, setInstallations] = useState<Installation[]>([]);
+  const [instId, setInstId]               = useState("");
+  const [periods, setPeriods]             = useState<Period[]>([]);
+  const [periodId, setPeriodId]           = useState("");
+  const inputRef                          = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.ef.zones().then(r => setZones(r.zones)).catch(() => {});
+    api.installations.list().then(r => setInstallations(r)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!instId) { setPeriods([]); setPeriodId(""); return; }
+    api.installations.get(instId).then(r => {
+      setPeriods(r.periods ?? []);
+      setPeriodId("");
+    }).catch(() => {});
+  }, [instId]);
 
   function pick(f: File) {
     if (!f.name.endsWith(".csv")) { setErr("Yalnızca CSV dosyası kabul edilir."); return; }
@@ -87,7 +100,7 @@ function UploadView({
     setLoading(true);
     setErr("");
     try {
-      const result = await api.gec.calculate(file, zoneId);
+      const result = await api.gec.calculate(file, zoneId, periodId || undefined);
       onResult(result);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Hesaplama hatası oluştu.");
@@ -121,6 +134,45 @@ function UploadView({
         {selectedZone && (
           <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>
             {selectedZone.rowCount.toLocaleString()} saatlik kayıt · 2024
+          </div>
+        )}
+      </div>
+
+      {/* Opsiyonel: döneme bağla */}
+      <div style={{ marginBottom: 20, padding: "14px 16px", background: "#f4fbf8",
+                    borderRadius: 8, border: "1px solid #d4ece4" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#5c7a72", marginBottom: 10,
+                      textTransform: "uppercase", letterSpacing: ".05em" }}>
+          Döneme Bağla (opsiyonel)
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <select
+            style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4",
+                     fontSize: 13, background: "#fff", color: "#0a1f1a" }}
+            value={instId}
+            onChange={e => setInstId(e.target.value)}
+          >
+            <option value="">— Tesis seç —</option>
+            {installations.map(i => (
+              <option key={i.id} value={i.id}>{i.facilityName}</option>
+            ))}
+          </select>
+          <select
+            style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4",
+                     fontSize: 13, background: "#fff", color: "#0a1f1a" }}
+            value={periodId}
+            onChange={e => setPeriodId(e.target.value)}
+            disabled={!instId || periods.length === 0}
+          >
+            <option value="">— Dönem seç —</option>
+            {periods.map(p => (
+              <option key={p.id} value={p.id}>{p.periodName}</option>
+            ))}
+          </select>
+        </div>
+        {periodId && (
+          <div style={{ fontSize: 11, color: "#009966", marginTop: 6 }}>
+            Saatlik veriler hesaplama ile birlikte bu döneme kaydedilecek.
           </div>
         )}
       </div>
@@ -196,6 +248,11 @@ function ResultView({
         <span>
           <strong>{result.matchedHours.toLocaleString()}</strong> saatlik EF eşleştirmesi tamamlandı —
           zone: <strong>{result.zoneId}</strong> · metodoloji: saatlik tüketim × lokasyon bazlı EF
+          {result.savedToPeriod && (
+            <span style={{ marginLeft: 8, color: "#009966", fontWeight: 700 }}>
+              · Döneme kaydedildi
+            </span>
+          )}
         </span>
         <button style={{ ...s.btnSm, marginLeft: "auto", whiteSpace: "nowrap" }} onClick={onReset}>
           Yeni Hesap

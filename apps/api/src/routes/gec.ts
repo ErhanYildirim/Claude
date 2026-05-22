@@ -45,9 +45,9 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
    * POST /gec/calculate
    * Content-Type: multipart/form-data
    * Field: file (CSV, başlıklar: hour, consumptionKwh)
-   * Query:  zoneId (default: TR)
+   * Query:  zoneId (default: TR), periodId (opsiyonel — HourlyConsumption'a kaydeder)
    *
-   * Stateless — veri kaydedilmez, hesaplama anında döner.
+   * periodId verilirse: hesaplama sonrası saatlik veriler döneme bağlanır.
    * tCO₂ = Σ(consumptionKwh × ci_direct) / 1_000_000
    */
   app.post("/gec/calculate", {}, async (request, reply) => {
@@ -66,7 +66,7 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
       });
     }
 
-    const zoneId  = (request.query as { zoneId?: string }).zoneId ?? "TR";
+    const { zoneId = "TR", periodId } = request.query as { zoneId?: string; periodId?: string };
     const minHour = rows.reduce((m, r) => r.hour < m ? r.hour : m, rows[0].hour);
     const maxHour = rows.reduce((m, r) => r.hour > m ? r.hour : m, rows[0].hour);
 
@@ -139,6 +139,37 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
       ? monthly.reduce((s, m) => s + m.avgEfGco2Kwh * m.hours, 0) / matchedHours
       : 0;
 
+    // Opsiyonel: döneme bağla ve saatlik veriyi kaydet
+    let savedToPeriod = false;
+    if (periodId) {
+      const period = await prisma.reportingPeriod.findFirst({
+        where: { id: periodId, installation: { tenantId: request.tenantId } },
+      });
+      if (period) {
+        // Upsert saatlik tüketim satırları
+        await prisma.$transaction(
+          rows.map(r =>
+            prisma.hourlyConsumption.upsert({
+              where: { periodId_hour: { periodId, hour: r.hour } },
+              create: { periodId, hour: r.hour, consumptionKwh: r.consumptionKwh, source: "csv" },
+              update: { consumptionKwh: r.consumptionKwh, source: "csv" },
+            })
+          )
+        );
+        await prisma.auditLog.create({
+          data: {
+            tenantId:   request.tenantId,
+            userId:     request.userId ?? undefined,
+            action:     "IMPORT",
+            resource:   "HourlyConsumption",
+            resourceId: periodId,
+            payload:    { rows: rows.length, matchedHours, zoneId },
+          },
+        });
+        savedToPeriod = true;
+      }
+    }
+
     return reply.send({
       zoneId,
       totalConsumptionKwh: Math.round(totalConsumptionKwh * 100) / 100,
@@ -149,6 +180,7 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
       monthly,
       methodology: "hourly_consumption_x_location_based_ef",
       unit: { consumption: "kWh", emission: "tCO₂eq", ef: "gCO₂/kWh" },
+      savedToPeriod,
     });
   });
 };

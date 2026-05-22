@@ -66,18 +66,20 @@ const EMPTY_PERIOD = {
 
 export default function CbamProductPage() {
   const { installationId, productId } = useParams<{ installationId: string; productId: string }>();
-  const [product,       setProduct]       = useState<CbamProduct | null>(null);
-  const [periods,       setPeriods]       = useState<CbamProductPeriod[]>([]);
-  const [renewSources,  setRenewSources]  = useState<RenewableSource[]>([]);
-  const [countryEfs,    setCountryEfs]    = useState<CbamCountryEf[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [showForm,      setShowForm]      = useState(false);
-  const [form,          setForm]          = useState({ ...EMPTY_PERIOD });
-  const [saving,        setSaving]        = useState(false);
-  const [calcId,        setCalcId]        = useState<string | null>(null);
-  const [calcLoading,   setCalcLoading]   = useState(false);
-  const [error,         setError]         = useState("");
-  const [selectedPeriod,setSelectedPeriod]= useState<CbamProductPeriod | null>(null);
+  const [product,         setProduct]         = useState<CbamProduct | null>(null);
+  const [periods,         setPeriods]         = useState<CbamProductPeriod[]>([]);
+  const [renewSources,    setRenewSources]    = useState<RenewableSource[]>([]);
+  const [countryEfs,      setCountryEfs]      = useState<CbamCountryEf[]>([]);
+  const [facilityCountry, setFacilityCountry] = useState("");
+  const [loading,         setLoading]         = useState(true);
+  const [showForm,        setShowForm]        = useState(false);
+  const [form,            setForm]            = useState({ ...EMPTY_PERIOD });
+  const [saving,          setSaving]          = useState(false);
+  const [calcId,          setCalcId]          = useState<string | null>(null);
+  const [calcLoading,     setCalcLoading]     = useState(false);
+  const [gridEfLoad,      setGridEfLoad]      = useState(false);
+  const [error,           setError]           = useState("");
+  const [selectedPeriod,  setSelectedPeriod]  = useState<CbamProductPeriod | null>(null);
 
   const load = useCallback(() => {
     if (!installationId || !productId) return;
@@ -89,19 +91,30 @@ export default function CbamProductPage() {
       setPeriods(r.periods);
       setRenewSources(ref.renewableSources);
       setCountryEfs(ref.cbamCountryEf);
+      // Load facility country for ENTSO-E lookup
+      api.installations.get(r.product.installationId)
+        .then(inst => setFacilityCountry(inst.facilityCountry ?? ""))
+        .catch(() => {});
     }).finally(() => setLoading(false));
   }, [installationId, productId]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Auto-fill countryGridEf when product is loaded
-  useEffect(() => {
-    if (!product || !countryEfs.length) return;
-    // We need the installation country — stored indirectly; use cbamDefaultEf reference
-    // It will be auto-filled by the API from CBAM_COUNTRY_EF on create
-  }, [product, countryEfs]);
-
   function setF(k: string, v: string) { setForm(p => ({ ...p, [k]: v })); }
+
+  async function fetchGridEf() {
+    if (!facilityCountry || !form.reportYear) return;
+    setGridEfLoad(true);
+    try {
+      const res = await api.cbamProducts.gridEf(facilityCountry, Number(form.reportYear));
+      if (res.hasData && res.efTco2Mwh != null) {
+        setF("countryGridEf", String(res.efTco2Mwh));
+      } else {
+        setError(`${facilityCountry} için ${form.reportYear} yılına ait ENTSO-E verisi bulunamadı.`);
+      }
+    } catch { setError("ENTSO-E EF verisi yüklenemedi."); }
+    setGridEfLoad(false);
+  }
 
   async function savePeriod() {
     if (!installationId || !productId) return;
@@ -309,9 +322,19 @@ export default function CbamProductPage() {
               </div>
               <div>
                 <label style={S.lbl}>Ülke Yıllık Izgara EF (tCO₂/MWh)</label>
-                <input type="number" step="0.0001" style={S.inp} placeholder="Örn: 0.4943"
-                  value={form.countryGridEf} onChange={e => setF("countryGridEf", e.target.value)} />
-                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 3 }}>Eşleşmeyen kısım: min(CBAM, ülke EF)</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input type="number" step="0.0001" style={{ ...S.inp, flex: 1 }} placeholder="Örn: 0.4943"
+                    value={form.countryGridEf} onChange={e => setF("countryGridEf", e.target.value)} />
+                  <button type="button" onClick={fetchGridEf} disabled={gridEfLoad || !facilityCountry}
+                    style={{ padding: "7px 10px", borderRadius: 6, border: "1px solid #059669",
+                             background: "#f0fdf4", color: "#059669", cursor: "pointer", fontSize: 12,
+                             fontWeight: 600, whiteSpace: "nowrap" as const, opacity: gridEfLoad ? 0.6 : 1 }}>
+                    {gridEfLoad ? "…" : "ENTSO-E"}
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 3 }}>
+                  Eşleşmeyen kısım: min(CBAM, ülke EF) · ENTSO-E butonuyla otomatik doldur
+                </div>
               </div>
             </div>
 

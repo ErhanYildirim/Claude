@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { prisma } from "@voltfox/db";
+import { prisma, Prisma } from "@voltfox/db";
 import { requireRole } from "../plugins/rbac.js";
 import {
   calculateCbamProductEmission,
@@ -189,6 +189,22 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
       ? body.cbamDefaultEf
       : (installation ? (CBAM_COUNTRY_EF[installation.facilityCountry] ?? null) : null);
 
+    // Auto-fill countryGridEf from ENTSO-E data if not provided
+    let autoGridEf: number | null = body.countryGridEf ?? null;
+    if (autoGridEf == null && installation) {
+      const gridRows = await prisma.$queryRaw<{ avg_ef: string | null }[]>(
+        Prisma.sql`
+          SELECT ROUND(AVG(ci_lifecycle)::numeric, 4) AS avg_ef
+          FROM emission_factors
+          WHERE country = ${installation.facilityCountry}
+            AND granularity = 'hourly'
+            AND EXTRACT(YEAR FROM hour) = ${body.reportYear}
+        `
+      ).catch(() => []);
+      const g = gridRows[0]?.avg_ef != null ? parseFloat(gridRows[0].avg_ef) : null;
+      autoGridEf = g != null ? Math.round(g * 0.001 * 10000) / 10000 : null;
+    }
+
     const existing = await prisma.cbamProductPeriod.findFirst({
       where: { cbamProductId: productId, reportYear: body.reportYear },
     });
@@ -214,7 +230,7 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
         renewableSource:      body.renewableSource     ?? null,
         renewableSourceEf:    renewableSourceEf,
         cbamDefaultEf:        autoCbamEf,
-        countryGridEf:        body.countryGridEf ?? null,
+        countryGridEf:        autoGridEf,
       },
     });
 
@@ -354,6 +370,38 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
         country,
         efTco2Mwh: ef,
       })),
+    });
+  });
+
+  // ── GET /cbam/grid-ef?country=TR&year=2024 — ENTSO-E'den yıllık ortalama EF
+  app.get("/cbam/grid-ef", async (request, reply) => {
+    if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
+    const { country, year } = request.query as { country?: string; year?: string };
+    if (!country || !year) return reply.status(400).send({ error: "country ve year zorunlu" });
+
+    const yr = parseInt(year);
+    if (isNaN(yr)) return reply.status(400).send({ error: "Geçersiz year" });
+
+    const result = await prisma.$queryRaw<{ avg_ef: string | null }[]>(
+      Prisma.sql`
+        SELECT ROUND(AVG(ci_lifecycle)::numeric, 4) AS avg_ef
+        FROM emission_factors
+        WHERE country = ${country}
+          AND granularity = 'hourly'
+          AND EXTRACT(YEAR FROM hour) = ${yr}
+      `
+    );
+
+    const avgGco2kWh = result[0]?.avg_ef != null ? parseFloat(result[0].avg_ef) : null;
+    // ci_lifecycle gCO₂eq/kWh → tCO₂/MWh (* 0.001)
+    const efTco2Mwh = avgGco2kWh != null ? Math.round(avgGco2kWh * 0.001 * 10000) / 10000 : null;
+
+    return reply.send({
+      country,
+      year: yr,
+      efTco2Mwh,
+      hasData: efTco2Mwh != null,
+      source: efTco2Mwh != null ? "ENTSO-E A75 (IPCC AR6 medyan)" : null,
     });
   });
 };

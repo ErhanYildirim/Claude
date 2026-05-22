@@ -111,6 +111,23 @@ const ENDPOINTS: { group: string; items: Endpoint[] }[] = [
       { id: "defaults", method: "GET", path: "/api/v1/defaults?cnCode=7206100000&country=DE", label: "Default SEE değeri" },
     ],
   },
+  {
+    group: "CBAM Ürün Hesaplama",
+    items: [
+      { id: "cbam-ref",          method: "GET",    path: "/api/v1/cbam/reference",                                           label: "Referans veriler (kaynak EF, ülke EF)" },
+      { id: "cbam-prod-list",    method: "GET",    path: "/api/v1/installations/:iid/products",                              label: "Ürün listesi",           note: ":iid tesis UUID" },
+      { id: "cbam-prod-create",  method: "POST",   path: "/api/v1/installations/:iid/products",                              label: "Ürün oluştur",           note: ":iid tesis UUID",
+        body: JSON.stringify({ productName: "Çelik Profil", cnCode: "7216", unit: "tonne", isCbamScope: true, energyAllocationMode: "facility" }, null, 2) },
+      { id: "cbam-prod-update",  method: "PATCH",  path: "/api/v1/installations/:iid/products/:pid",                         label: "Ürün güncelle",          note: ":iid tesis, :pid ürün UUID" },
+      { id: "cbam-prod-delete",  method: "DELETE", path: "/api/v1/installations/:iid/products/:pid",                         label: "Ürün sil",               note: ":iid tesis, :pid ürün UUID" },
+      { id: "cbam-per-list",     method: "GET",    path: "/api/v1/installations/:iid/products/:pid/periods",                 label: "Ürün dönem listesi",     note: ":iid tesis, :pid ürün UUID" },
+      { id: "cbam-per-create",   method: "POST",   path: "/api/v1/installations/:iid/products/:pid/periods",                 label: "Dönem oluştur (tesis modu)", note: ":iid tesis, :pid ürün UUID",
+        body: JSON.stringify({ reportYear: 2024, periodName: "2024 Yılı", startDate: "2024-01-01", endDate: "2024-12-31", productionVolumeTonne: 5000, scope1DirectTco2: 1200, facilityTotalKwh: 800000, facilityRenewableKwh: 200000, productShareKwh: 400000, renewableSource: "solar", countryGridEf: 0.4943 }, null, 2) },
+      { id: "cbam-per-create-b", method: "POST",   path: "/api/v1/installations/:iid/products/:pid/periods",                 label: "Dönem oluştur (band modu)", note: ":iid tesis, :pid ürün UUID",
+        body: JSON.stringify({ reportYear: 2024, periodName: "2024 Yılı", startDate: "2024-01-01", endDate: "2024-12-31", productionVolumeTonne: 5000, scope1DirectTco2: 1200, bandElectricityKwh: 400000, bandRenewableKwh: 100000, renewableSource: "wind_onshore", countryGridEf: 0.4943 }, null, 2) },
+      { id: "cbam-per-calc",     method: "POST",   path: "/api/v1/installations/:iid/products/:pid/periods/:perid/calculate", label: "SEE Hesapla",            note: ":iid tesis, :pid ürün, :perid dönem UUID" },
+    ],
+  },
 ];
 
 const METHOD_COLORS: Record<string, { bg: string; color: string }> = {

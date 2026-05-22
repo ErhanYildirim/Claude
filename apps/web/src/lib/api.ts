@@ -257,6 +257,9 @@ export const api = {
     },
 
     reference: () => request<CbamReference>("GET", "/cbam/reference"),
+    gridEf: (country: string, year: number) =>
+      request<{ country: string; year: number; efTco2Mwh: number | null; hasData: boolean; source: string | null }>(
+        "GET", `/cbam/grid-ef?country=${encodeURIComponent(country)}&year=${year}`),
   },
 
   emissionTargets: {

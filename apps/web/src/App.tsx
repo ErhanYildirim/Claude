@@ -7,6 +7,7 @@ import PageSkeleton   from "./components/PageSkeleton.js";
 import LoginPage      from "./pages/LoginPage.js";
 import OnboardingPage from "./pages/OnboardingPage.js";
 import SharePage      from "./pages/SharePage.js";
+import InvitePage     from "./pages/InvitePage.js";
 
 // Code-split — each page is a separate async chunk
 const DashboardPage          = lazy(() => import("./pages/DashboardPage.js"));
@@ -59,8 +60,9 @@ function AppRouter() {
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/share/:token" element={<SharePage />} />
-          <Route path="*" element={<LoginPage />} />
+          <Route path="/share/:token"  element={<SharePage />} />
+          <Route path="/invite/:token" element={<InvitePage />} />
+          <Route path="*"              element={<LoginPage />} />
         </Routes>
       </BrowserRouter>
     );

@@ -46,27 +46,27 @@ export const membersRoutes: FastifyPluginAsync = async (app) => {
 
     if (existingUser) {
       userId = existingUser.id;
-    } else {
-      // Kullanıcı yok → davet et
-      const { data: invited, error } = await app.supabase.auth.admin.inviteUserByEmail(email, {
-        data: { invited_to_tenant: request.tenantId },
+      // Mevcut kullanıcı → direkt üyelik upsert
+      const member = await prisma.tenantMember.upsert({
+        where:  { tenantId_userId: { tenantId: request.tenantId, userId } },
+        create: { tenantId: request.tenantId, userId, role },
+        update: { role },
       });
-      if (error || !invited?.user) {
-        return reply.status(422).send({ error: "INVITE_FAILED", message: error?.message ?? "Davet gönderilemedi." });
-      }
-      userId = invited.user.id;
+      return reply.status(201).send({ member, invited: false, message: "Mevcut kullanıcı eklendi." });
     }
 
-    const member = await prisma.tenantMember.upsert({
-      where:  { tenantId_userId: { tenantId: request.tenantId, userId } },
-      create: { tenantId: request.tenantId, userId, role },
-      update: { role },
+    // Yeni kullanıcı → davet token oluştur (48 saat geçerli)
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const invite = await prisma.memberInvite.create({
+      data: { tenantId: request.tenantId, email, role, expiresAt },
     });
 
     return reply.status(201).send({
-      member,
-      invited: !existingUser,
-      message: existingUser ? "Mevcut kullanıcı eklendi." : "Davet e-postası gönderildi.",
+      invited:     true,
+      inviteToken: invite.token,
+      inviteUrl:   `/invite/${invite.token}`,
+      expiresAt:   invite.expiresAt.toISOString(),
+      message:     "Davet bağlantısı oluşturuldu.",
     });
   });
 

@@ -74,6 +74,7 @@ export default function CbamProductPage() {
   const [annexIvDefault,  setAnnexIvDefault]  = useState<{ total: number; direct: number | null; indirect: number | null } | null>(null);
   const [loading,         setLoading]         = useState(true);
   const [showForm,        setShowForm]        = useState(false);
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [form,            setForm]            = useState({ ...EMPTY_PERIOD });
   const [saving,          setSaving]          = useState(false);
   const [calcId,          setCalcId]          = useState<string | null>(null);
@@ -114,6 +115,29 @@ export default function CbamProductPage() {
   useEffect(() => { load(); }, [load]);
 
   function setF(k: string, v: string) { setForm(p => ({ ...p, [k]: v })); }
+
+  function startEdit(p: CbamProductPeriod) {
+    setEditingPeriodId(p.id);
+    setForm({
+      reportYear:            p.reportYear,
+      periodName:            p.periodName,
+      startDate:             p.startDate.slice(0, 10),
+      endDate:               p.endDate.slice(0, 10),
+      productionVolumeTonne: p.productionVolumeTonne,
+      scope1DirectTco2:      p.scope1DirectTco2,
+      scope1AuditNote:       p.scope1AuditNote ?? "",
+      bandElectricityKwh:    p.bandElectricityKwh ?? "",
+      bandRenewableKwh:      p.bandRenewableKwh ?? "",
+      facilityTotalKwh:      p.facilityTotalKwh ?? "",
+      facilityRenewableKwh:  p.facilityRenewableKwh ?? "",
+      productShareKwh:       p.productShareKwh ?? "",
+      renewableSource:       p.renewableSource ?? "solar",
+      cbamDefaultEf:         p.cbamDefaultEf ?? "",
+      countryGridEf:         p.countryGridEf ?? "",
+    });
+    setShowForm(true);
+    setError("");
+  }
 
   async function fetchGridEf() {
     if (!facilityCountry || !form.reportYear) return;
@@ -173,8 +197,13 @@ export default function CbamProductPage() {
       if (form.cbamDefaultEf) body.cbamDefaultEf = Number(form.cbamDefaultEf);
       if (form.countryGridEf) body.countryGridEf  = Number(form.countryGridEf);
 
-      await api.cbamProducts.periods.create(installationId, productId, body);
+      if (editingPeriodId) {
+        await api.cbamProducts.periods.update(installationId, productId, editingPeriodId, body);
+      } else {
+        await api.cbamProducts.periods.create(installationId, productId, body);
+      }
       setShowForm(false);
+      setEditingPeriodId(null);
       setForm({ ...EMPTY_PERIOD });
       load();
     } catch (e: unknown) {
@@ -231,7 +260,10 @@ export default function CbamProductPage() {
             </span>
           </div>
         </div>
-        <button style={S.btn} onClick={() => setShowForm(v => !v)}>
+        <button style={S.btn} onClick={() => {
+          if (showForm) { setShowForm(false); setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setError(""); }
+          else { setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setShowForm(true); }
+        }}>
           {showForm ? "İptal" : "+ Dönem Ekle"}
         </button>
       </div>
@@ -308,7 +340,7 @@ export default function CbamProductPage() {
       {showForm && (
         <div style={S.card}>
           <div style={S.cardH}>
-            <span style={S.cardHT}>Yeni Dönem Ekle</span>
+            <span style={S.cardHT}>{editingPeriodId ? "Dönemi Düzenle" : "Yeni Dönem Ekle"}</span>
           </div>
           <div style={S.cardB}>
             <div style={{ ...S.grid3, marginBottom: 12 }}>
@@ -377,7 +409,7 @@ export default function CbamProductPage() {
               </div>
             ) : (
               <>
-              {gecPeriods.length > 0 && (
+              {gecPeriods.length > 0 && !editingPeriodId && (
                 <div style={{ marginBottom: 12, background: "#f0fdf4", borderRadius: 8,
                               padding: "10px 14px", border: "1px solid #d1fae5" }}>
                   <label style={{ ...S.lbl, color: "#065f46", fontWeight: 700, marginBottom: 6 }}>
@@ -470,9 +502,9 @@ export default function CbamProductPage() {
 
             <div style={{ display: "flex", gap: 10 }}>
               <button style={S.btn} onClick={savePeriod} disabled={saving}>
-                {saving ? "Kaydediliyor…" : "Dönem Kaydet"}
+                {saving ? "Kaydediliyor…" : editingPeriodId ? "Güncelle" : "Dönem Kaydet"}
               </button>
-              <button style={S.btnSm} onClick={() => { setShowForm(false); setError(""); }}>
+              <button style={S.btnSm} onClick={() => { setShowForm(false); setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setError(""); }}>
                 İptal
               </button>
             </div>
@@ -504,6 +536,12 @@ export default function CbamProductPage() {
                 onClick={() => { calculate(p.id); setSelectedPeriod(p); }}
               >
                 {calcLoading && calcId === p.id ? "Hesaplanıyor…" : "Hesapla"}
+              </button>
+              <button
+                style={S.btnSm}
+                onClick={() => { startEdit(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              >
+                Düzenle
               </button>
               <button
                 style={S.btnDng}

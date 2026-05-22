@@ -87,6 +87,8 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
   const [columns,    setColumns]    = useState<string[]>([]);
   const [colPreview, setColPreview] = useState<Record<string, string>[]>([]);
   const [colMap,     setColMap]     = useState<GecColMap>({ hour: "", consumption: "", production: "" });
+  const [consUnit,   setConsUnit]   = useState("kWh");
+  const [prodUnit,   setProdUnit]   = useState("kWh");
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -131,6 +133,8 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
         hour:        colMap.hour        || undefined,
         consumption: colMap.consumption || undefined,
         production:  colMap.production  || undefined,
+        consUnit:    consUnit !== "kWh" ? consUnit : undefined,
+        prodUnit:    prodUnit !== "kWh" ? prodUnit : undefined,
       });
       onResult(result);
     } catch (e: unknown) {
@@ -141,7 +145,8 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
 
   function resetPick() {
     setStep("pick"); setFile(null); setColumns([]); setColPreview([]);
-    setColMap({ hour: "", consumption: "", production: "" }); setErr("");
+    setColMap({ hour: "", consumption: "", production: "" });
+    setConsUnit("kWh"); setProdUnit("kWh"); setErr("");
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -304,25 +309,44 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
 
           <div style={{ marginBottom: 14 }}>
             <label style={lblStyle}>
-              ⚡ Tüketim (kWh) <span style={{ color: "#ef4444" }}>*</span>
+              ⚡ Tüketim <span style={{ color: "#ef4444" }}>*</span>
             </label>
-            <select style={selStyle} value={colMap.consumption ?? ""}
-              onChange={e => setColMap(m => ({ ...m, consumption: e.target.value }))}>
-              <option value="">— Sütun seçin —</option>
-              {columns.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select style={{ ...selStyle, flex: 1 }} value={colMap.consumption ?? ""}
+                onChange={e => setColMap(m => ({ ...m, consumption: e.target.value }))}>
+                <option value="">— Sütun seçin —</option>
+                {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select style={{ ...selStyle, width: 72, flex: "none", fontWeight: 700 }}
+                value={consUnit} onChange={e => setConsUnit(e.target.value)}>
+                <option value="Wh">Wh</option>
+                <option value="kWh">kWh</option>
+                <option value="MWh">MWh</option>
+                <option value="GWh">GWh</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ marginBottom: 14 }}>
             <label style={lblStyle}>
-              ☀ Üretim (kWh)
+              ☀ Üretim
               <span style={{ color: "#5c7a72", fontWeight: 400, marginLeft: 6 }}>— opsiyonel</span>
             </label>
-            <select style={selStyle} value={colMap.production ?? ""}
-              onChange={e => setColMap(m => ({ ...m, production: e.target.value }))}>
-              <option value="">— Yok / Atla —</option>
-              {columns.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select style={{ ...selStyle, flex: 1 }} value={colMap.production ?? ""}
+                onChange={e => setColMap(m => ({ ...m, production: e.target.value }))}>
+                <option value="">— Yok / Atla —</option>
+                {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select style={{ ...selStyle, width: 72, flex: "none", fontWeight: 700 }}
+                value={prodUnit} onChange={e => setProdUnit(e.target.value)}
+                disabled={!colMap.production}>
+                <option value="Wh">Wh</option>
+                <option value="kWh">kWh</option>
+                <option value="MWh">MWh</option>
+                <option value="GWh">GWh</option>
+              </select>
+            </div>
           </div>
 
           {!canCalculate && (
@@ -383,12 +407,12 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
                   </th>
                   <th style={{ padding: "8px 12px", textAlign: "right" as const,
                                fontWeight: 700, color: "#00b87a", whiteSpace: "nowrap" as const }}>
-                    Tüketim kWh {colMap.consumption ? `(${colMap.consumption})` : "— seçilmedi"}
+                    Tüketim ({consUnit}) {colMap.consumption ? `— ${colMap.consumption}` : "— seçilmedi"}
                   </th>
                   {colMap.production && (
                     <th style={{ padding: "8px 12px", textAlign: "right" as const,
                                  fontWeight: 700, color: "#f59e0b", whiteSpace: "nowrap" as const }}>
-                      Üretim kWh ({colMap.production})
+                      Üretim ({prodUnit}) — {colMap.production}
                     </th>
                   )}
                 </tr>

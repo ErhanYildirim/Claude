@@ -139,6 +139,16 @@ function detectSuggestedMap(columns: string[]): ColumnMap {
   return map;
 }
 
+// Birim dönüşümü → kWh
+function toKwh(value: number, unit: string): number {
+  switch (unit) {
+    case "Wh":  return value / 1000;
+    case "MWh": return value * 1_000;
+    case "GWh": return value * 1_000_000;
+    default:    return value; // kWh
+  }
+}
+
 // Ham satır → FileRow (kolon eşlemesi zaten uygulanmış olmalı)
 function parseRowRecord(r: Record<string, unknown>): FileRow | null {
   const ts = findVal(r,
@@ -303,15 +313,19 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
     for await (const chunk of data.file) chunks.push(chunk);
     const buffer = Buffer.concat(chunks);
 
-    // Kullanıcı kolon eşlemesi (opsiyonel)
+    // Kullanıcı kolon eşlemesi + birim seçimi (opsiyonel)
     const q = request.query as {
       zoneId?: string; periodId?: string;
       colHour?: string; colConsumption?: string; colProduction?: string;
+      colConsUnit?: string; colProdUnit?: string;   // Wh | kWh | MWh | GWh
     };
     const colMap: ColumnMap | undefined =
       (q.colHour || q.colConsumption || q.colProduction)
         ? { hour: q.colHour || undefined, consumption: q.colConsumption || undefined, production: q.colProduction || undefined }
         : undefined;
+
+    const consUnit = q.colConsUnit ?? "kWh";
+    const prodUnit = q.colProdUnit ?? "kWh";
 
     let rows: FileRow[];
     try {
@@ -330,6 +344,14 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
         error: "NO_VALID_ROWS",
         message: "Geçerli satır bulunamadı. Kolon eşleştirmesini kontrol edin.",
       });
+    }
+
+    // Birim dönüşümü uygula (kWh dışındaki birimler)
+    if (consUnit !== "kWh" || prodUnit !== "kWh") {
+      for (const row of rows) {
+        if (row.consumptionKwh !== undefined) row.consumptionKwh = toKwh(row.consumptionKwh, consUnit);
+        if (row.productionKwh  !== undefined) row.productionKwh  = toKwh(row.productionKwh,  prodUnit);
+      }
     }
 
     const hasConsumption = rows.some(r => r.consumptionKwh !== undefined);

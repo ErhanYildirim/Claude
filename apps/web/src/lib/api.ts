@@ -185,6 +185,8 @@ export const api = {
       if (colMap?.hour)        q.set("colHour",         colMap.hour);
       if (colMap?.consumption) q.set("colConsumption",  colMap.consumption);
       if (colMap?.production)  q.set("colProduction",   colMap.production);
+      if (colMap?.consUnit && colMap.consUnit !== "kWh") q.set("colConsUnit", colMap.consUnit);
+      if (colMap?.prodUnit && colMap.prodUnit !== "kWh") q.set("colProdUnit", colMap.prodUnit);
       const qs = q.toString() ? "?" + q : "";
       const res = await fetch(`${BASE}/gec/calculate${qs}`, {
         method: "POST",
@@ -454,6 +456,37 @@ export interface EmissionTargetProgress extends EmissionTargetEntry {
   facilityName:   string;
 }
 
+// ── CBAM Product types ────────────────────────────────────────────────────────
+export interface CbamProduct {
+  id: string; tenantId: string; installationId: string;
+  productName: string; cnCode: string | null; description: string | null;
+  unit: string; isCbamScope: boolean; energyAllocationMode: "facility" | "band";
+  createdAt: string; updatedAt: string;
+  productPeriods: { id: string; reportYear: number; periodName: string; see: string | null; calculatedAt: string | null; }[];
+}
+
+export interface CbamProductPeriod {
+  id: string; cbamProductId: string;
+  reportYear: number; periodName: string; startDate: string; endDate: string;
+  productionVolumeTonne: string;
+  scope1DirectTco2: string; scope1AuditNote: string | null;
+  bandElectricityKwh: string | null; bandRenewableKwh: string | null;
+  facilityTotalKwh: string | null; facilityRenewableKwh: string | null; productShareKwh: string | null;
+  renewableSource: string | null; renewableSourceEf: string | null;
+  cbamDefaultEf: string | null; countryGridEf: string | null;
+  allocatedElecKwh: string | null; allocatedRenewKwh: string | null;
+  matchedKwh: string | null; unmatchedKwh: string | null;
+  matchedIndirectTco2: string | null; unmatchedIndirectTco2: string | null;
+  totalIndirectTco2: string | null; totalEmbeddedTco2: string | null;
+  see: string | null; effectiveEf: string | null;
+  unmatchedEfUsed: string | null; unmatchedEfSource: string | null;
+  calculatedAt: string | null; createdAt: string; updatedAt: string;
+}
+
+export interface RenewableSource { key: string; label: string; efTco2Mwh: number; }
+export interface CbamCountryEf   { country: string; efTco2Mwh: number; }
+export interface CbamReference   { renewableSources: RenewableSource[]; cbamCountryEf: CbamCountryEf[]; }
+
 export interface CarbonPriceEntry {
   id: string; date: string; etsPriceEur: number; cbamEstEur: number | null;
   source: string; notes: string | null; createdAt: string;
@@ -500,6 +533,8 @@ export interface GecColMap {
   hour?:        string;
   consumption?: string;
   production?:  string;
+  consUnit?:    string;  // "Wh" | "kWh" | "MWh" | "GWh"
+  prodUnit?:    string;
 }
 export interface GecColumnsResult {
   columns:      string[];

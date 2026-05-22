@@ -71,6 +71,7 @@ model Installation {
 
   periods         ReportingPeriod[]
   emissionTargets EmissionTarget[]
+  cbamProducts    CbamProduct[]
 
   @@index([tenantId])
   @@map("installations")
@@ -361,6 +362,92 @@ model CarbonPrice {
   @@unique([date, source])
   @@index([date(sort: Desc)])
   @@map("carbon_prices")
+}
+
+// ── CbamProduct (Tesis altındaki CBAM ürün tanımı) ───────────────────────────
+model CbamProduct {
+  id                   String       @id @default(uuid()) @db.Uuid
+  tenantId             String       @map("tenant_id") @db.Uuid
+  installationId       String       @map("installation_id") @db.Uuid
+  installation         Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  productName          String  @map("product_name")
+  cnCode               String? @map("cn_code")           // CBAM CN kodu: 7206, 7601, 2523, vb.
+  description          String?
+  unit                 String  @default("tonne") @map("unit") // tonne | MWh | kg
+  isCbamScope          Boolean @default(true) @map("is_cbam_scope")
+
+  // "facility" → tesisin toplam yenilenebilir üretimi ürünler arasında orantılı dağıtılır
+  // "band"     → her üretim bandı kendi enerji sayacına sahip, doğrudan atanır
+  energyAllocationMode String  @default("facility") @map("energy_allocation_mode")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt    @map("updated_at")
+
+  productPeriods CbamProductPeriod[]
+
+  @@index([installationId])
+  @@index([tenantId])
+  @@map("cbam_products")
+}
+
+// ── CbamProductPeriod (Ürün bazlı dönem verisi + hesaplama sonucu) ───────────
+model CbamProductPeriod {
+  id            String      @id @default(uuid()) @db.Uuid
+  cbamProductId String      @map("cbam_product_id") @db.Uuid
+  cbamProduct   CbamProduct @relation(fields: [cbamProductId], references: [id], onDelete: Cascade)
+
+  reportYear  Int      @map("report_year")
+  periodName  String   @map("period_name")
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date")   @db.Date
+
+  // Üretim
+  productionVolumeTonne Decimal @map("production_volume_tonne") @db.Decimal(18, 4)
+
+  // Scope 1 (doğrudan yakıt emisyonu vb.)
+  scope1DirectTco2 Decimal @default(0) @map("scope1_direct_tco2") @db.Decimal(18, 4)
+  scope1AuditNote  String? @map("scope1_audit_note")
+
+  // ── BAND modu: üretim bandına özel sayaç verisi ──────────────────────────
+  bandElectricityKwh Decimal? @map("band_electricity_kwh") @db.Decimal(18, 2)
+  bandRenewableKwh   Decimal? @map("band_renewable_kwh")   @db.Decimal(18, 2)
+
+  // ── FACILITY modu: tesis toplamları + bu ürünün payı ─────────────────────
+  facilityTotalKwh     Decimal? @map("facility_total_kwh")     @db.Decimal(18, 2) // tüm tesis toplam elektrik
+  facilityRenewableKwh Decimal? @map("facility_renewable_kwh") @db.Decimal(18, 2) // tüm tesis toplam yenilenebilir
+  productShareKwh      Decimal? @map("product_share_kwh")      @db.Decimal(18, 2) // bu ürün bandının elektrik payı
+
+  // Yenilenebilir kaynak
+  // "solar" | "wind_onshore" | "wind_offshore" | "hydro" | "nuclear" | "biomass" | "geothermal"
+  renewableSource   String?  @map("renewable_source")
+  renewableSourceEf Decimal? @map("renewable_source_ef") @db.Decimal(10, 6) // tCO₂/MWh (auto-filled)
+
+  // Referans EF'ler — eşleşmeyen kısım için
+  cbamDefaultEf Decimal? @map("cbam_default_ef") @db.Decimal(10, 6) // CBAM Annex IV elektrik EF'i (tCO₂/MWh)
+  countryGridEf Decimal? @map("country_grid_ef") @db.Decimal(10, 6) // Ülke yıllık ortalama EF (tCO₂/MWh)
+
+  // ── Hesaplama sonuçları (calculate endpoint tarafından doldurulur) ────────
+  allocatedElecKwh      Decimal? @map("allocated_elec_kwh")       @db.Decimal(18, 2)
+  allocatedRenewKwh     Decimal? @map("allocated_renew_kwh")      @db.Decimal(18, 2)
+  matchedKwh            Decimal? @map("matched_kwh")              @db.Decimal(18, 2)
+  unmatchedKwh          Decimal? @map("unmatched_kwh")            @db.Decimal(18, 2)
+  matchedIndirectTco2   Decimal? @map("matched_indirect_tco2")    @db.Decimal(18, 6)
+  unmatchedIndirectTco2 Decimal? @map("unmatched_indirect_tco2")  @db.Decimal(18, 6)
+  totalIndirectTco2     Decimal? @map("total_indirect_tco2")      @db.Decimal(18, 6)
+  totalEmbeddedTco2     Decimal? @map("total_embedded_tco2")      @db.Decimal(18, 6)
+  see                   Decimal? @map("see")                      @db.Decimal(18, 8) // tCO₂/tonne
+  effectiveEf           Decimal? @map("effective_ef")             @db.Decimal(10, 6) // ağırlıklı ort. tCO₂/MWh
+  unmatchedEfUsed       Decimal? @map("unmatched_ef_used")        @db.Decimal(10, 6)
+  unmatchedEfSource     String?  @map("unmatched_ef_source")      // "cbam_default" | "country_grid"
+
+  calculatedAt DateTime? @map("calculated_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@unique([cbamProductId, reportYear])
+  @@index([cbamProductId])
+  @@map("cbam_product_periods")
 }
 
 // ── HourlyConsumption (Saatlik Tüketim Verisi) ───────────────────────────────

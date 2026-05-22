@@ -42,6 +42,7 @@ import { carbonPricesRoutes }  from "./routes/carbon-prices.js";
 import { emissionTargetsRoutes } from "./routes/emission-targets.js";
 import { periodImportRoutes }   from "./routes/period-import.js";
 import { benchmarkRoutes }      from "./routes/benchmark.js";
+import { cbamProductRoutes }    from "./routes/cbam-products.js";
 import cron from "node-cron";
 
 const app = Fastify({
@@ -110,6 +111,7 @@ await app.register(carbonPricesRoutes,    { prefix: v1 });
 await app.register(emissionTargetsRoutes, { prefix: v1 });
 await app.register(periodImportRoutes,    { prefix: v1 });
 await app.register(benchmarkRoutes,       { prefix: v1 });
+await app.register(cbamProductRoutes,     { prefix: v1 });
 
 // Health check — kamuya açık, detaylı DB + uygulama durumu
 app.get("/health", { config: { public: true } }, async (_req, reply) => {

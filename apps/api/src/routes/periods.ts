@@ -234,13 +234,13 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
       tenantId:   request.tenantId,
       eventType:  "calculationDone",
       title:      `SEE hesaplandı: ${period.periodName}`,
-      body:       `${installation.facilityName} · SEE ${result.seeVoltfox.toFixed(4)} tCO₂e/t · Azaltım %${result.reductionPct.toFixed(1)}`,
+      body:       `${installation?.facilityName ?? ""} · SEE ${result.seeVoltfox.toFixed(4)} tCO₂e/t · Azaltım %${result.reductionPct.toFixed(1)}`,
       resource:   "EmbeddedEmission",
       resourceId: result.id,
       emailFactory: (_uid, email) => {
         void email;
         return emailCalculationDone({
-          facilityName:   installation.facilityName,
+          facilityName:   installation?.facilityName ?? "",
           periodName:     period.periodName,
           seeVoltfox:     result.seeVoltfox,
           reductionPct:   result.reductionPct,

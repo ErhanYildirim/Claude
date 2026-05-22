@@ -470,14 +470,25 @@ export interface AdminWebhookStats { total: number; success: number; failed: num
 
 export interface GecMonthlyPoint {
   month: number; monthName: string;
-  consumptionKwh: number; tco2: number; avgEfGco2Kwh: number; hours: number;
+  consumptionKwh: number; productionKwh: number;
+  tco2: number; avgEfGco2Kwh: number; hours: number;
+}
+export interface GecCfeResult {
+  cfeScore: number;
+  totalConsumptionKwh: number; totalProductionKwh: number; totalMatchedKwh: number;
+  matchedHours: number; calculatedAt: string;
 }
 export interface GecResult {
-  zoneId: string; totalConsumptionKwh: number; totalTco2: number;
+  zoneId: string;
+  hasConsumption: boolean; hasProduction: boolean;
+  totalConsumptionKwh: number; totalTco2: number;
   avgEfGco2Kwh: number; matchedHours: number; totalRows: number;
+  totalProductionKwh: number;
   monthly: GecMonthlyPoint[];
   methodology: string;
   savedToPeriod?: boolean;
+  savedCFE?: boolean;
+  cfeResult?: GecCfeResult;
 }
 
 export interface TenantProfile {

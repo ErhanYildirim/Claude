@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Cell,
+  CartesianGrid, Tooltip, Cell, LineChart, Line, Legend,
 } from "recharts";
 import { api } from "../lib/api.js";
 import type { GecResult, GecMonthlyPoint, EFZoneEntry, Installation, Period } from "../lib/api.js";
@@ -49,6 +49,16 @@ const s: Record<string, React.CSSProperties> = {
   infoRow:{ display: "flex", gap: 10, alignItems: "center", marginBottom: 24,
             background: "#e6f9f2", border: "1px solid rgba(0,184,122,.25)",
             borderRadius: 8, padding: "12px 16px", fontSize: 13, color: "#009966" },
+
+  cfeBox: { background: "linear-gradient(135deg,#e6f9f2,#f4fbf8)", border: "1px solid #a7f3d0",
+            borderRadius: 10, padding: "16px 20px", marginBottom: 20 },
+  cfeH:   { fontSize: 13, fontWeight: 700, color: "#009966", marginBottom: 10 },
+  cfeGrid:{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 },
+  cfeKpi: { background: "#fff", borderRadius: 8, padding: "12px 14px", textAlign: "center" as const },
+  cfeKL:  { fontSize: 10, color: "#5c7a72", fontWeight: 700, textTransform: "uppercase" as const,
+            letterSpacing: ".05em", marginBottom: 4 },
+  cfeKV:  { fontSize: 20, fontWeight: 800 },
+  cfeKU:  { fontSize: 10, color: "#5c7a72", marginTop: 2 },
 };
 
 function co2Color(tco2: number, max: number) {
@@ -58,24 +68,20 @@ function co2Color(tco2: number, max: number) {
   return "#00b87a";
 }
 
-/* ── Upload view ─────────────────────────────────────────────────────────── */
-function UploadView({
-  onResult,
-}: {
-  onResult: (r: GecResult) => void;
-}) {
+/* ── Upload View ──────────────────────────────────────────────────────────── */
+function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
   const [file,    setFile]    = useState<File | null>(null);
   const [drag,    setDrag]    = useState(false);
   const [loading, setLoading] = useState(false);
   const [err,     setErr]     = useState("");
   const [preview, setPreview] = useState<string[][]>([]);
-  const [zoneId, setZoneId]               = useState("TR");
-  const [zones, setZones]                 = useState<EFZoneEntry[]>([]);
+  const [zoneId,  setZoneId]  = useState("TR");
+  const [zones,   setZones]   = useState<EFZoneEntry[]>([]);
   const [installations, setInstallations] = useState<Installation[]>([]);
-  const [instId, setInstId]               = useState("");
-  const [periods, setPeriods]             = useState<Period[]>([]);
-  const [periodId, setPeriodId]           = useState("");
-  const inputRef                          = useRef<HTMLInputElement>(null);
+  const [instId,  setInstId]  = useState("");
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [periodId,setPeriodId]= useState("");
+  const inputRef              = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.ef.zones().then(r => setZones(r.zones)).catch(() => {});
@@ -84,30 +90,31 @@ function UploadView({
 
   useEffect(() => {
     if (!instId) { setPeriods([]); setPeriodId(""); return; }
-    api.installations.get(instId).then(r => {
-      setPeriods(r.periods ?? []);
-      setPeriodId("");
-    }).catch(() => {});
+    api.installations.get(instId).then(r => { setPeriods(r.periods ?? []); setPeriodId(""); }).catch(() => {});
   }, [instId]);
 
   function pick(f: File) {
-    if (!f.name.endsWith(".csv")) { setErr("Yalnızca CSV dosyası kabul edilir."); return; }
-    setFile(f);
-    setErr("");
-    setPreview([]);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const text = (e.target?.result as string) ?? "";
-      const lines = text.split(/\r?\n/).filter(Boolean).slice(0, 6);
-      setPreview(lines.map(l => l.split(",")));
-    };
-    reader.readAsText(f);
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!["csv", "xlsx", "xls"].includes(ext)) {
+      setErr("Yalnızca CSV veya Excel (.xlsx, .xls) dosyası kabul edilir."); return;
+    }
+    setFile(f); setErr(""); setPreview([]);
+    if (ext === "csv") {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const text = (e.target?.result as string) ?? "";
+        const lines = text.split(/\r?\n/).filter(Boolean).slice(0, 6);
+        setPreview(lines.map(l => l.split(",")));
+      };
+      reader.readAsText(f);
+    } else {
+      setPreview([]);
+    }
   }
 
   async function calculate() {
     if (!file) return;
-    setLoading(true);
-    setErr("");
+    setLoading(true); setErr("");
     try {
       const result = await api.gec.calculate(file, zoneId, periodId || undefined);
       onResult(result);
@@ -119,6 +126,7 @@ function UploadView({
   }
 
   const selectedZone = zones.find(z => z.zoneId === zoneId);
+  const isExcel = file && !file.name.endsWith(".csv");
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -147,7 +155,7 @@ function UploadView({
         )}
       </div>
 
-      {/* Opsiyonel: döneme bağla */}
+      {/* Döneme bağla */}
       <div style={{ marginBottom: 20, padding: "14px 16px", background: "#f4fbf8",
                     borderRadius: 8, border: "1px solid #d4ece4" }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#5c7a72", marginBottom: 10,
@@ -158,47 +166,40 @@ function UploadView({
           <select
             style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4",
                      fontSize: 13, background: "#fff", color: "#0a1f1a" }}
-            value={instId}
-            onChange={e => setInstId(e.target.value)}
+            value={instId} onChange={e => setInstId(e.target.value)}
           >
             <option value="">— Tesis seç —</option>
-            {installations.map(i => (
-              <option key={i.id} value={i.id}>{i.facilityName}</option>
-            ))}
+            {installations.map(i => <option key={i.id} value={i.id}>{i.facilityName}</option>)}
           </select>
           <select
             style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4",
                      fontSize: 13, background: "#fff", color: "#0a1f1a" }}
-            value={periodId}
-            onChange={e => setPeriodId(e.target.value)}
+            value={periodId} onChange={e => setPeriodId(e.target.value)}
             disabled={!instId || periods.length === 0}
           >
             <option value="">— Dönem seç —</option>
-            {periods.map(p => (
-              <option key={p.id} value={p.id}>{p.periodName}</option>
-            ))}
+            {periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
           </select>
         </div>
         {periodId && (
           <div style={{ fontSize: 11, color: "#009966", marginTop: 6 }}>
             Saatlik veriler hesaplama ile birlikte bu döneme kaydedilecek.
+            {" "}production_kwh sütunu varsa CFE matching de hesaplanır.
           </div>
         )}
       </div>
 
+      {/* Dosya drop zone */}
       <div
         style={{ ...s.dzone, ...(drag ? s.dzA : {}) }}
         onDragOver={e => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
-        onDrop={e => {
-          e.preventDefault(); setDrag(false);
-          const f = e.dataTransfer.files[0]; if (f) pick(f);
-        }}
+        onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) pick(f); }}
         onClick={() => inputRef.current?.click()}
       >
-        <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>{isExcel ? "📊" : "📂"}</div>
         <div style={{ fontSize: 15, fontWeight: 600, color: "#0a1f1a", marginBottom: 6 }}>
-          {file ? file.name : "Saatlik tüketim CSV'sini yükle"}
+          {file ? file.name : "CSV veya Excel dosyasını yükle"}
         </div>
         <div style={{ fontSize: 13, color: "#5c7a72" }}>
           {file
@@ -206,18 +207,17 @@ function UploadView({
             : "Dosyayı buraya sürükle veya tıklayarak seç"}
         </div>
         <input
-          ref={inputRef}
-          type="file"
-          accept=".csv"
+          ref={inputRef} type="file" accept=".csv,.xlsx,.xls"
           style={{ display: "none" }}
           onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); }}
         />
       </div>
 
-      {/* CSV Önizleme */}
+      {/* CSV önizleme */}
       {preview.length > 0 && (
         <div style={{ marginTop: 12, marginBottom: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase" as const, letterSpacing: ".06em", marginBottom: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase" as const,
+                        letterSpacing: ".06em", marginBottom: 6 }}>
             Önizleme (ilk {preview.length - 1} satır)
           </div>
           <div style={{ overflowX: "auto", borderRadius: 7, border: "1px solid #d4ece4" }}>
@@ -225,7 +225,8 @@ function UploadView({
               <thead>
                 <tr style={{ background: "#f4fbf8" }}>
                   {(preview[0] ?? []).map((h, i) => (
-                    <th key={i} style={{ padding: "6px 10px", textAlign: "left" as const, fontWeight: 700, color: "#5c7a72", whiteSpace: "nowrap" as const }}>{h.trim()}</th>
+                    <th key={i} style={{ padding: "6px 10px", textAlign: "left" as const,
+                                         fontWeight: 700, color: "#5c7a72", whiteSpace: "nowrap" as const }}>{h.trim()}</th>
                   ))}
                 </tr>
               </thead>
@@ -243,21 +244,32 @@ function UploadView({
         </div>
       )}
 
+      {isExcel && (
+        <div style={{ marginTop: 10, background: "#e6f9f2", borderRadius: 7,
+                      padding: "8px 12px", fontSize: 12, color: "#009966" }}>
+          Excel dosyası seçildi — önizleme hesaplama sonrasında gösterilecek.
+        </div>
+      )}
+
       <div style={s.how}>
-        <strong>CSV formatı (başlık satırı zorunlu):</strong><br />
-        <code>hour,consumptionKwh</code><br />
-        <code style={{ color: "#94A3B8" }}>2024-01-01T00:00:00Z,450.5</code><br />
-        <code style={{ color: "#94A3B8" }}>2024-01-01T01:00:00Z,423.0</code><br />
+        <strong>Desteklenen formatlar:</strong> CSV, Excel (.xlsx)<br />
+        <strong>Sütunlar (başlık satırı zorunlu):</strong><br />
+        <code>hour &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consumptionKwh &nbsp;&nbsp;production_kwh</code><br />
+        <code style={{ color: "#94A3B8" }}>1.01.2025 00:00 &nbsp;14068 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14068</code><br />
+        <code style={{ color: "#94A3B8" }}>1.01.2025 01:00 &nbsp;13524 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12800</code><br />
         <br />
-        <strong>Alternatif başlıklar:</strong> <code>timestamp</code>, <code>consumption_kwh</code> da kabul edilir.<br />
-        Saat dilimi: UTC · Granülerlik: saat başı · Seçilen zone: <strong>{zoneId}</strong> (2024)
+        <strong>Notlar:</strong><br />
+        · <code>production_kwh</code> opsiyonel — sadece tüketim de yüklenebilir<br />
+        · Her iki sütun varsa 24/7 CFE matching otomatik hesaplanır<br />
+        · Tarih: <code>1.01.2025 00:00</code> (Türkçe) veya <code>2025-01-01T00:00Z</code> (ISO)<br />
+        · Zone: <strong>{zoneId}</strong> · 2024 saatlik EF verisi
       </div>
 
       {err && <div style={s.err}>{err}</div>}
 
       <div style={{ textAlign: "center", marginTop: 20 }}>
         <button
-          style={{ ...s.btn, opacity: !file || loading ? 0.5 : 1, minWidth: 180 }}
+          style={{ ...s.btn, opacity: !file || loading ? 0.5 : 1, minWidth: 200 }}
           disabled={!file || loading}
           onClick={calculate}
         >
@@ -268,16 +280,43 @@ function UploadView({
   );
 }
 
-/* ── Result view ─────────────────────────────────────────────────────────── */
+/* ── Print Report ─────────────────────────────────────────────────────────── */
 function printGecReport(result: GecResult) {
+  const hasProduction = result.hasProduction && result.totalProductionKwh > 0;
+
   const rows = result.monthly.map(m => `
     <tr>
       <td>${m.monthName}</td>
       <td style="text-align:right">${(m.consumptionKwh / 1000).toFixed(2)}</td>
+      ${hasProduction ? `<td style="text-align:right">${(m.productionKwh / 1000).toFixed(2)}</td>` : ""}
       <td style="text-align:right">${m.avgEfGco2Kwh.toFixed(1)}</td>
       <td style="text-align:right;font-weight:700">${m.tco2.toFixed(3)}</td>
       <td style="text-align:right;color:#555">${m.hours}</td>
     </tr>`).join("");
+
+  const cfeSection = result.cfeResult ? `
+    <div class="section-title">24/7 CFE Eşleştirme Sonucu</div>
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-l">CFE Skoru</div>
+        <div class="kpi-v" style="color:#00b87a">${result.cfeResult.cfeScore.toFixed(1)}%</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Eşleşen Enerji</div>
+        <div class="kpi-v">${(result.cfeResult.totalMatchedKwh / 1000).toFixed(1)}</div>
+        <div style="font-size:10px;color:#5c7a72">MWh</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Toplam Üretim</div>
+        <div class="kpi-v">${(result.cfeResult.totalProductionKwh / 1000).toFixed(1)}</div>
+        <div style="font-size:10px;color:#5c7a72">MWh</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Eşleşen Saat</div>
+        <div class="kpi-v">${result.cfeResult.matchedHours.toLocaleString()}</div>
+        <div style="font-size:10px;color:#5c7a72">saat</div>
+      </div>
+    </div>` : "";
 
   const html = `<!DOCTYPE html>
 <html lang="tr">
@@ -288,18 +327,21 @@ function printGecReport(result: GecResult) {
   body{font-family:Arial,sans-serif;color:#0a1f1a;margin:0;padding:32px 48px;font-size:13px}
   .logo{font-size:22px;font-weight:900;color:#00b87a;margin-bottom:4px}
   .title{font-size:18px;font-weight:700;margin-bottom:2px}
-  .sub{font-size:12px;color:#5c7a72;margin-bottom:24px}
-  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  .sub{font-size:12px;color:#5c7a72;margin-bottom:20px}
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
   .kpi{border:1px solid #d4ece4;border-radius:8px;padding:14px}
   .kpi-l{font-size:10px;color:#5c7a72;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
   .kpi-v{font-size:22px;font-weight:800}
-  .kpi-u{font-size:10px;color:#5c7a72;margin-top:2px}
-  table{width:100%;border-collapse:collapse;margin-bottom:24px}
-  th{text-align:left;font-size:11px;color:#5c7a72;font-weight:700;text-transform:uppercase;padding:8px 10px;border-bottom:2px solid #d4ece4}
+  .section-title{font-size:11px;font-weight:700;color:#5c7a72;text-transform:uppercase;
+                  letter-spacing:.08em;margin:20px 0 10px}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px}
+  th{text-align:left;font-size:11px;color:#5c7a72;font-weight:700;text-transform:uppercase;
+     padding:8px 10px;border-bottom:2px solid #d4ece4}
   td{padding:8px 10px;border-bottom:1px solid #eef7f3;font-size:12px}
   tr:last-child td{font-weight:700;background:#f4fbf8}
   .method{background:#f4fbf8;border-radius:8px;padding:14px 16px;font-size:11px;color:#5c7a72;line-height:1.8}
-  .footer{margin-top:32px;padding-top:12px;border-top:1px solid #d4ece4;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}
+  .footer{margin-top:28px;padding-top:10px;border-top:1px solid #d4ece4;font-size:10px;
+          color:#94a3b8;display:flex;justify-content:space-between}
   @media print{body{padding:24px 32px}}
 </style>
 </head>
@@ -309,37 +351,42 @@ function printGecReport(result: GecResult) {
 <div class="sub">
   Zone: <strong>${result.zoneId}</strong> &nbsp;·&nbsp;
   Metodoloji: Saatlik tüketim × Lokasyon bazlı EF &nbsp;·&nbsp;
-  Hesaplama tarihi: ${new Date().toLocaleDateString("tr-TR", { day:"2-digit",month:"long",year:"numeric" })}
+  Hesaplama tarihi: ${new Date().toLocaleDateString("tr-TR", { day:"2-digit", month:"long", year:"numeric" })}
 </div>
 
+<div class="section-title">GEC — Emisyon Hesaplama</div>
 <div class="kpi-row">
   <div class="kpi">
     <div class="kpi-l">Toplam Emisyon</div>
     <div class="kpi-v">${result.totalTco2.toFixed(2)}</div>
-    <div class="kpi-u">tCO₂eq · Scope 2</div>
+    <div style="font-size:10px;color:#5c7a72">tCO₂eq · Scope 2</div>
   </div>
   <div class="kpi">
     <div class="kpi-l">Toplam Tüketim</div>
     <div class="kpi-v">${(result.totalConsumptionKwh / 1000).toFixed(1)}</div>
-    <div class="kpi-u">MWh</div>
+    <div style="font-size:10px;color:#5c7a72">MWh</div>
   </div>
   <div class="kpi">
     <div class="kpi-l">Ort. Emisyon Faktörü</div>
     <div class="kpi-v">${result.avgEfGco2Kwh.toFixed(0)}</div>
-    <div class="kpi-u">gCO₂/kWh</div>
+    <div style="font-size:10px;color:#5c7a72">gCO₂/kWh</div>
   </div>
   <div class="kpi">
     <div class="kpi-l">Eşleşen Saat</div>
     <div class="kpi-v">${result.matchedHours.toLocaleString()}</div>
-    <div class="kpi-u">${result.totalRows > 0 ? `${((result.matchedHours / result.totalRows) * 100).toFixed(0)}% kapsam` : "saat"}</div>
+    <div style="font-size:10px;color:#5c7a72">${result.totalRows > 0 ? `${((result.matchedHours / result.totalRows) * 100).toFixed(0)}% kapsam` : "saat"}</div>
   </div>
 </div>
 
+${cfeSection}
+
+<div class="section-title">Aylık Detay</div>
 <table>
   <thead>
     <tr>
       <th>Ay</th>
       <th style="text-align:right">Tüketim (MWh)</th>
+      ${hasProduction ? `<th style="text-align:right">Üretim (MWh)</th>` : ""}
       <th style="text-align:right">Ort. EF (gCO₂/kWh)</th>
       <th style="text-align:right">Emisyon (tCO₂eq)</th>
       <th style="text-align:right">Saat</th>
@@ -350,6 +397,7 @@ function printGecReport(result: GecResult) {
     <tr>
       <td>Toplam</td>
       <td style="text-align:right">${(result.totalConsumptionKwh / 1000).toFixed(2)}</td>
+      ${hasProduction ? `<td style="text-align:right">${(result.totalProductionKwh / 1000).toFixed(2)}</td>` : ""}
       <td style="text-align:right">${result.avgEfGco2Kwh.toFixed(1)}</td>
       <td style="text-align:right">${result.totalTco2.toFixed(3)}</td>
       <td style="text-align:right;color:#555">${result.matchedHours}</td>
@@ -377,14 +425,18 @@ function printGecReport(result: GecResult) {
   if (w) { w.document.write(html); w.document.close(); }
 }
 
-function ResultView({
-  result,
-  onReset,
-}: {
-  result: GecResult;
-  onReset: () => void;
-}) {
-  const maxTco2 = Math.max(...result.monthly.map(m => m.tco2));
+/* ── Result View ──────────────────────────────────────────────────────────── */
+function ResultView({ result, onReset }: { result: GecResult; onReset: () => void }) {
+  const maxTco2       = Math.max(...result.monthly.map(m => m.tco2));
+  const hasProduction = result.hasProduction && result.totalProductionKwh > 0;
+
+  // Grafik verisi: tüketim + üretim birlikte göster
+  const chartData = result.monthly.map(m => ({
+    monthName:      m.monthName,
+    tco2:           m.tco2,
+    consumptionMwh: m.consumptionKwh / 1000,
+    productionMwh:  m.productionKwh  / 1000,
+  }));
 
   return (
     <>
@@ -394,23 +446,20 @@ function ResultView({
         <span>
           <strong>{result.matchedHours.toLocaleString()}</strong> saatlik EF eşleştirmesi tamamlandı —
           zone: <strong>{result.zoneId}</strong> · metodoloji: saatlik tüketim × lokasyon bazlı EF
-          {result.savedToPeriod && (
-            <span style={{ marginLeft: 8, color: "#009966", fontWeight: 700 }}>
-              · Döneme kaydedildi
-            </span>
-          )}
+          {result.savedToPeriod && <span style={{ marginLeft: 8, fontWeight: 700 }}>· Döneme kaydedildi</span>}
+          {result.savedCFE     && <span style={{ marginLeft: 8, fontWeight: 700, color: "#059669" }}>· CFE hesaplandı</span>}
         </span>
         <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
-          <button style={{ ...s.btnSm, whiteSpace: "nowrap" }} onClick={() => printGecReport(result)}>
+          <button style={{ ...s.btnSm, whiteSpace: "nowrap" as const }} onClick={() => printGecReport(result)}>
             ↓ PDF İndir
           </button>
-          <button style={{ ...s.btnSm, whiteSpace: "nowrap" }} onClick={onReset}>
+          <button style={{ ...s.btnSm, whiteSpace: "nowrap" as const }} onClick={onReset}>
             Yeni Hesap
           </button>
         </div>
       </div>
 
-      {/* KPI row */}
+      {/* GEC KPI row */}
       <div style={s.kpiRow}>
         <div style={s.kpi}>
           <div style={s.kpiL}>Toplam Emisyon</div>
@@ -429,22 +478,61 @@ function ResultView({
           </div>
           <div style={s.kpiU}>gCO₂/kWh · ağırlıklı ort.</div>
         </div>
-        <div style={s.kpi}>
-          <div style={s.kpiL}>Eşleşen Saat</div>
-          <div style={s.kpiV}>{result.matchedHours.toLocaleString()}</div>
-          <div style={s.kpiU}>
-            {result.totalRows > 0
-              ? `${((result.matchedHours / result.totalRows) * 100).toFixed(0)}% kapsam`
-              : "saat"}
+        {hasProduction ? (
+          <div style={s.kpi}>
+            <div style={s.kpiL}>Toplam Üretim</div>
+            <div style={{ ...s.kpiV, color: "#059669" }}>{(result.totalProductionKwh / 1000).toFixed(1)}</div>
+            <div style={s.kpiU}>MWh · yenilenebilir</div>
           </div>
-        </div>
+        ) : (
+          <div style={s.kpi}>
+            <div style={s.kpiL}>Eşleşen Saat</div>
+            <div style={s.kpiV}>{result.matchedHours.toLocaleString()}</div>
+            <div style={s.kpiU}>
+              {result.totalRows > 0 ? `${((result.matchedHours / result.totalRows) * 100).toFixed(0)}% kapsam` : "saat"}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Monthly bar chart */}
+      {/* CFE Sonucu (production_kwh ve periodId varsa) */}
+      {result.cfeResult && (
+        <div style={s.cfeBox}>
+          <div style={s.cfeH}>24/7 CFE Eşleştirme Sonucu — Otomatik Hesaplandı</div>
+          <div style={s.cfeGrid}>
+            <div style={s.cfeKpi}>
+              <div style={s.cfeKL}>CFE Skoru</div>
+              <div style={{ ...s.cfeKV, color: result.cfeResult.cfeScore >= 70 ? "#059669" : result.cfeResult.cfeScore >= 40 ? "#d97706" : "#ef4444" }}>
+                {result.cfeResult.cfeScore.toFixed(1)}%
+              </div>
+              <div style={s.cfeKU}>karbon serbest</div>
+            </div>
+            <div style={s.cfeKpi}>
+              <div style={s.cfeKL}>Eşleşen Enerji</div>
+              <div style={{ ...s.cfeKV, color: "#059669" }}>
+                {(result.cfeResult.totalMatchedKwh / 1000).toFixed(1)}
+              </div>
+              <div style={s.cfeKU}>MWh</div>
+            </div>
+            <div style={s.cfeKpi}>
+              <div style={s.cfeKL}>Toplam Üretim</div>
+              <div style={s.cfeKV}>{(result.cfeResult.totalProductionKwh / 1000).toFixed(1)}</div>
+              <div style={s.cfeKU}>MWh · yenilenebilir</div>
+            </div>
+            <div style={s.cfeKpi}>
+              <div style={s.cfeKL}>Eşleşen Saat</div>
+              <div style={s.cfeKV}>{result.cfeResult.matchedHours.toLocaleString()}</div>
+              <div style={s.cfeKU}>saat</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aylık bar chart — emisyon */}
       <div style={s.card}>
         <div style={s.cardH}>Aylık Emisyon Dağılımı — tCO₂eq</div>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={result.monthly} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
             <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: "#5c7a72" }} />
             <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit=" t" width={56} />
@@ -462,7 +550,33 @@ function ResultView({
         </ResponsiveContainer>
       </div>
 
-      {/* Monthly table */}
+      {/* Tüketim + Üretim karşılaştırma (üretim varsa) */}
+      {hasProduction && (
+        <div style={s.card}>
+          <div style={s.cardH}>Aylık Tüketim vs Üretim — MWh</div>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
+              <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: "#5c7a72" }} />
+              <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit=" MWh" width={70} />
+              <Tooltip
+                formatter={(v: unknown, name: unknown) =>
+                  [`${Number(v).toFixed(1)} MWh`, name === "consumptionMwh" ? "Tüketim" : "Üretim"] as [string, string]}
+                labelStyle={{ fontWeight: 600, color: "#0a1f1a" }}
+                contentStyle={{ borderRadius: 8, border: "1px solid #d4ece4", fontSize: 12 }}
+              />
+              <Legend
+                formatter={(v) => v === "consumptionMwh" ? "Tüketim" : "Üretim"}
+                wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              />
+              <Bar dataKey="consumptionMwh" fill="#0a1f1a"  radius={[4, 4, 0, 0]} />
+              <Bar dataKey="productionMwh"  fill="#00b87a"  radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Aylık detay tablosu */}
       <div style={s.card}>
         <div style={s.cardH}>Aylık Detay</div>
         <table style={s.table}>
@@ -470,6 +584,9 @@ function ResultView({
             <tr>
               <th style={s.th}>Ay</th>
               <th style={{ ...s.th, textAlign: "right" as const }}>Tüketim (MWh)</th>
+              {hasProduction && (
+                <th style={{ ...s.th, textAlign: "right" as const }}>Üretim (MWh)</th>
+              )}
               <th style={{ ...s.th, textAlign: "right" as const }}>Ort. EF (gCO₂/kWh)</th>
               <th style={{ ...s.th, textAlign: "right" as const }}>Emisyon (tCO₂eq)</th>
               <th style={{ ...s.th, textAlign: "right" as const }}>Saat</th>
@@ -480,11 +597,11 @@ function ResultView({
               <tr key={m.month}>
                 <td style={s.td}>{m.monthName}</td>
                 <td style={s.tdR}>{(m.consumptionKwh / 1000).toFixed(2)}</td>
+                {hasProduction && (
+                  <td style={{ ...s.tdR, color: "#059669" }}>{(m.productionKwh / 1000).toFixed(2)}</td>
+                )}
                 <td style={s.tdR}>
-                  <span style={{
-                    color: m.avgEfGco2Kwh < 200 ? "#059669" : m.avgEfGco2Kwh < 400 ? "#d97706" : "#ef4444",
-                    fontWeight: 600,
-                  }}>
+                  <span style={{ color: m.avgEfGco2Kwh < 200 ? "#059669" : m.avgEfGco2Kwh < 400 ? "#d97706" : "#ef4444", fontWeight: 600 }}>
                     {m.avgEfGco2Kwh.toFixed(1)}
                   </span>
                 </td>
@@ -494,16 +611,15 @@ function ResultView({
             ))}
             <tr style={{ background: "#f4fbf8" }}>
               <td style={{ ...s.td, fontWeight: 700 }}>Toplam</td>
-              <td style={{ ...s.tdR, fontWeight: 700 }}>
-                {(result.totalConsumptionKwh / 1000).toFixed(2)}
-              </td>
+              <td style={{ ...s.tdR, fontWeight: 700 }}>{(result.totalConsumptionKwh / 1000).toFixed(2)}</td>
+              {hasProduction && (
+                <td style={{ ...s.tdR, fontWeight: 700, color: "#059669" }}>
+                  {(result.totalProductionKwh / 1000).toFixed(2)}
+                </td>
+              )}
               <td style={{ ...s.tdR, fontWeight: 700 }}>{result.avgEfGco2Kwh.toFixed(1)}</td>
-              <td style={{ ...s.tdR, fontWeight: 700, color: "#0a1f1a" }}>
-                {result.totalTco2.toFixed(3)}
-              </td>
-              <td style={{ ...s.tdR, fontWeight: 700, color: "#5c7a72" }}>
-                {result.matchedHours}
-              </td>
+              <td style={{ ...s.tdR, fontWeight: 700, color: "#0a1f1a" }}>{result.totalTco2.toFixed(3)}</td>
+              <td style={{ ...s.tdR, fontWeight: 700, color: "#5c7a72" }}>{result.matchedHours}</td>
             </tr>
           </tbody>
         </table>
@@ -517,6 +633,9 @@ function ResultView({
           <strong>EF Kaynağı:</strong> Electricity Maps · {result.zoneId} · 2024 saatlik · lokasyon bazlı<br />
           <strong>Kapsam:</strong> GHG Protocol Scope 2 — market-based (saatlik granüler)<br />
           <strong>Referans:</strong> EU 2023/1773 Ek IV · ISO 14064-1:2018
+          {result.savedCFE && (
+            <><br /><strong>CFE Metodoloji:</strong> EnergyTag Granular Certificate scheme · min(tüketim, üretim) / saat</>
+          )}
         </div>
       </div>
     </>
@@ -531,10 +650,11 @@ export default function GecPage() {
     <div style={s.page}>
       <div style={s.h1}>Granüler Emisyon Hesaplama</div>
       <div style={s.sub}>
-        Saatlik tüketim × saatlik lokasyon bazlı EF → hassas Scope 2 tCO₂
+        CSV veya Excel yükle · saatlik tüketim × saatlik EF → Scope 2 tCO₂
         {result && (
           <span style={{ color: "#00b87a", marginLeft: 8 }}>
             · {result.zoneId} · {result.matchedHours} saat
+            {result.hasProduction && result.cfeResult && ` · CFE %${result.cfeResult.cfeScore.toFixed(1)}`}
           </span>
         )}
       </div>

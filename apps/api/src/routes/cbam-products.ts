@@ -24,10 +24,7 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
       where:   { installationId, tenantId: request.tenantId },
       orderBy: { createdAt: "asc" },
       include: {
-        productPeriods: {
-          orderBy: { reportYear: "desc" },
-          select:  { id: true, reportYear: true, periodName: true, see: true, calculatedAt: true },
-        },
+        productPeriods: { orderBy: { reportYear: "desc" } },
       },
     });
 

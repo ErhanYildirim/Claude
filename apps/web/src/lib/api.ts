@@ -487,7 +487,7 @@ export interface CbamProduct {
   productName: string; cnCode: string | null; description: string | null;
   unit: string; isCbamScope: boolean; energyAllocationMode: "facility" | "band";
   createdAt: string; updatedAt: string;
-  productPeriods: { id: string; reportYear: number; periodName: string; see: string | null; calculatedAt: string | null; }[];
+  productPeriods: CbamProductPeriod[];
 }
 
 export interface CbamProductPeriod {

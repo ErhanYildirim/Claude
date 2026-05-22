@@ -4,8 +4,29 @@ import {
   Tooltip, ReferenceLine, ComposedChart, Line, Legend, Cell,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { Installation, CFEResult, MonthlyBreakdown } from "../lib/api.js";
+import type { Installation, CFEResult, MonthlyBreakdown, CFEBody } from "../lib/api.js";
 import { fmt } from "../lib/chart-utils.js";
+
+// Generate hourly slots from month-level data (flat distribution)
+function generateSlots(rows: ManualRow[]): CFEBody["slots"] {
+  const slots: CFEBody["slots"] = [];
+  for (const row of rows) {
+    if (!row.date || row.consumptionMwh <= 0) continue;
+    const [y, m, d] = row.date.split("-").map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const perHour = (row.consumptionMwh * 1000) / (daysInMonth * 24);
+    const perHourProd = (row.productionMwh * 1000) / (daysInMonth * 24);
+    for (let day = 1; day <= daysInMonth; day++) {
+      for (let h = 0; h < 24; h++) {
+        const hour = new Date(Date.UTC(y, m - 1, day, h)).toISOString();
+        slots.push({ hour, consumptionKwh: perHour, productionKwh: perHourProd });
+      }
+    }
+  }
+  return slots;
+}
+
+interface ManualRow { date: string; consumptionMwh: number; productionMwh: number; }
 
 const s: Record<string, React.CSSProperties> = {
   page:    { maxWidth: 1100, margin: "0 auto", padding: "32px 28px" },
@@ -70,6 +91,12 @@ export default function CfePage() {
   const [csvResult, setCsvResult]   = useState<{ rowCount: number; errorCount: number; errors: string[]; cfeScore: number } | null>(null);
   const [csvErr, setCsvErr]         = useState("");
   const [eacRef, setEacRef]         = useState("");
+  const [uploadTab, setUploadTab]   = useState<"csv" | "manual">("csv");
+  const [manualRows, setManualRows] = useState<ManualRow[]>(
+    [{ date: "2024-01", consumptionMwh: 0, productionMwh: 0 }]
+  );
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualResult,  setManualResult]  = useState<{ cfeScore: number; hours: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -161,7 +188,7 @@ export default function CfePage() {
             </option>
           ))}
         </select>
-        <button style={s.btn} disabled={!selectedKey} onClick={() => { setCsvResult(null); setCsvErr(""); setCsvFile(null); setShowCsvModal(true); }}>
+        <button style={s.btn} disabled={!selectedKey} onClick={() => { setCsvResult(null); setCsvErr(""); setCsvFile(null); setManualResult(null); setShowCsvModal(true); }}>
           Saatlik Veri Yükle
         </button>
         {selected?.cfe && (
@@ -297,45 +324,130 @@ export default function CfePage() {
         </div>
       )}
 
-      {/* CSV Modal */}
+      {/* Veri Yükleme Modal (CSV veya Manuel) */}
       {showCsvModal && (
         <div style={s.modal} onClick={e => e.target === e.currentTarget && setShowCsvModal(false)}>
-          <div style={s.mCard}>
-            <div style={s.mTitle}>CFE Saatlik Veri Yükleme</div>
-            <p style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14 }}>
-              Format: <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
-            </p>
-            {csvErr && <div style={s.err}>{csvErr}</div>}
-            {!csvResult ? (
+          <div style={{ ...s.mCard, width: 520 }}>
+            <div style={s.mTitle}>CFE Saatlik Veri</div>
+
+            {/* Tab bar */}
+            <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #d4ece4", marginBottom: 16 }}>
+              {(["csv", "manual"] as const).map(tab => (
+                <button key={tab} onClick={() => setUploadTab(tab)} style={{
+                  padding: "7px 16px", border: "none", cursor: "pointer", fontWeight: 600,
+                  fontSize: 13, borderRadius: "6px 6px 0 0",
+                  background: uploadTab === tab ? "#fff" : "transparent",
+                  color: uploadTab === tab ? "#0a1f1a" : "#5c7a72",
+                  borderBottom: uploadTab === tab ? "2px solid #00b87a" : "2px solid transparent",
+                }}>
+                  {tab === "csv" ? "CSV Yükle" : "Manuel Giriş"}
+                </button>
+              ))}
+            </div>
+
+            {/* CSV tab */}
+            {uploadTab === "csv" && (
               <>
-                <div style={{ ...s.dzone, ...(csvDragging ? s.dzA : {}) }}
-                  onDragOver={e => { e.preventDefault(); setCsvDragging(true); }}
-                  onDragLeave={() => setCsvDragging(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileRef.current?.click()}>
-                  {csvFile
-                    ? <div><div style={{ fontWeight: 600 }}>{csvFile.name}</div><div style={{ fontSize: 12, color: "#5c7a72" }}>{(csvFile.size / 1024).toFixed(0)} KB</div></div>
-                    : <div style={{ color: "#5c7a72" }}>CSV sürükleyin veya tıklayın</div>}
-                  <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
-                    onChange={e => setCsvFile(e.target.files?.[0] ?? null)} />
+                <p style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14 }}>
+                  Format: <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
+                </p>
+                {csvErr && <div style={s.err}>{csvErr}</div>}
+                {!csvResult ? (
+                  <>
+                    <div style={{ ...s.dzone, ...(csvDragging ? s.dzA : {}) }}
+                      onDragOver={e => { e.preventDefault(); setCsvDragging(true); }}
+                      onDragLeave={() => setCsvDragging(false)}
+                      onDrop={handleDrop}
+                      onClick={() => fileRef.current?.click()}>
+                      {csvFile
+                        ? <div><div style={{ fontWeight: 600 }}>{csvFile.name}</div><div style={{ fontSize: 12, color: "#5c7a72" }}>{(csvFile.size / 1024).toFixed(0)} KB</div></div>
+                        : <div style={{ color: "#5c7a72" }}>CSV sürükleyin veya tıklayın</div>}
+                      <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
+                        onChange={e => setCsvFile(e.target.files?.[0] ?? null)} />
+                    </div>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#eef7f3", color: "#1a3530" }}
+                        onClick={() => setShowCsvModal(false)}>İptal</button>
+                      <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
+                        disabled={!csvFile || csvUploading} onClick={uploadCsv}>
+                        {csvUploading ? "Yükleniyor..." : "Yükle & Hesapla"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 14, marginBottom: 14 }}>
+                      <div style={{ fontWeight: 700, color: "#065F46" }}>CFE Skoru: {csvResult.cfeScore.toFixed(1)}%</div>
+                      <div style={{ fontSize: 13, color: "#1a3530" }}>{csvResult.rowCount} satır işlendi{csvResult.errorCount > 0 && ` · ${csvResult.errorCount} atlandı`}</div>
+                    </div>
+                    <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
+                      onClick={() => setShowCsvModal(false)}>Kapat</button>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Manuel Giriş tab */}
+            {uploadTab === "manual" && (
+              <>
+                <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 12 }}>
+                  Aylık toplam tüketim/üretim girin — saatlik veriye eşit dağıtılır.
                 </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 32px", gap: 6,
+                              fontSize: 11, fontWeight: 700, color: "#5c7a72", marginBottom: 6,
+                              textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <span>Ay (YYYY-MM)</span><span>Tüketim MWh</span><span>Üretim MWh</span><span></span>
+                </div>
+                <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                  {manualRows.map((row, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 32px", gap: 6, marginBottom: 6 }}>
+                      <input type="month" value={row.date}
+                        onChange={e => setManualRows(prev => prev.map((r, j) => j === i ? { ...r, date: e.target.value } : r))}
+                        style={{ padding: "7px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 13 }} />
+                      <input type="number" min={0} step="0.1" value={row.consumptionMwh || ""}
+                        placeholder="0"
+                        onChange={e => setManualRows(prev => prev.map((r, j) => j === i ? { ...r, consumptionMwh: parseFloat(e.target.value) || 0 } : r))}
+                        style={{ padding: "7px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 13 }} />
+                      <input type="number" min={0} step="0.1" value={row.productionMwh || ""}
+                        placeholder="0"
+                        onChange={e => setManualRows(prev => prev.map((r, j) => j === i ? { ...r, productionMwh: parseFloat(e.target.value) || 0 } : r))}
+                        style={{ padding: "7px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 13 }} />
+                      <button onClick={() => setManualRows(prev => prev.filter((_, j) => j !== i))}
+                        style={{ background: "none", border: "1px solid #fca5a5", color: "#ef4444", borderRadius: 6, cursor: "pointer", fontSize: 14 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setManualRows(prev => [...prev, { date: "2024-01", consumptionMwh: 0, productionMwh: 0 }])}
+                  style={{ fontSize: 12, color: "#009966", background: "none", border: "1px dashed #d4ece4", borderRadius: 6,
+                           padding: "6px 12px", cursor: "pointer", marginBottom: 14, width: "100%" }}>
+                  + Ay Ekle
+                </button>
+                {manualResult && (
+                  <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                    <div style={{ fontWeight: 700, color: "#065F46" }}>CFE Skoru: {manualResult.cfeScore.toFixed(1)}%</div>
+                    <div style={{ fontSize: 12, color: "#1a3530" }}>{manualResult.hours} saatlik slot işlendi</div>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 10 }}>
                   <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#eef7f3", color: "#1a3530" }}
                     onClick={() => setShowCsvModal(false)}>İptal</button>
-                  <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
-                    disabled={!csvFile || csvUploading} onClick={uploadCsv}>
-                    {csvUploading ? "Yükleniyor..." : "Yükle & Hesapla"}
+                  <button
+                    disabled={manualLoading || !selected}
+                    style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
+                    onClick={async () => {
+                      if (!selected) return;
+                      const slots = generateSlots(manualRows);
+                      if (slots.length === 0) return;
+                      setManualLoading(true);
+                      try {
+                        const res = await api.cfe.submit(selected.installationId, selected.periodId, { slots });
+                        setManualResult({ cfeScore: res.cfeScore, hours: slots.length });
+                      } catch (e: unknown) { setCsvErr(e instanceof Error ? e.message : "Hata"); }
+                      setManualLoading(false);
+                    }}>
+                    {manualLoading ? "Hesaplanıyor..." : "Hesapla & Kaydet"}
                   </button>
                 </div>
-              </>
-            ) : (
-              <>
-                <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 14, marginBottom: 14 }}>
-                  <div style={{ fontWeight: 700, color: "#065F46" }}>CFE Skoru: {csvResult.cfeScore.toFixed(1)}%</div>
-                  <div style={{ fontSize: 13, color: "#1a3530" }}>{csvResult.rowCount} satır işlendi{csvResult.errorCount > 0 && ` · ${csvResult.errorCount} atlandı`}</div>
-                </div>
-                <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
-                  onClick={() => setShowCsvModal(false)}>Kapat</button>
               </>
             )}
           </div>

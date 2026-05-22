@@ -33,6 +33,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { icon: "📊", label: "Dashboard",        path: "/dashboard" },
       { icon: "💶", label: "Karbon Fiyatları", path: "/carbon-prices" },
+      { icon: "⚖️", label: "Tesis Kıyasla",  path: "/comparison" },
       { icon: "🧪", label: "API Playground",  path: "/api-playground" },
       { icon: "⚙️", label: "Ayarlar",          path: "/settings" },
     ],

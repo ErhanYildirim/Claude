@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
@@ -40,14 +40,30 @@ function isActive(path: string, pathname: string): boolean {
   return pathname === path || pathname.startsWith(path + "/");
 }
 
+const SIDEBAR_W = 240;
+const MOBILE_BP = 768;
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user }  = useAuth();
+  const [mobile,   setMobile]   = useState(window.innerWidth < MOBILE_BP);
+  const [sideOpen, setSideOpen] = useState(false);
+
+  useEffect(() => {
+    function onResize() { setMobile(window.innerWidth < MOBILE_BP); }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => { setSideOpen(false); }, [location.pathname]);
 
   const sidebarStyle: React.CSSProperties = {
-    position: "fixed", top: 0, left: 0, width: 240, height: "100vh",
+    position: "fixed", top: 0, left: 0, width: SIDEBAR_W, height: "100vh",
     background: "#0a1f1a", display: "flex", flexDirection: "column",
-    overflowY: "auto", zIndex: 50,
+    overflowY: "auto", zIndex: 200,
+    transform: mobile && !sideOpen ? `translateX(-${SIDEBAR_W}px)` : "translateX(0)",
+    transition: "transform .22s cubic-bezier(.4,0,.2,1)",
   };
   const logoArea: React.CSSProperties = {
     padding: "20px 16px 14px", borderBottom: "1px solid rgba(255,255,255,.07)",
@@ -72,6 +88,32 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      {/* Mobile overlay backdrop */}
+      {mobile && sideOpen && (
+        <div
+          onClick={() => setSideOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 190 }}
+        />
+      )}
+
+      {/* Mobile top bar */}
+      {mobile && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, height: 52,
+          background: "#0a1f1a", display: "flex", alignItems: "center",
+          padding: "0 16px", zIndex: 180, gap: 12,
+        }}>
+          <button
+            onClick={() => setSideOpen(v => !v)}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 6,
+                     color: "#fff", fontSize: 20, lineHeight: 1 }}
+          >
+            ☰
+          </button>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>Voltfox</div>
+        </div>
+      )}
+
       <aside style={sidebarStyle}>
         <div style={logoArea}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
@@ -124,7 +166,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main style={{ marginLeft: 240, minHeight: "100vh", background: "var(--bg, #f4fbf8)" }}>
+      <main style={{
+        marginLeft: mobile ? 0 : SIDEBAR_W,
+        marginTop: mobile ? 52 : 0,
+        minHeight: "100vh",
+        background: "var(--bg, #f4fbf8)",
+      }}>
         {children}
       </main>
     </>

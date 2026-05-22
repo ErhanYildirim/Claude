@@ -149,6 +149,7 @@ export const api = {
       const q = year ? `?year=${year}` : "";
       return request<EFMonthlyData>("GET", `/ef/zones/${zoneId}/monthly${q}`);
     },
+    coverage: () => request<EFCoverageData>("GET", "/ef/coverage"),
   },
 
   gec: {
@@ -286,6 +287,11 @@ export interface EFHourlyPoint { hour: string; ciDirect: number; ciLifecycle: nu
 export interface EFHourlyData { zoneId: string; start: string; end: string; count: number; unit: string; data: EFHourlyPoint[]; }
 export interface EFMonthlyPoint { month: number; monthName: string; avgCiDirect: number; avgCfePct: number; avgRePct: number; dataPoints: number; }
 export interface EFMonthlyData { zoneId: string; year: number; months: EFMonthlyPoint[]; }
+
+// EF Coverage types
+export interface EFCoverageYear { year: number; rowCount: number; complete: boolean; }
+export interface EFCoverageZone { zoneId: string; zoneName: string; country: string; years: EFCoverageYear[]; }
+export interface EFCoverageData { zones: EFCoverageZone[]; availableYears: number[]; }
 
 export interface GecMonthlyPoint {
   month: number; monthName: string;

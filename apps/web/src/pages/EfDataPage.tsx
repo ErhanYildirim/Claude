@@ -4,7 +4,7 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { EFZoneEntry, EFZoneSummary, EFMonthlyPoint } from "../lib/api.js";
+import type { EFZoneEntry, EFZoneSummary, EFMonthlyPoint, EFCoverageData } from "../lib/api.js";
 
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 const s: Record<string, React.CSSProperties> = {
@@ -181,6 +181,110 @@ data = r.json()["data"]  # list of hourly EF points`)}
   );
 }
 
+/* ── Coverage View ──────────────────────────────────────────────────────── */
+function CoverageView({ coverage }: { coverage: EFCoverageData | null }) {
+  if (!coverage) {
+    return (
+      <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
+        <div style={{ fontSize: 13, color: "#5c7a72" }}>Kapsam verisi yükleniyor…</div>
+      </div>
+    );
+  }
+
+  const years = coverage.availableYears;
+  function expectedHours(yr: number) {
+    return (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0 ? 8784 : 8760;
+  }
+
+  return (
+    <div>
+      <div style={{ ...s.card, marginBottom: 16 }}>
+        <div style={s.cardH}>Mevcut Yıllar</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {years.map(y => (
+            <div key={y} style={{ background: "#e6f9f2", border: "1px solid #a7f3d0",
+                                   borderRadius: 8, padding: "10px 18px", textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#00b87a" }}>{y}</div>
+              <div style={{ fontSize: 11, color: "#5c7a72" }}>
+                {coverage.zones.filter(z => z.years.some(yr => yr.year === y)).length} zone
+              </div>
+              <div style={{ fontSize: 10, color: "#5c7a72" }}>{expectedHours(y).toLocaleString()} saat/zone</div>
+            </div>
+          ))}
+          {years.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Veri yok</div>}
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <div style={s.cardH}>Zone × Yıl Kapsam Matrisi</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "6px 10px", color: "#5c7a72",
+                             borderBottom: "1px solid #d4ece4", fontWeight: 700 }}>Zone</th>
+                <th style={{ textAlign: "left", padding: "6px 10px", color: "#5c7a72",
+                             borderBottom: "1px solid #d4ece4", fontWeight: 700 }}>Ülke</th>
+                {years.map(y => (
+                  <th key={y} style={{ textAlign: "center", padding: "6px 10px", color: "#5c7a72",
+                                       borderBottom: "1px solid #d4ece4", fontWeight: 700 }}>{y}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {coverage.zones.map(zone => (
+                <tr key={zone.zoneId} style={{ borderBottom: "1px solid #eef7f3" }}>
+                  <td style={{ padding: "6px 10px", fontWeight: 700, color: "#0a1f1a" }}>{zone.zoneId}</td>
+                  <td style={{ padding: "6px 10px", color: "#5c7a72" }}>{zone.country}</td>
+                  {years.map(y => {
+                    const yd = zone.years.find(yr => yr.year === y);
+                    return (
+                      <td key={y} style={{ textAlign: "center", padding: "6px 10px" }}>
+                        {yd ? (
+                          <span style={{
+                            display: "inline-block", padding: "2px 8px", borderRadius: 5, fontSize: 11,
+                            background: yd.complete ? "#e6f9f2" : "#fef3c7",
+                            color: yd.complete ? "#009966" : "#d97706", fontWeight: 600,
+                          }}>
+                            {yd.complete ? `✓ ${(yd.rowCount / 1000).toFixed(1)}k` : `${(yd.rowCount / 1000).toFixed(1)}k`}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#d1d5db", fontSize: 11 }}>—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 12 }}>
+          ✓ = Tam veri (%99+) · Sarı = Eksik/kısmi veri · — = Veri yok
+        </div>
+      </div>
+
+      <div style={{ ...s.card, marginTop: 16 }}>
+        <div style={s.cardH}>2025 Veri İmport</div>
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 10, lineHeight: 1.7 }}>
+          2025 EF verisi için CSV dosyalarını <code>Emissions Factors/2025/2025/</code> klasörüne koyun ve aşağıdaki komutu çalıştırın:
+        </div>
+        <pre style={{ background: "#0a1f1a", color: "#00b87a", borderRadius: 8,
+                      padding: "12px 16px", fontSize: 12, fontFamily: "monospace",
+                      overflowX: "auto", lineHeight: 1.6, margin: 0 }}>
+{`npx tsx scripts/import-ef-year.ts --year=2025
+# Belirli zone'lar için:
+npx tsx scripts/import-ef-year.ts --year=2025 --zone=TR,DE,FR
+# Devam etmek için (hata sonrası):
+npx tsx scripts/import-ef-year.ts --year=2025 --resume=10
+# Dry run (yazma yapmadan test):
+npx tsx scripts/import-ef-year.ts --year=2025 --dry-run`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 /* ── Component ───────────────────────────────────────────────────────────── */
 export default function EfDataPage() {
   const [zones,         setZones]         = useState<EFZoneEntry[]>([]);
@@ -191,14 +295,17 @@ export default function EfDataPage() {
   const [monthly,       setMonthly]       = useState<EFMonthlyPoint[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [dbEmpty,       setDbEmpty]       = useState(false);
-  const [activeTab,     setActiveTab]     = useState<"data" | "api">("data");
+  const [activeTab,     setActiveTab]     = useState<"data" | "api" | "coverage">("data");
   const [hourlyData,    setHourlyData]    = useState<{ hour: string; ciDirect: number; cfePct: number }[]>([]);
   const [hourlyStart,   setHourlyStart]   = useState("2024-01-01");
   const [hourlyEnd,     setHourlyEnd]     = useState("2024-01-07");
   const [hourlyLoading, setHourlyLoading] = useState(false);
+  const [selectedYear,  setSelectedYear]  = useState(2024);
+  const [availableYears,setAvailableYears]= useState<number[]>([2024]);
+  const [coverage,      setCoverage]      = useState<EFCoverageData | null>(null);
 
   /* selectZone — önce tanımla, sonra useEffect içinde kullan */
-  async function selectZone(zone: EFZoneEntry) {
+  async function selectZone(zone: EFZoneEntry, year = selectedYear) {
     setSelected(zone);
     setSummary(null);
     setMonthly([]);
@@ -206,7 +313,7 @@ export default function EfDataPage() {
     try {
       const [sum, mon] = await Promise.all([
         api.ef.zone(zone.zoneId),
-        api.ef.monthly(zone.zoneId, 2024),
+        api.ef.monthly(zone.zoneId, year),
       ]);
       setSummary(sum);
       setMonthly(mon.months);
@@ -218,15 +325,27 @@ export default function EfDataPage() {
   }
 
   useEffect(() => {
-    api.ef.zones()
-      .then((r) => {
-        setLoading(false);
-        if (r.count === 0) { setDbEmpty(true); return; }
-        setZones(r.zones);
-        const tr = r.zones.find((z) => z.zoneId === "TR") ?? r.zones[0];
-        selectZone(tr);
-      })
-      .catch(() => { setLoading(false); setDbEmpty(true); });
+    Promise.all([
+      api.ef.zones(),
+      api.ef.coverage().catch(() => null),
+    ]).then(([zonesRes, cov]) => {
+      setLoading(false);
+      if (cov) {
+        setCoverage(cov);
+        if (cov.availableYears.length > 0) {
+          const latest = Math.max(...cov.availableYears);
+          setAvailableYears(cov.availableYears);
+          setSelectedYear(latest);
+          setHourlyStart(`${latest}-01-01`);
+          setHourlyEnd(`${latest}-01-07`);
+        }
+      }
+      if (zonesRes.count === 0) { setDbEmpty(true); return; }
+      setZones(zonesRes.zones);
+      const tr = zonesRes.zones.find((z) => z.zoneId === "TR") ?? zonesRes.zones[0];
+      const yr = cov && cov.availableYears.length > 0 ? Math.max(...cov.availableYears) : 2024;
+      selectZone(tr, yr);
+    }).catch(() => { setLoading(false); setDbEmpty(true); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -243,6 +362,19 @@ export default function EfDataPage() {
       .finally(() => setHourlyLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, hourlyStart, hourlyEnd]);
+
+  async function changeYear(yr: number) {
+    setSelectedYear(yr);
+    if (selected) {
+      setMonthly([]);
+      setDetailLoading(true);
+      try {
+        const mon = await api.ef.monthly(selected.zoneId, yr);
+        setMonthly(mon.months);
+      } catch { /* no data for this year */ }
+      finally { setDetailLoading(false); }
+    }
+  }
 
   /* Zone listesi filtrelemesi */
   const filtered = zones.filter((z) =>
@@ -262,12 +394,12 @@ export default function EfDataPage() {
           ? "Yükleniyor..."
           : dbEmpty
             ? "Emisyon faktörü verisi henüz yüklenmemiş"
-            : `${zones.length} zone · 2024 · Saatlik granüler EF verisi · Kaynak: Electricity Maps`}
+            : `${zones.length} zone · ${availableYears.join(", ")} · Saatlik granüler EF verisi · Kaynak: Electricity Maps`}
       </div>
 
       {/* Tab bar */}
       <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #d4ece4" }}>
-        {(["data", "api"] as const).map(tab => (
+        {(["data", "coverage", "api"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
             padding: "8px 18px", border: "none", cursor: "pointer", fontWeight: 600,
             fontSize: 13, borderRadius: "6px 6px 0 0",
@@ -275,19 +407,21 @@ export default function EfDataPage() {
             color: activeTab === tab ? "#0a1f1a" : "#5c7a72",
             borderBottom: activeTab === tab ? "2px solid #00b87a" : "2px solid transparent",
           }}>
-            {tab === "data" ? "Veri Servisi" : "API Dokümantasyonu"}
+            {tab === "data" ? "Veri Servisi" : tab === "coverage" ? "Veri Kapsamı" : "API Dokümantasyonu"}
           </button>
         ))}
       </div>
 
       {activeTab === "api" ? (
         <ApiDocsView zones={zones} />
+      ) : activeTab === "coverage" ? (
+        <CoverageView coverage={coverage} />
       ) : dbEmpty ? (
         <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📡</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>EF Verisi Bulunamadı</div>
           <div style={{ fontSize: 14, color: "#5c7a72" }}>
-            Import scripti çalıştırın: <code>npx tsx scripts/truncate-and-reimport-ef.ts</code>
+            Import scripti çalıştırın: <code>npx tsx scripts/import-ef-year.ts --year=2025</code>
           </div>
         </div>
       ) : (
@@ -376,7 +510,14 @@ export default function EfDataPage() {
                         {selected.country}
                       </div>
                     </div>
-                    <span style={s.pill}>2024 · Saatlik</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={s.pill}>Saatlik</span>
+                      <select value={selectedYear} onChange={e => changeYear(Number(e.target.value))}
+                        style={{ padding: "3px 8px", borderRadius: 6, border: "1px solid #d4ece4",
+                                 fontSize: 12, background: "#fff", cursor: "pointer" }}>
+                        {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
                   </div>
 
                   {summary && (
@@ -394,14 +535,14 @@ export default function EfDataPage() {
                           <div style={{ ...s.kpiV, color: "#00b87a" }}>
                             {summary.cfePct.avg.toFixed(1)}%
                           </div>
-                          <div style={s.kpiU}>CFE — 2024 ortalaması</div>
+                          <div style={s.kpiU}>CFE — {selectedYear} ortalaması</div>
                         </div>
                         <div style={s.kpiBox}>
                           <div style={s.kpiL}>Yenilenebilir Enerji</div>
                           <div style={{ ...s.kpiV, color: "#009966" }}>
                             {summary.rePct.avg.toFixed(1)}%
                           </div>
-                          <div style={s.kpiU}>RE — 2024 ortalaması</div>
+                          <div style={s.kpiU}>RE — {selectedYear} ortalaması</div>
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -420,7 +561,7 @@ export default function EfDataPage() {
                 {/* Aylık CI Bar Chart */}
                 {monthly.length > 0 && (
                   <div style={s.card}>
-                    <div style={s.cardH}>Aylık Ortalama Emisyon Yoğunluğu — 2024</div>
+                    <div style={s.cardH}>Aylık Ortalama Emisyon Yoğunluğu — {selectedYear}</div>
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={monthly} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
@@ -442,7 +583,7 @@ export default function EfDataPage() {
                 {/* CFE & RE Line Chart */}
                 {monthly.length > 0 && (
                   <div style={s.card}>
-                    <div style={s.cardH}>Karbon Serbest & Yenilenebilir Enerji % — 2024</div>
+                    <div style={s.cardH}>Karbon Serbest & Yenilenebilir Enerji % — {selectedYear}</div>
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={monthly} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />

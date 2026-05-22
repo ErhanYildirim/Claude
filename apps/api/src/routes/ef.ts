@@ -120,6 +120,54 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  // GET /ef/coverage — zone × year data coverage matrix
+  app.get("/ef/coverage", { config: { public: true } }, async (_req, reply) => {
+    type CovRow = { zone_id: string; zone_name: string; country: string; year: number; row_count: bigint };
+
+    const rows = await prisma.$queryRaw(Prisma.sql`
+      SELECT
+        zone_id,
+        MAX(zone_name)          AS zone_name,
+        MAX(country)            AS country,
+        EXTRACT(YEAR FROM hour)::int AS year,
+        COUNT(*)::bigint        AS row_count
+      FROM emission_factors
+      WHERE granularity = 'hourly'
+      GROUP BY zone_id, EXTRACT(YEAR FROM hour)
+      ORDER BY zone_id, year
+    `) as CovRow[];
+
+    // Expected hours per year (leap year = 8784, normal = 8760)
+    function expectedHours(yr: number) {
+      return (yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0 ? 8784 : 8760;
+    }
+
+    // Group by zone
+    const byZone = new Map<string, { zoneName: string; country: string; years: { year: number; rowCount: number; complete: boolean }[] }>();
+    for (const r of rows) {
+      if (!byZone.has(r.zone_id)) {
+        byZone.set(r.zone_id, { zoneName: r.zone_name, country: r.country, years: [] });
+      }
+      const cnt = Number(r.row_count);
+      byZone.get(r.zone_id)!.years.push({
+        year:     r.year,
+        rowCount: cnt,
+        complete: cnt >= expectedHours(r.year) * 0.99, // 99% threshold
+      });
+    }
+
+    const zones = Array.from(byZone.entries()).map(([zoneId, v]) => ({
+      zoneId,
+      zoneName: v.zoneName,
+      country:  v.country,
+      years:    v.years,
+    }));
+
+    const allYears = [...new Set(rows.map(r => r.year))].sort();
+
+    return reply.send({ zones, availableYears: allYears });
+  });
+
   // GET /ef/zones/:zoneId/monthly?year=2024 — monthly aggregates
   app.get("/ef/zones/:zoneId/monthly", { config: { public: true } }, async (request, reply) => {
     const { zoneId } = request.params as { zoneId: string };

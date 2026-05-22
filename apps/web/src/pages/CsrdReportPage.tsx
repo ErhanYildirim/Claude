@@ -132,7 +132,7 @@ export default function CsrdReportPage() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url;
-    a.download = `CSRD-E1-${inst?.facilityName ?? "rapor"}-${period?.reportYear ?? "2024"}.md`;
+    a.download = `CSRD-E1-${inst?.facilityName ?? "rapor"}-${period?.reportYear ?? new Date().getFullYear()}.md`;
     a.click();
     URL.revokeObjectURL(url);
     setExporting(false);

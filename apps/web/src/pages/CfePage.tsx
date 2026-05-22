@@ -162,7 +162,7 @@ export default function CfePage() {
   const [eacRef, setEacRef]         = useState("");
   const [uploadTab, setUploadTab]   = useState<"csv" | "manual">("csv");
   const [manualRows, setManualRows] = useState<ManualRow[]>(
-    [{ date: "2024-01", consumptionMwh: 0, productionMwh: 0 }]
+    [{ date: new Date().toISOString().slice(0, 7), consumptionMwh: 0, productionMwh: 0 }]
   );
   const [manualLoading, setManualLoading] = useState(false);
   const [manualResult,  setManualResult]  = useState<{ cfeScore: number; hours: number } | null>(null);
@@ -561,7 +561,7 @@ export default function CfePage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => setManualRows(prev => [...prev, { date: "2024-01", consumptionMwh: 0, productionMwh: 0 }])}
+                <button onClick={() => setManualRows(prev => [...prev, { date: new Date().toISOString().slice(0, 7), consumptionMwh: 0, productionMwh: 0 }])}
                   style={{ fontSize: 12, color: "#009966", background: "none", border: "1px dashed #d4ece4", borderRadius: 6,
                            padding: "6px 12px", cursor: "pointer", marginBottom: 14, width: "100%" }}>
                   + Ay Ekle

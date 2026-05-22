@@ -308,7 +308,7 @@ export default function CdpReportPage() {
   }
 
   function exportJson() {
-    const out: Record<string, unknown> = { meta: { generated: new Date().toISOString(), version: "CDP-2024" } };
+    const out: Record<string, unknown> = { meta: { generated: new Date().toISOString(), version: `CDP-${new Date().getFullYear()}` } };
     sections.forEach(sec => {
       out[sec.code] = {};
       sec.questions.forEach(q => {

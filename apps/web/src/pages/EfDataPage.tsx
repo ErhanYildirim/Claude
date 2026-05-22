@@ -337,11 +337,11 @@ export default function EfDataPage() {
   const [dbEmpty,       setDbEmpty]       = useState(false);
   const [activeTab,     setActiveTab]     = useState<"data" | "api" | "coverage">("data");
   const [hourlyData,    setHourlyData]    = useState<{ hour: string; ciDirect: number; cfePct: number }[]>([]);
-  const [hourlyStart,   setHourlyStart]   = useState("2024-01-01");
-  const [hourlyEnd,     setHourlyEnd]     = useState("2024-01-07");
+  const [hourlyStart,   setHourlyStart]   = useState(`${new Date().getFullYear()}-01-01`);
+  const [hourlyEnd,     setHourlyEnd]     = useState(`${new Date().getFullYear()}-01-07`);
   const [hourlyLoading, setHourlyLoading] = useState(false);
-  const [selectedYear,  setSelectedYear]  = useState(2024);
-  const [availableYears,setAvailableYears]= useState<number[]>([2024]);
+  const [selectedYear,  setSelectedYear]  = useState(new Date().getFullYear());
+  const [availableYears,setAvailableYears]= useState<number[]>([new Date().getFullYear()]);
   const [coverage,      setCoverage]      = useState<EFCoverageData | null>(null);
   const [importStatus,  setImportStatus]  = useState<EFImportStatus | null>(null);
 
@@ -386,7 +386,7 @@ export default function EfDataPage() {
       if (zonesRes.count === 0) { setDbEmpty(true); return; }
       setZones(zonesRes.zones);
       const tr = zonesRes.zones.find((z) => z.zoneId === "TR") ?? zonesRes.zones[0];
-      const yr = cov && cov.availableYears.length > 0 ? Math.max(...cov.availableYears) : 2024;
+      const yr = cov && cov.availableYears.length > 0 ? Math.max(...cov.availableYears) : new Date().getFullYear();
       selectZone(tr, yr);
     }).catch(() => { setLoading(false); setDbEmpty(true); });
   // eslint-disable-next-line react-hooks/exhaustive-deps

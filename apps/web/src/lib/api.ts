@@ -267,6 +267,11 @@ export const api = {
       retry: (id: string) => request<{ message: string }>("POST", `/admin/webhooks/deliveries/${id}/retry`),
       stats: () => request<AdminWebhookStats>("GET", "/admin/webhooks/stats"),
     },
+    entso_e: {
+      zones:       () => request<{ zones: EntsoeZone[]; count: number }>("GET", "/admin/entso-e/zones"),
+      import:      (body: EntsoeImportBody) => request<{ message: string; zoneCode: string }>("POST", "/admin/entso-e/import", body),
+      importLogs:  () => request<{ logs: EntsoeImportLog[] }>("GET", "/admin/entso-e/import-logs"),
+    },
   },
 
   shareLinks: {
@@ -467,6 +472,10 @@ export interface AdminDelivery {
 }
 export interface AdminDeliveryList { deliveries: AdminDelivery[]; total: number; }
 export interface AdminWebhookStats { total: number; success: number; failed: number; pending: number; successRate: string; }
+
+export interface EntsoeZone { code: string; eicCode: string; name: string; country: string; }
+export interface EntsoeImportBody { token: string; zoneCode: string; startDate: string; endDate: string; }
+export interface EntsoeImportLog { id: string; year: number; zoneId: string | null; rowsAdded: number; status: string; message: string | null; startedAt: string; endedAt: string; createdAt: string; }
 
 export interface GecMonthlyPoint {
   month: number; monthName: string;

@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "@voltfox/db";
 import { requireRole, ROLE_RANK } from "../plugins/rbac.js";
+import { notifyEmail, notifyTenant } from "../lib/notify.js";
+import { emailMemberInvited } from "../lib/email.js";
 
 const VALID_ROLES = ["owner", "admin", "analyst", "viewer"] as const;
 
@@ -57,14 +59,39 @@ export const membersRoutes: FastifyPluginAsync = async (app) => {
 
     // Yeni kullanıcı → davet token oluştur (48 saat geçerli)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-    const invite = await prisma.memberInvite.create({
-      data: { tenantId: request.tenantId, email, role, expiresAt },
+    const [invite, tenant] = await Promise.all([
+      prisma.memberInvite.create({
+        data: { tenantId: request.tenantId, email, role, expiresAt },
+      }),
+      prisma.tenant.findUnique({ where: { id: request.tenantId }, select: { name: true } }),
+    ]);
+
+    const inviterEmail = request.userId
+      ? (await app.supabase.auth.admin.getUserById(request.userId)).data.user?.email ?? "Voltfox"
+      : "Voltfox";
+
+    // Fire-and-forget davet e-postası + tenant üyelerine bildirim
+    const inviteUrl = `/invite/${invite.token}`;
+    const { subject, html } = emailMemberInvited({
+      tenantName: tenant?.name ?? "Voltfox",
+      invitedBy:  inviterEmail,
+      role,
+      inviteUrl,
+      appUrl:     process.env.APP_URL ?? "https://app.voltfox.io",
+      expiresAt:  invite.expiresAt.toISOString(),
     });
+    notifyEmail(email, subject, html).catch(() => {});
+    notifyTenant({
+      tenantId:  request.tenantId,
+      eventType: "memberInvited",
+      title:     `Davet gönderildi: ${email}`,
+      body:      `${email} adresine ${role} rolüyle davet bağlantısı gönderildi.`,
+    }).catch(() => {});
 
     return reply.status(201).send({
       invited:     true,
       inviteToken: invite.token,
-      inviteUrl:   `/invite/${invite.token}`,
+      inviteUrl,
       expiresAt:   invite.expiresAt.toISOString(),
       message:     "Davet bağlantısı oluşturuldu.",
     });

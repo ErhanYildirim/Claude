@@ -136,8 +136,8 @@ export const api = {
 
   onboarding: {
     me:     () => request<OnboardingMe>("GET", "/onboarding/me"),
-    createTenant: (companyName: string) =>
-      request<OnboardingResult>("POST", "/onboarding/tenant", { companyName }),
+    createTenant: (companyName: string, timezone?: string) =>
+      request<OnboardingResult>("POST", "/onboarding/tenant", { companyName, timezone }),
   },
 
   ef: {
@@ -196,21 +196,37 @@ export const api = {
     updatePrefs: (body: Partial<NotificationPrefs>) => request<NotificationPrefs>("PATCH", "/notifications/preferences", body),
   },
 
+  search: {
+    query: (params: { q?: string; type?: "installation" | "period" | "all"; sector?: string; country?: string; limit?: number }) => {
+      const qs = new URLSearchParams();
+      if (params.q)       qs.set("q",       params.q);
+      if (params.type)    qs.set("type",    params.type);
+      if (params.sector)  qs.set("sector",  params.sector);
+      if (params.country) qs.set("country", params.country);
+      if (params.limit)   qs.set("limit",   String(params.limit));
+      return request<SearchResult>("GET", `/search?${qs.toString()}`);
+    },
+  },
+
   shareLinks: {
-    create: (installationId: string, periodId: string, ttlDays?: number) =>
-      request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays }),
+    create: (installationId: string, periodId: string, ttlDays?: number, password?: string) =>
+      request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays, password }),
+    update: (jti: string, body: { password?: string | null; expiresAt?: string }) =>
+      request<void>("PATCH", `/share-links/${jti}`, body),
     revoke: (jti: string) => request<void>("DELETE", `/share-links/${jti}`),
   },
 
   share: {
-    get: (token: string) =>
-      fetch(`${BASE}/share/${token}`).then(async res => {
+    get: (token: string, password?: string) => {
+      const qs = password ? `?pw=${encodeURIComponent(password)}` : "";
+      return fetch(`${BASE}/share/${token}${qs}`).then(async res => {
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: res.statusText }));
           throw Object.assign(new Error(err.error ?? "Geçersiz bağlantı"), { status: res.status, body: err });
         }
         return res.json() as Promise<ShareViewResult>;
-      }),
+      });
+    },
   },
 };
 
@@ -218,7 +234,7 @@ export const api = {
 export interface Installation {
   id: string; tenantId: string; facilityName: string;
   operator: string; facilityCountry: string; facilityRef: string | null;
-  createdAt: string; updatedAt: string;
+  sector: string; createdAt: string; updatedAt: string;
   _count?: { periods: number };
 }
 
@@ -263,7 +279,13 @@ export interface NewWebhook { id: string; url: string; events: string[]; secret:
 export interface DeliveryList { deliveries: Array<{ id: string; event: string; status: string; attempts: number; responseStatus: number | null; deliveredAt: string | null; createdAt: string }>; }
 export interface OnboardingMe { onboarded: boolean; userId: string; tenantId?: string; role?: string; tenant?: { id: string; name: string; slug: string }; }
 export interface OnboardingResult { tenantId: string; slug: string; role: string; }
-export interface ShareLinkResult { token: string; expiresAt: string; }
+export interface ShareLinkResult { token: string; expiresAt: string; passwordProtected: boolean; }
+export interface SearchResult {
+  query: string;
+  total: number;
+  installations: Array<Installation & { _count: { periods: number } }>;
+  periods: Array<Period & { installation: { id: string; facilityName: string; facilityCountry: string }; result: { seeVoltfox: number } | null }>;
+}
 export interface ShareViewResult {
   access: "readonly";
   payload: { tenantId: string; installationId: string; periodId: string; exp: number };
@@ -355,6 +377,7 @@ export interface NotificationList { notifications: NotificationItem[]; unreadCou
 export interface NotificationPrefs {
   calculationDone: boolean; cfeDone: boolean;
   memberInvited: boolean; periodCreated: boolean;
+  emailEnabled: boolean;
 }
 
 export interface TenantSubscription {

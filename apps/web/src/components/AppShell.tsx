@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useTheme } from "../contexts/ThemeContext.js";
 import NotificationBell from "./NotificationBell.js";
+import GlobalSearch     from "./GlobalSearch.js";
 
 interface NavItem { icon: string; label: string; path: string; }
 interface NavGroup { title: string; items: NavItem[]; }
@@ -30,8 +31,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Genel",
     items: [
-      { icon: "📊", label: "Dashboard", path: "/dashboard" },
-      { icon: "⚙️", label: "Ayarlar",  path: "/settings" },
+      { icon: "📊", label: "Dashboard",      path: "/dashboard" },
+      { icon: "🧪", label: "API Playground", path: "/api-playground" },
+      { icon: "⚙️", label: "Ayarlar",        path: "/settings" },
     ],
   },
 ];
@@ -114,7 +116,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
             ☰
           </button>
           <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>Voltfox</div>
-          <div style={{ marginLeft: "auto" }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            <GlobalSearch />
             <NotificationBell />
           </div>
         </div>
@@ -132,6 +135,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div style={{ fontWeight: 800, fontSize: 17, color: "#fff", letterSpacing: "-.01em" }}>Voltfox</div>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,.35)", fontWeight: 500, paddingLeft: 2 }}>Emisyon Yönetim Platformu</div>
+        </div>
+
+        <div style={{ padding: "6px 8px 0" }}>
+          <GlobalSearch />
         </div>
 
         <nav style={navArea}>

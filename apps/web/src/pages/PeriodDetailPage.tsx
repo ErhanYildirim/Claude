@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { Period, EmbeddedEmission, MonthlyBreakdown } from "../lib/api.js";
+import type { Period, EmbeddedEmission, MonthlyBreakdown, CFEResult } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
@@ -50,11 +50,13 @@ export default function PeriodDetailPage() {
   const { installationId, periodId } = useParams<{ installationId: string; periodId: string }>();
   const [period,   setPeriod]   = useState<Period | null>(null);
   const [emission, setEmission] = useState<EmbeddedEmission | null>(null);
-  const [cfe,      setCfe]      = useState<{ cfeScore: number; monthlyBreakdown: MonthlyBreakdown[] } | null>(null);
+  const [cfe,      setCfe]      = useState<CFEResult | null>(null);
   const [calcLoad, setCalcLoad]   = useState(false);
-  const [shareToken, setShareToken] = useState<string | null>(null);
-  const [shareTtl, setShareTtl]     = useState(30);
-  const [shareLoad, setShareLoad]   = useState(false);
+  const [shareToken, setShareToken]     = useState<string | null>(null);
+  const [shareTtl,   setShareTtl]       = useState(30);
+  const [shareLoad,  setShareLoad]      = useState(false);
+  const [sharePassword, setSharePassword] = useState("");
+  const [shareProtected, setShareProtected] = useState(false);
 
   useEffect(() => {
     if (!installationId || !periodId) return;
@@ -84,8 +86,9 @@ export default function PeriodDetailPage() {
     if (!installationId || !periodId) return;
     setShareLoad(true);
     try {
-      const res = await api.shareLinks.create(installationId, periodId, shareTtl);
+      const res = await api.shareLinks.create(installationId, periodId, shareTtl, sharePassword || undefined);
       setShareToken(res.token);
+      setShareProtected(res.passwordProtected);
     } catch (e: unknown) { alert(e instanceof Error ? e.message : "Paylaşım linki oluşturulamadı"); }
     setShareLoad(false);
   }
@@ -127,10 +130,23 @@ export default function PeriodDetailPage() {
           )}
         </div>
 
+        {!shareToken && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <label style={{ fontSize: 12, color: "#5c7a72" }}>TTL:</label>
+            <input type="number" min={1} max={365} value={shareTtl}
+              onChange={e => setShareTtl(parseInt(e.target.value) || 30)}
+              style={{ width: 60, padding: "4px 8px", borderRadius: 5, border: "1px solid #DDD6FE", fontSize: 12 }} />
+            <label style={{ fontSize: 12, color: "#5c7a72", marginLeft: 8 }}>Şifre (isteğe bağlı):</label>
+            <input type="password" value={sharePassword} placeholder="Şifresiz bırak"
+              onChange={e => setSharePassword(e.target.value)}
+              style={{ width: 140, padding: "4px 8px", borderRadius: 5, border: "1px solid #DDD6FE", fontSize: 12 }} />
+          </div>
+        )}
+
         {shareToken && (
           <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, padding: 16, marginTop: 16 }}>
             <div style={{ fontWeight: 600, fontSize: 13, color: "#5B21B6", marginBottom: 8 }}>
-              Paylaşım Linki Oluşturuldu ({shareTtl} gün geçerli)
+              Paylaşım Linki Oluşturuldu ({shareTtl} gün geçerli){shareProtected ? " · Şifre Korumalı" : ""}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
@@ -145,12 +161,16 @@ export default function PeriodDetailPage() {
                 Kopyala
               </button>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
               <label style={{ fontSize: 12, color: "#5c7a72" }}>TTL (gün):</label>
-              <input type="number" min={1} max={90} value={shareTtl}
+              <input type="number" min={1} max={365} value={shareTtl}
                 onChange={e => setShareTtl(parseInt(e.target.value) || 30)}
                 style={{ width: 60, padding: "4px 8px", borderRadius: 5, border: "1px solid #DDD6FE", fontSize: 12 }} />
-              <button onClick={createShareLink} style={{ fontSize: 12, background: "none", border: "1px solid #7C3AED", color: "#7C3AED", borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>
+              <label style={{ fontSize: 12, color: "#5c7a72" }}>Şifre:</label>
+              <input type="password" value={sharePassword} placeholder="Şifresiz"
+                onChange={e => setSharePassword(e.target.value)}
+                style={{ width: 120, padding: "4px 8px", borderRadius: 5, border: "1px solid #DDD6FE", fontSize: 12 }} />
+              <button onClick={createShareLink} disabled={shareLoad} style={{ fontSize: 12, background: "none", border: "1px solid #7C3AED", color: "#7C3AED", borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>
                 Yeni Oluştur
               </button>
             </div>
@@ -251,11 +271,11 @@ export default function PeriodDetailPage() {
               </div>
               <div style={s.kpi}>
                 <div style={s.kpiL}>Toplam Tüketim</div>
-                <div style={s.kpiV}>{(cfe as any).totalConsumptionKwh?.toLocaleString() ?? "—"}<span style={{ fontSize: 12, color: "#5c7a72" }}> kWh</span></div>
+                <div style={s.kpiV}>{cfe.totalConsumptionKwh.toLocaleString()}<span style={{ fontSize: 12, color: "#5c7a72" }}> kWh</span></div>
               </div>
               <div style={s.kpi}>
                 <div style={s.kpiL}>Eşleşen</div>
-                <div style={{ ...s.kpiV, ...s.kpiG }}>{(cfe as any).totalMatchedKwh?.toLocaleString() ?? "—"}<span style={{ fontSize: 12, color: "#059669" }}> kWh</span></div>
+                <div style={{ ...s.kpiV, ...s.kpiG }}>{cfe.totalMatchedKwh.toLocaleString()}<span style={{ fontSize: 12, color: "#059669" }}> kWh</span></div>
               </div>
             </div>
 

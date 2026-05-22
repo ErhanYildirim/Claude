@@ -172,6 +172,7 @@ model ShareLink {
   periodId       String    @map("period_id") @db.Uuid
   expiresAt      DateTime  @map("expires_at")
   revokedAt      DateTime? @map("revoked_at")
+  password       String?   // scrypt hash: salt:hash
   createdAt      DateTime  @default(now()) @map("created_at")
 
   @@index([tenantId])
@@ -283,10 +284,11 @@ model NotificationPreference {
   tenant         Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId         String  @map("user_id") @db.Uuid
 
-  calculationDone Boolean @default(true) @map("calculation_done")
-  cfeDone         Boolean @default(true) @map("cfe_done")
-  memberInvited   Boolean @default(true) @map("member_invited")
-  periodCreated   Boolean @default(true) @map("period_created")
+  calculationDone Boolean @default(true)  @map("calculation_done")
+  cfeDone         Boolean @default(true)  @map("cfe_done")
+  memberInvited   Boolean @default(true)  @map("member_invited")
+  periodCreated   Boolean @default(true)  @map("period_created")
+  emailEnabled    Boolean @default(false) @map("email_enabled")
 
   @@id([tenantId, userId])
   @@map("notification_preferences")

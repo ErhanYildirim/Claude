@@ -23,6 +23,7 @@ const InstallationDetailPage = lazy(() => import("./pages/InstallationDetailPage
 const PeriodDetailPage       = lazy(() => import("./pages/PeriodDetailPage.js"));
 const SettingsPage           = lazy(() => import("./pages/SettingsPage.js"));
 const ProfilePage            = lazy(() => import("./pages/ProfilePage.js"));
+const ApiPlaygroundPage      = lazy(() => import("./pages/ApiPlaygroundPage.js"));
 
 function AppLayout() {
   return (
@@ -98,6 +99,7 @@ function AppRouter() {
           <Route path="/reports/ghg"                                       element={<GhgProtocolPage />} />
           <Route path="/settings"                                          element={<SettingsPage />} />
           <Route path="/profile"                                           element={<ProfilePage />} />
+          <Route path="/api-playground"                                    element={<ApiPlaygroundPage />} />
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
           <Route path="*"                                                  element={<Navigate to="/gec" replace />} />

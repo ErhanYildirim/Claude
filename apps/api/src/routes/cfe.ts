@@ -4,6 +4,8 @@ import { calculateCFEMatching } from "../../../../src/cbam/cfe-matching.js";
 import type { HourlySlot } from "../../../../src/cbam/cfe-matching.js";
 import { buildCfeCertificate } from "../lib/pdf-cfe-certificate.js";
 import { dispatchWebhookEvent } from "./webhooks.js";
+import { notifyTenant } from "../lib/notify.js";
+import { emailCfeDone } from "../lib/email.js";
 
 export const cfeRoutes: FastifyPluginAsync = async (app) => {
 
@@ -44,6 +46,7 @@ export const cfeRoutes: FastifyPluginAsync = async (app) => {
         installationId,
         installation: { tenantId: request.tenantId },
       },
+      include: { installation: { select: { facilityName: true } } },
     });
     if (!period) return reply.status(404).send({ error: "NOT_FOUND" });
 
@@ -119,6 +122,24 @@ export const cfeRoutes: FastifyPluginAsync = async (app) => {
       totalMatchedKwh:     result.totalMatchedKwh,
       matchedHours:        result.matchedHours,
       calculatedAt:        stored.calculatedAt,
+    }).catch(() => {});
+
+    // Fire-and-forget in-app + email notification
+    notifyTenant({
+      tenantId:   request.tenantId,
+      eventType:  "cfeDone",
+      title:      `CFE eşleştirme tamamlandı: ${period.periodName}`,
+      body:       `${period.installation.facilityName} · CFE Skoru %${(result.cfeScore * 100).toFixed(1)}`,
+      resource:   "CFEMatchingResult",
+      resourceId: stored.id,
+      emailFactory: (_uid, _email) => emailCfeDone({
+        facilityName:   period.installation.facilityName,
+        periodName:     period.periodName,
+        cfeScore:       result.cfeScore,
+        appUrl:         process.env.APP_URL ?? "https://app.voltfox.io",
+        installationId,
+        periodId,
+      }),
     }).catch(() => {});
 
     return reply.status(201).send({

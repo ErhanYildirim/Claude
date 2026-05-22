@@ -6,6 +6,8 @@ import { calculateSEE } from "../../../../src/cbam/see.js";
 import { compareWithDefault, lookupDefault } from "../../../../src/cbam/comparison.js";
 import { lookupGridEF } from "../../../../src/cbam/ef-data.js";
 import { dispatchWebhookEvent } from "./webhooks.js";
+import { notifyTenant } from "../lib/notify.js";
+import { emailCalculationDone } from "../lib/email.js";
 
 const require = createRequire(import.meta.url);
 const CBAM_DATA: {
@@ -140,7 +142,7 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
     // ── EF kaynağını belirle ──────────────────────────────────────────────
     const installation = await prisma.installation.findUnique({
       where: { id: period.installationId },
-      select: { facilityCountry: true },
+      select: { facilityCountry: true, facilityName: true },
     });
     const countryEF   = installation ? lookupGridEF(installation.facilityCountry) : null;
     const efIsAutoFilled = countryEF && Math.abs(countryEF.ef - period.baselineEf) < 0.0001;
@@ -225,6 +227,28 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
       reductionPct:      result.reductionPct,
       calcEngineVersion: CALC_ENGINE_VERSION,
       calculatedAt:      result.calculatedAt,
+    }).catch(() => {});
+
+    // Fire-and-forget in-app + email notification
+    notifyTenant({
+      tenantId:   request.tenantId,
+      eventType:  "calculationDone",
+      title:      `SEE hesaplandı: ${period.periodName}`,
+      body:       `${installation.facilityName} · SEE ${result.seeVoltfox.toFixed(4)} tCO₂e/t · Azaltım %${result.reductionPct.toFixed(1)}`,
+      resource:   "EmbeddedEmission",
+      resourceId: result.id,
+      emailFactory: (_uid, email) => {
+        void email;
+        return emailCalculationDone({
+          facilityName:   installation.facilityName,
+          periodName:     period.periodName,
+          seeVoltfox:     result.seeVoltfox,
+          reductionPct:   result.reductionPct,
+          appUrl:         process.env.APP_URL ?? "https://app.voltfox.io",
+          installationId,
+          periodId,
+        });
+      },
     }).catch(() => {});
 
     return reply.send({

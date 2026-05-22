@@ -72,6 +72,7 @@ export const notificationsRoutes: FastifyPluginAsync = async (app) => {
       cfeDone:         pref?.cfeDone         ?? true,
       memberInvited:   pref?.memberInvited    ?? true,
       periodCreated:   pref?.periodCreated    ?? true,
+      emailEnabled:    pref?.emailEnabled     ?? false,
     });
   });
 
@@ -84,23 +85,26 @@ export const notificationsRoutes: FastifyPluginAsync = async (app) => {
       cfeDone?:         boolean;
       memberInvited?:   boolean;
       periodCreated?:   boolean;
+      emailEnabled?:    boolean;
     };
 
     const pref = await prisma.notificationPreference.upsert({
       where: { tenantId_userId: { tenantId: request.tenantId, userId: request.userId } },
       create: {
-        tenantId:       request.tenantId,
-        userId:         request.userId,
+        tenantId:        request.tenantId,
+        userId:          request.userId,
         calculationDone: body.calculationDone ?? true,
         cfeDone:         body.cfeDone         ?? true,
         memberInvited:   body.memberInvited    ?? true,
         periodCreated:   body.periodCreated    ?? true,
+        emailEnabled:    body.emailEnabled     ?? false,
       },
       update: {
         ...(body.calculationDone !== undefined ? { calculationDone: body.calculationDone } : {}),
         ...(body.cfeDone         !== undefined ? { cfeDone:         body.cfeDone         } : {}),
         ...(body.memberInvited   !== undefined ? { memberInvited:   body.memberInvited   } : {}),
         ...(body.periodCreated   !== undefined ? { periodCreated:   body.periodCreated   } : {}),
+        ...(body.emailEnabled    !== undefined ? { emailEnabled:    body.emailEnabled    } : {}),
       },
     });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import type { ShareViewResult } from "../lib/api.js";
@@ -52,18 +52,73 @@ function ErrorScreen({ code }: { code: ErrorCode }) {
   );
 }
 
+function PasswordScreen({ token, onSuccess }: { token: string; onSuccess: (data: ShareViewResult) => void }) {
+  const [pw, setPw]       = useState("");
+  const [err, setErr]     = useState("");
+  const [busy, setBusy]   = useState(false);
+  const inputRef          = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pw) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const data = await api.share.get(token, pw);
+      onSuccess(data);
+    } catch (ex: unknown) {
+      const code = (ex as { body?: { error?: string } }).body?.error;
+      setErr(code === "INVALID_PASSWORD" ? "Şifre hatalı. Lütfen tekrar deneyin." : "Bir hata oluştu.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div style={s.errBox}>
+      <div style={{ ...s.errCard, maxWidth: 360 }}>
+        <div style={s.errIcon}>🔐</div>
+        <div style={s.errT}>Şifre Korumalı Bağlantı</div>
+        <div style={{ ...s.errS, marginBottom: 20 }}>Bu belgeye erişmek için şifre gerekiyor.</div>
+        <form onSubmit={submit}>
+          <input
+            ref={inputRef}
+            type="password"
+            value={pw}
+            onChange={e => setPw(e.target.value)}
+            placeholder="Şifre"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 7, border: `1px solid ${err ? "#DC2626" : "#d4ece4"}`, fontSize: 14, boxSizing: "border-box" as const, marginBottom: 8, outline: "none" }}
+          />
+          {err && <div style={{ color: "#DC2626", fontSize: 12, marginBottom: 8 }}>{err}</div>}
+          <button
+            type="submit"
+            disabled={busy || !pw}
+            style={{ width: "100%", padding: "10px", background: "#00b87a", color: "#fff", border: "none", borderRadius: 7, fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1 }}
+          >
+            {busy ? "Doğrulanıyor..." : "Erişim Sağla"}
+          </button>
+        </form>
+        <div style={{ marginTop: 20, fontSize: 12, color: "#5c7a72" }}>Voltfox GreenLink Platform</div>
+      </div>
+    </div>
+  );
+}
+
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
-  const [data, setData] = useState<ShareViewResult | null>(null);
-  const [errCode, setErrCode] = useState<ErrorCode | null>(null);
+  const [data, setData]               = useState<ShareViewResult | null>(null);
+  const [errCode, setErrCode]         = useState<ErrorCode | null>(null);
+  const [needPassword, setNeedPassword] = useState(false);
 
   useEffect(() => {
     if (!token) { setErrCode("INVALID_TOKEN"); return; }
     api.share.get(token)
       .then(setData)
       .catch((e: { status?: number; body?: { error?: string } }) => {
-        const code = e.body?.error as ErrorCode | undefined;
-        if (code === "TOKEN_EXPIRED" || code === "TOKEN_REVOKED") setErrCode(code);
+        const code = e.body?.error;
+        if (code === "PASSWORD_REQUIRED") { setNeedPassword(true); return; }
+        if (code === "TOKEN_EXPIRED" || code === "TOKEN_REVOKED") setErrCode(code as ErrorCode);
         else if (e.status === 401 || e.status === 410) setErrCode("INVALID_TOKEN");
         else if (e.status === 404) setErrCode("NO_RESULT");
         else setErrCode("NETWORK");
@@ -71,6 +126,7 @@ export default function SharePage() {
   }, [token]);
 
   if (errCode) return <ErrorScreen code={errCode} />;
+  if (needPassword && token) return <PasswordScreen token={token} onSuccess={setData} />;
 
   if (!data) {
     return (

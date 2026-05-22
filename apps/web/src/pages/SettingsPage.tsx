@@ -979,8 +979,104 @@ function SubscriptionTab() {
   );
 }
 
+// ── Bildirimler Sekmesi ───────────────────────────────────────────────────────
+function NotificationsTab() {
+  const [prefs, setPrefs] = useState<import("../lib/api.js").NotificationPrefs | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [ok, setOk]         = useState("");
+
+  useEffect(() => { api.notifications.preferences().then(setPrefs); }, []);
+
+  async function toggle(key: keyof import("../lib/api.js").NotificationPrefs) {
+    if (!prefs) return;
+    const updated = { ...prefs, [key]: !prefs[key] };
+    setPrefs(updated);
+    setSaving(true); setOk("");
+    try {
+      await api.notifications.updatePrefs({ [key]: updated[key] });
+      setOk("Kaydedildi.");
+    } catch { /* revert */ setPrefs(prefs); }
+    setSaving(false);
+  }
+
+  if (!prefs) return <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor...</div>;
+
+  const EVENT_ROWS: { key: keyof import("../lib/api.js").NotificationPrefs; label: string; desc: string }[] = [
+    { key: "calculationDone", label: "SEE Hesaplama Tamamlandı",  desc: "Bir dönem SEE hesabı tamamlandığında bildirim al" },
+    { key: "cfeDone",         label: "CFE Eşleştirme Tamamlandı", desc: "CFE matching analizi bittiğinde bildirim al" },
+    { key: "memberInvited",   label: "Ekip Daveti Gönderildi",    desc: "Bir üye davet edildiğinde bildirim al" },
+    { key: "periodCreated",   label: "Yeni Dönem Oluşturuldu",    desc: "Yeni bir üretim dönemi eklendiğinde bildirim al" },
+  ];
+
+  return (
+    <div>
+      {ok && <div style={s.ok}>{ok}</div>}
+
+      <div style={s.section}>Uygulama İçi Bildirimler</div>
+      <div style={s.card}>
+        {EVENT_ROWS.map(row => (
+          <div key={row.key} style={{ ...s.row, alignItems: "center" }}>
+            <div>
+              <div style={s.rowL}>{row.label}</div>
+              <div style={{ fontSize: 11, color: "#94A3B8" }}>{row.desc}</div>
+            </div>
+            <button
+              style={{
+                width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                background: prefs[row.key] ? "#00b87a" : "#d1d5db", transition: "background .2s",
+                position: "relative" as const,
+              }}
+              onClick={() => toggle(row.key)}
+              disabled={saving}
+              title={prefs[row.key] ? "Açık — tıklayarak kapat" : "Kapalı — tıklayarak aç"}
+            >
+              <span style={{
+                position: "absolute" as const, top: 3,
+                left:  prefs[row.key] ? 22 : 3,
+                width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                transition: "left .2s",
+              }} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={s.section}>E-posta Bildirimleri</div>
+      <div style={s.card}>
+        <div style={{ ...s.row, alignItems: "center" }}>
+          <div>
+            <div style={s.rowL}>E-posta Bildirimleri</div>
+            <div style={{ fontSize: 11, color: "#94A3B8" }}>Etkinleştirilen olaylar için hesap e-postanıza bildirim gönderilir</div>
+          </div>
+          <button
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+              background: prefs.emailEnabled ? "#00b87a" : "#d1d5db", transition: "background .2s",
+              position: "relative" as const,
+            }}
+            onClick={() => toggle("emailEnabled")}
+            disabled={saving}
+          >
+            <span style={{
+              position: "absolute" as const, top: 3,
+              left:  prefs.emailEnabled ? 22 : 3,
+              width: 18, height: 18, borderRadius: "50%", background: "#fff",
+              transition: "left .2s",
+            }} />
+          </button>
+        </div>
+        {prefs.emailEnabled && (
+          <div style={{ padding: "10px 0 4px", fontSize: 12, color: "#5c7a72" }}>
+            Yukarıda etkinleştirilmiş olaylar için e-posta gönderilir. RESEND_API_KEY ortam değişkeni sunucuda ayarlanmış olmalıdır.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
-type Tab = "team" | "company" | "subscription" | "permissions" | "apikeys" | "webhooks" | "audit";
+type Tab = "team" | "company" | "subscription" | "permissions" | "apikeys" | "webhooks" | "audit" | "notifications";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
@@ -990,9 +1086,10 @@ export default function SettingsPage() {
     { id: "company",      label: "Şirket" },
     { id: "subscription", label: "Abonelik" },
     { id: "permissions",  label: "İzinler" },
-    { id: "apikeys",      label: "API Anahtarları" },
-    { id: "webhooks",     label: "Webhook'lar" },
-    { id: "audit",        label: "Audit Trail" },
+    { id: "apikeys",       label: "API Anahtarları" },
+    { id: "webhooks",      label: "Webhook'lar" },
+    { id: "notifications", label: "Bildirimler" },
+    { id: "audit",         label: "Audit Trail" },
   ];
 
   return (
@@ -1019,8 +1116,9 @@ export default function SettingsPage() {
         {tab === "subscription" && <SubscriptionTab />}
         {tab === "permissions"  && <PermissionsTab />}
         {tab === "apikeys"      && <ApiKeysTab />}
-        {tab === "webhooks"     && <WebhooksTab />}
-        {tab === "audit"        && <AuditTrailTab />}
+        {tab === "webhooks"      && <WebhooksTab />}
+        {tab === "notifications" && <NotificationsTab />}
+        {tab === "audit"         && <AuditTrailTab />}
       </div>
     </>
   );

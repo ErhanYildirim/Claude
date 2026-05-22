@@ -252,16 +252,20 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
       )}
 
       <div style={s.how}>
-        <strong>Desteklenen formatlar:</strong> CSV, Excel (.xlsx)<br />
-        <strong>Sütunlar (başlık satırı zorunlu):</strong><br />
-        <code>hour &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consumptionKwh &nbsp;&nbsp;production_kwh</code><br />
-        <code style={{ color: "#94A3B8" }}>1.01.2025 00:00 &nbsp;14068 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14068</code><br />
-        <code style={{ color: "#94A3B8" }}>1.01.2025 01:00 &nbsp;13524 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12800</code><br />
+        <strong>Desteklenen formatlar:</strong> CSV (virgül veya <code>;</code>), Excel (.xlsx)<br />
+        <br />
+        <strong>Format 1 — Standart başlıklar:</strong><br />
+        <code>hour &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consumptionKwh &nbsp;&nbsp;production_kwh</code><br />
+        <code style={{ color: "#94A3B8" }}>1.01.2025 00:00 &nbsp;&nbsp;14068 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14068</code><br />
+        <br />
+        <strong>Format 2 — Konsolide / OSOS / TEDAŞ:</strong><br />
+        <code>EIC &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Zaman &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tüketim (Çekiş) &nbsp;Üretim (Veriş)</code><br />
+        <code style={{ color: "#94A3B8" }}>Konsolide &nbsp;2025-01-01 00:00:00 &nbsp;&nbsp;&nbsp;14068 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0</code><br />
         <br />
         <strong>Notlar:</strong><br />
-        · <code>production_kwh</code> opsiyonel — sadece tüketim de yüklenebilir<br />
+        · Üretim / <code>production_kwh</code> opsiyonel — sadece tüketim de yüklenebilir<br />
         · Her iki sütun varsa 24/7 CFE matching otomatik hesaplanır<br />
-        · Tarih: <code>1.01.2025 00:00</code> (Türkçe) veya <code>2025-01-01T00:00Z</code> (ISO)<br />
+        · Sayı formatı: <code>14068</code> veya <code>14068,2</code> (virgüllü ondalık)<br />
         · Zone: <strong>{zoneId}</strong> · 2024 saatlik EF verisi
       </div>
 

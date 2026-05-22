@@ -28,21 +28,30 @@ interface MonthAgg {
   tco2: number; efSum: number; hours: number;
 }
 
-// ── Tarih ayrıştırıcısı: Türkçe format + ISO 8601 ────────────────────────────
+// ── Tarih ayrıştırıcısı: Türkçe + ISO + Konsolide formatları ─────────────────
 function parseDate(s: string): Date | null {
   if (!s) return null;
   const t = s.trim();
 
-  // Türkçe: D.MM.YYYY HH:mm  (örn: 1.01.2025 00:00 | 15.3.2025 14:30)
+  // Türkçe: D.MM.YYYY HH:mm  (örn: 1.01.2025 00:00)
   const tr = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2})$/);
   if (tr) {
     const d = new Date(Date.UTC(+tr[3], +tr[2] - 1, +tr[1], +tr[4], +tr[5]));
     if (!isNaN(d.getTime())) return d;
   }
 
-  // ISO 8601 ve diğer tarayıcı-destekli formatlar
-  const iso = new Date(t);
-  if (!isNaN(iso.getTime())) return iso;
+  // Konsolide / OSOS: YYYY-MM-DD HH:mm:ss (veya HH:mm) — açık UTC olarak işle
+  const isoSpc = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (isoSpc) {
+    const d = new Date(Date.UTC(+isoSpc[1], +isoSpc[2] - 1, +isoSpc[3], +isoSpc[4], +isoSpc[5]));
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // ISO 8601 (Z suffix veya offset) — native parser güvenli
+  if (/Z$|[+-]\d{2}:\d{2}$/.test(t)) {
+    const iso = new Date(t);
+    if (!isNaN(iso.getTime())) return iso;
+  }
 
   return null;
 }
@@ -81,26 +90,85 @@ function parseNum(v: unknown): number | undefined {
   return undefined;
 }
 
+// Esnek alan arama: string key veya regex ile eşleşen ilk değeri döner
+function findVal(r: Record<string, unknown>, ...patterns: (string | RegExp)[]): unknown {
+  for (const pat of patterns) {
+    if (typeof pat === "string") {
+      if (Object.prototype.hasOwnProperty.call(r, pat)) return r[pat];
+    } else {
+      const key = Object.keys(r).find(k => pat.test(k));
+      if (key !== undefined) return r[key];
+    }
+  }
+  return undefined;
+}
+
 // Ham satır kaydı → FileRow
+// Desteklenen başlıklar:
+//   Zaman sütunu : hour | timestamp | datetime | Zaman
+//   Tüketim      : consumptionKwh | consumption_kwh | /T.{0,5}ketim/  (Konsolide / Türkçe)
+//   Üretim       : production_kwh | productionKwh   | /[UÜ].{0,3}retim/ (Konsolide / Türkçe)
 function parseRowRecord(r: Record<string, unknown>): FileRow | null {
-  const ts = r["hour"] ?? r["timestamp"] ?? r["datetime"] ?? r["Datetime (UTC)"];
+  const ts = findVal(r,
+    "hour", "timestamp", "datetime", "Datetime (UTC)", "Zaman", "zaman",
+    /^zaman$/i,
+  );
   if (ts === undefined || ts === null || ts === "") return null;
 
   const h = cellToDate(ts);
   if (!h) return null;
 
-  const consumption = parseNum(r["consumptionKwh"] ?? r["consumption_kwh"]);
-  const production  = parseNum(r["production_kwh"]  ?? r["productionKwh"]);
+  const consumption = parseNum(findVal(r,
+    "consumptionKwh", "consumption_kwh",
+    /t.{0,5}ketim/i,    // Tüketim (Excel UTF-8 veya garbled)
+    /consumption/i,
+  ));
+  const production = parseNum(findVal(r,
+    "production_kwh", "productionKwh",
+    /[uü].{0,3}retim/i, // Üretim (Excel UTF-8)
+    /production/i,
+  ));
 
   if (consumption === undefined && production === undefined) return null;
   return { hour: h, consumptionKwh: consumption, productionKwh: production };
 }
 
 // ── CSV Parser ────────────────────────────────────────────────────────────────
+// Otomatik ayraç tespiti (noktalı virgül / virgül) + Konsolide format normalizasyonu
+// Konsolide format: EIC;Zaman;Tüketim (Çekiş);Üretim (Veriş)
+//   → Başlık satırı "_eic;hour;consumptionKwh;production_kwh" ile değiştirilir
+//   → Türkçe karakter kodlama sorunları (Windows-1254) atlatılmış olur
 function parseCsvFile(text: string): Promise<FileRow[]> {
+  // BOM temizle
+  const clean = text.replace(/^﻿/, "");
+  const lines  = clean.split(/\r?\n/);
+  const hdrIdx = lines.findIndex(l => l.trim() !== "");
+  const header = lines[hdrIdx] ?? "";
+
+  // Ayraç tespiti
+  const delimiter = header.includes(";") ? ";" : ",";
+
+  let parseText = clean;
+
+  if (delimiter === ";") {
+    // Konsolide / OSOS / TEDAŞ format: ilk iki sütun ASCII ile tespit edilir
+    const cols = header.split(";").map(c => c.trim());
+    if (cols[0] === "EIC" && cols[1] === "Zaman") {
+      // Başlığı normalize et — veri satırlarına dokunma
+      const newLines = [...lines];
+      newLines[hdrIdx] = "_eic;hour;consumptionKwh;production_kwh";
+      parseText = newLines.join("\n");
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const rows: FileRow[] = [];
-    const parser = parse(text, { columns: true, skip_empty_lines: true, trim: true });
+    const parser = parse(parseText, {
+      columns:           true,
+      skip_empty_lines:  true,
+      trim:              true,
+      delimiter,
+    });
     parser.on("data", (r: Record<string, string>) => {
       const row = parseRowRecord(r);
       if (row) rows.push(row);

@@ -18,6 +18,7 @@ import InstallationDetailPage from "./pages/InstallationDetailPage.js";
 import PeriodDetailPage       from "./pages/PeriodDetailPage.js";
 import SharePage              from "./pages/SharePage.js";
 import SettingsPage           from "./pages/SettingsPage.js";
+import ProfilePage            from "./pages/ProfilePage.js";
 
 function AppLayout() {
   return (
@@ -89,6 +90,7 @@ function AppRouter() {
           <Route path="/reports/iso14064"                                  element={<Iso14064Page />} />
           <Route path="/reports/ghg"                                       element={<GhgProtocolPage />} />
           <Route path="/settings"                                          element={<SettingsPage />} />
+          <Route path="/profile"                                           element={<ProfilePage />} />
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
           <Route path="*"                                                  element={<Navigate to="/gec" replace />} />

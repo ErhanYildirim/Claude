@@ -153,9 +153,33 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         <div style={bottomArea}>
           {user?.email && (
-            <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {user.email}
-            </div>
+            <Link
+              to="/profile"
+              style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
+                       textDecoration: "none", padding: "6px 8px", borderRadius: 7,
+                       transition: "background .12s" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.08)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+            >
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                background: "#00b87a", display: "flex", alignItems: "center",
+                justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff",
+              }}>
+                {((user.user_metadata?.display_name as string | undefined) ?? user.email)
+                  .slice(0, 2).toUpperCase()}
+              </div>
+              <div style={{ overflow: "hidden" }}>
+                <div style={{ fontSize: 12, color: "#fff", fontWeight: 600,
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {(user.user_metadata?.display_name as string | undefined) ?? "Profil"}
+                </div>
+                <div style={{ fontSize: 10, color: "#94A3B8",
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {user.email}
+                </div>
+              </div>
+            </Link>
           )}
           <button
             style={{ width: "100%", padding: "7px 0", background: "rgba(255,255,255,.08)", border: "none", borderRadius: 6, color: "rgba(255,255,255,.65)", fontSize: 13, cursor: "pointer" }}

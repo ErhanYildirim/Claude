@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList } from "../lib/api.js";
+import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
@@ -559,14 +559,144 @@ function AuditTrailTab() {
   );
 }
 
+// ── Şirket Sekmesi ───────────────────────────────────────────────────────────
+const TIMEZONES_EU = [
+  "Europe/Istanbul", "Europe/London", "Europe/Berlin", "Europe/Paris",
+  "Europe/Rome", "Europe/Madrid", "Europe/Amsterdam", "Europe/Warsaw",
+  "Europe/Vienna", "Europe/Stockholm", "Europe/Helsinki", "Europe/Athens",
+  "Europe/Brussels", "Europe/Lisbon", "Europe/Copenhagen", "Europe/Oslo",
+  "UTC",
+];
+
+function TenantTab() {
+  const [tenant,    setTenant]    = useState<TenantProfile | null>(null);
+  const [name,      setName]      = useState("");
+  const [logoUrl,   setLogoUrl]   = useState("");
+  const [color,     setColor]     = useState("#00b87a");
+  const [timezone,  setTimezone]  = useState("Europe/Istanbul");
+  const [saving,    setSaving]    = useState(false);
+  const [ok,        setOk]        = useState("");
+  const [err,       setErr]       = useState("");
+  const [myRole,    setMyRole]    = useState("viewer");
+
+  useEffect(() => {
+    api.members.me().then(r => setMyRole(r.role)).catch(() => {});
+    api.tenant.get().then(r => {
+      const t = r.tenant;
+      setTenant(t);
+      setName(t.name);
+      setLogoUrl(t.logoUrl ?? "");
+      setColor(t.brandColor ?? "#00b87a");
+      setTimezone(t.timezone);
+    }).catch(() => {});
+  }, []);
+
+  const canEdit = ["owner", "admin"].includes(myRole);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setOk(""); setErr(""); setSaving(true);
+    try {
+      const res = await api.tenant.update({
+        name: name.trim() || undefined,
+        logoUrl: logoUrl.trim() || null,
+        brandColor: color,
+        timezone,
+      });
+      setTenant(res.tenant);
+      setOk("Kaydedildi!");
+      setTimeout(() => setOk(""), 3000);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Güncelleme başarısız.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!tenant) return <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>;
+
+  return (
+    <div>
+      {/* Mevcut bilgiler */}
+      <div style={s.card}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Şirket Kimliği</div>
+        <div style={s.row}>
+          <span style={{ fontSize: 13, color: "#5c7a72" }}>Slug (URL)</span>
+          <code style={{ fontSize: 12, background: "#eef7f3", padding: "3px 8px", borderRadius: 5 }}>{tenant.slug}</code>
+        </div>
+        <div style={{ ...s.row, borderBottom: "none" }}>
+          <span style={{ fontSize: 13, color: "#5c7a72" }}>Tenant ID</span>
+          <code style={{ fontSize: 11, color: "#94a3b8" }}>{tenant.id.slice(0, 8)}…</code>
+        </div>
+      </div>
+
+      {/* Düzenleme formu */}
+      <div style={s.card}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Profil Özelleştirme</div>
+        <form onSubmit={save}>
+          <label style={s.label}>Şirket Adı</label>
+          <input style={s.input} value={name} onChange={e => setName(e.target.value)}
+            disabled={!canEdit} placeholder="Şirket adını girin" />
+
+          <label style={s.label}>Logo URL</label>
+          <input style={s.input} value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
+            disabled={!canEdit} placeholder="https://example.com/logo.png (opsiyonel)" />
+          {logoUrl && (
+            <div style={{ marginBottom: 12 }}>
+              <img src={logoUrl} alt="Logo önizleme"
+                style={{ maxHeight: 48, maxWidth: 200, borderRadius: 6, border: "1px solid #d4ece4" }}
+                onError={e => (e.currentTarget.style.display = "none")} />
+            </div>
+          )}
+
+          <label style={s.label}>Marka Rengi</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <input type="color" value={color} onChange={e => setColor(e.target.value)}
+              disabled={!canEdit}
+              style={{ width: 44, height: 36, border: "1px solid #d4ece4", borderRadius: 6,
+                       cursor: canEdit ? "pointer" : "not-allowed", padding: 2 }} />
+            <input style={{ ...s.input, marginBottom: 0, maxWidth: 110 }} value={color}
+              onChange={e => setColor(e.target.value)} disabled={!canEdit}
+              placeholder="#00b87a" maxLength={7} />
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: color,
+                          border: "1px solid rgba(0,0,0,.1)", flexShrink: 0 }} />
+          </div>
+
+          <label style={s.label}>Zaman Dilimi</label>
+          <select style={s.select} value={timezone} onChange={e => setTimezone(e.target.value)}
+            disabled={!canEdit}>
+            {TIMEZONES_EU.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+          </select>
+
+          {!canEdit && (
+            <div style={{ fontSize: 12, color: "#d97706", background: "#fef3c7",
+                          padding: "8px 12px", borderRadius: 6, marginBottom: 12 }}>
+              Bu ayarları değiştirmek için admin veya owner yetkisi gereklidir.
+            </div>
+          )}
+          {ok  && <div style={s.ok}>{ok}</div>}
+          {err && <div style={s.err}>{err}</div>}
+          {canEdit && (
+            <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "9px 20px" }}
+              disabled={saving}>
+              {saving ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
-type Tab = "team" | "apikeys" | "webhooks" | "audit";
+type Tab = "team" | "company" | "apikeys" | "webhooks" | "audit";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "team",     label: "Ekip" },
+    { id: "company",  label: "Şirket" },
     { id: "apikeys",  label: "API Anahtarları" },
     { id: "webhooks", label: "Webhook'lar" },
     { id: "audit",    label: "Audit Trail" },
@@ -592,6 +722,7 @@ export default function SettingsPage() {
         </div>
 
         {tab === "team"     && <TeamTab />}
+        {tab === "company"  && <TenantTab />}
         {tab === "apikeys"  && <ApiKeysTab />}
         {tab === "webhooks" && <WebhooksTab />}
         {tab === "audit"    && <AuditTrailTab />}

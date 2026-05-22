@@ -175,6 +175,12 @@ export const api = {
     },
   },
 
+  tenant: {
+    get:       () => request<{ tenant: TenantProfile }>("GET", "/tenant"),
+    update:    (body: Partial<TenantProfileUpdate>) => request<{ tenant: TenantProfile }>("PATCH", "/tenant", body),
+    timezones: () => fetch("/api/v1/tenant/timezones").then(r => r.json() as Promise<{ timezones: string[] }>),
+  },
+
   shareLinks: {
     create: (installationId: string, periodId: string, ttlDays?: number) =>
       request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays }),
@@ -304,6 +310,13 @@ export interface GecResult {
   methodology: string;
   savedToPeriod?: boolean;
 }
+
+export interface TenantProfile {
+  id: string; name: string; slug: string;
+  logoUrl: string | null; brandColor: string | null; timezone: string;
+  createdAt: string;
+}
+export type TenantProfileUpdate = { name?: string; logoUrl?: string | null; brandColor?: string | null; timezone?: string };
 
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }
 export interface UpdatePeriodBody {

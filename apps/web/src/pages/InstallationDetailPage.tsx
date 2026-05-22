@@ -174,6 +174,7 @@ export default function InstallationDetailPage() {
           matchingRatePct:   form.matchingRatePct,
           gecConnected:      form.gecConnected,
           carbonPriceEur:    form.carbonPriceEur,
+          scope2Exempt:      form.scope2Exempt,
         });
         setInstallation(prev => prev ? {
           ...prev,

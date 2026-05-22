@@ -64,7 +64,7 @@ model Installation {
   operator        String
   facilityCountry String  @map("facility_country")
   facilityRef     String? @map("facility_ref")
-  sector          String  @default("steel") @map("sector")  // steel|aluminium|cement|fertilizer|electricity
+  sector          String  @default("steel") @map("sector")  // steel|aluminium|cement|fertilizer|electricity|hydrogen|chemicals
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt    @map("updated_at")

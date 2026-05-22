@@ -3,7 +3,7 @@ import { prisma } from "@voltfox/db";
 
 export const installationsRoutes: FastifyPluginAsync = async (app) => {
 
-  const VALID_SECTORS = ["steel", "aluminium", "cement", "fertilizer", "electricity"] as const;
+  const VALID_SECTORS = ["steel", "aluminium", "cement", "fertilizer", "electricity", "hydrogen", "chemicals"] as const;
 
   // POST /installations
   app.post("/installations", {
@@ -18,7 +18,7 @@ export const installationsRoutes: FastifyPluginAsync = async (app) => {
           facilityRef:     { type: "string" },
           sector: {
             type: "string",
-            enum: ["steel", "aluminium", "cement", "fertilizer", "electricity"],
+            enum: ["steel", "aluminium", "cement", "fertilizer", "electricity", "hydrogen", "chemicals"],
           },
         },
       },
@@ -98,7 +98,7 @@ export const installationsRoutes: FastifyPluginAsync = async (app) => {
           operator:        { type: "string", minLength: 1 },
           facilityCountry: { type: "string", minLength: 1 },
           facilityRef:     { type: "string" },
-          sector:          { type: "string", enum: ["steel", "aluminium", "cement", "fertilizer", "electricity"] },
+          sector:          { type: "string", enum: ["steel", "aluminium", "cement", "fertilizer", "electricity", "hydrogen", "chemicals"] },
         },
       },
     },

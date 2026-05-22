@@ -627,6 +627,7 @@ export interface UpdatePeriodBody {
   prodVolumeTonne?: number; scope1DirectTco2?: number; scope1Quality?: string;
   scope1AuditNote?: string; electricityKwh?: number; electricitySource?: string;
   matchingRatePct?: number; gecConnected?: boolean; carbonPriceEur?: number;
+  scope2Exempt?: boolean;
 }
 export interface CreatePeriodBody {
   periodName: string; startDate: string; endDate: string; reportYear: number;

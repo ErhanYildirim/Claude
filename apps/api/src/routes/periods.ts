@@ -299,6 +299,7 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
           matchingRatePct:  { type: "number", minimum: 0, maximum: 100 },
           gecConnected:     { type: "boolean" },
           carbonPriceEur:   { type: "number", minimum: 0 },
+          scope2Exempt:     { type: "boolean" },
         },
       },
     },
@@ -317,6 +318,7 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
       prodVolumeTonne?: number; scope1DirectTco2?: number; scope1Quality?: string;
       scope1AuditNote?: string; electricityKwh?: number; electricitySource?: string;
       matchingRatePct?: number; gecConnected?: boolean; carbonPriceEur?: number;
+      scope2Exempt?: boolean;
     };
 
     const updated = await prisma.reportingPeriod.update({
@@ -334,6 +336,7 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
         ...(body.matchingRatePct  !== undefined && { matchingRatePct:  body.matchingRatePct }),
         ...(body.gecConnected     !== undefined && { gecConnected:     body.gecConnected }),
         ...(body.carbonPriceEur   !== undefined && { carbonPriceEur:   body.carbonPriceEur }),
+        ...(body.scope2Exempt     !== undefined && { scope2Exempt:     body.scope2Exempt }),
       },
     });
 

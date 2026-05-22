@@ -125,7 +125,11 @@ const ENDPOINTS: { group: string; items: Endpoint[] }[] = [
         body: JSON.stringify({ reportYear: 2024, periodName: "2024 Yılı", startDate: "2024-01-01", endDate: "2024-12-31", productionVolumeTonne: 5000, scope1DirectTco2: 1200, facilityTotalKwh: 800000, facilityRenewableKwh: 200000, productShareKwh: 400000, renewableSource: "solar", countryGridEf: 0.4943 }, null, 2) },
       { id: "cbam-per-create-b", method: "POST",   path: "/api/v1/installations/:iid/products/:pid/periods",                 label: "Dönem oluştur (band modu)", note: ":iid tesis, :pid ürün UUID",
         body: JSON.stringify({ reportYear: 2024, periodName: "2024 Yılı", startDate: "2024-01-01", endDate: "2024-12-31", productionVolumeTonne: 5000, scope1DirectTco2: 1200, bandElectricityKwh: 400000, bandRenewableKwh: 100000, renewableSource: "wind_onshore", countryGridEf: 0.4943 }, null, 2) },
+      { id: "cbam-per-update",   method: "PATCH",  path: "/api/v1/installations/:iid/products/:pid/periods/:perid",           label: "Dönem güncelle",         note: ":iid tesis, :pid ürün, :perid dönem UUID",
+        body: JSON.stringify({ productionVolumeTonne: 5200, scope1DirectTco2: 1250, facilityTotalKwh: 850000 }, null, 2) },
+      { id: "cbam-per-delete",   method: "DELETE", path: "/api/v1/installations/:iid/products/:pid/periods/:perid",           label: "Dönem sil",              note: ":iid tesis, :pid ürün, :perid dönem UUID" },
       { id: "cbam-per-calc",     method: "POST",   path: "/api/v1/installations/:iid/products/:pid/periods/:perid/calculate", label: "SEE Hesapla",            note: ":iid tesis, :pid ürün, :perid dönem UUID" },
+      { id: "cbam-grid-ef",      method: "GET",    path: "/api/v1/cbam/grid-ef?country=TR&year=2024",                        label: "ENTSO-E Izgara EF",      note: "Yıllık ortalama EF (tCO₂/MWh)" },
     ],
   },
 ];

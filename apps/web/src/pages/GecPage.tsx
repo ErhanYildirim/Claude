@@ -4,7 +4,7 @@ import {
   CartesianGrid, Tooltip, Cell, LineChart, Line, Legend,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { GecResult, GecMonthlyPoint, EFZoneEntry, Installation, Period } from "../lib/api.js";
+import type { GecResult, GecMonthlyPoint, GecColMap, EFZoneEntry, Installation, Period } from "../lib/api.js";
 
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 const s: Record<string, React.CSSProperties> = {
@@ -70,18 +70,25 @@ function co2Color(tco2: number, max: number) {
 
 /* ── Upload View ──────────────────────────────────────────────────────────── */
 function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
-  const [file,    setFile]    = useState<File | null>(null);
-  const [drag,    setDrag]    = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [err,     setErr]     = useState("");
-  const [preview, setPreview] = useState<string[][]>([]);
-  const [zoneId,  setZoneId]  = useState("TR");
-  const [zones,   setZones]   = useState<EFZoneEntry[]>([]);
+  const [step,       setStep]       = useState<"pick" | "mapping">("pick");
+  const [file,       setFile]       = useState<File | null>(null);
+  const [drag,       setDrag]       = useState(false);
+  const [loading,    setLoading]    = useState(false);  // hesaplama
+  const [colsLoading,setColsLoading]= useState(false);  // kolon çekme
+  const [err,        setErr]        = useState("");
+  const [zoneId,     setZoneId]     = useState("TR");
+  const [zones,      setZones]      = useState<EFZoneEntry[]>([]);
   const [installations, setInstallations] = useState<Installation[]>([]);
-  const [instId,  setInstId]  = useState("");
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [periodId,setPeriodId]= useState("");
-  const inputRef              = useRef<HTMLInputElement>(null);
+  const [instId,     setInstId]     = useState("");
+  const [periods,    setPeriods]    = useState<Period[]>([]);
+  const [periodId,   setPeriodId]   = useState("");
+
+  // Kolon eşleştirme state
+  const [columns,    setColumns]    = useState<string[]>([]);
+  const [colPreview, setColPreview] = useState<Record<string, string>[]>([]);
+  const [colMap,     setColMap]     = useState<GecColMap>({ hour: "", consumption: "", production: "" });
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.ef.zones().then(r => setZones(r.zones)).catch(() => {});
@@ -93,149 +100,316 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
     api.installations.get(instId).then(r => { setPeriods(r.periods ?? []); setPeriodId(""); }).catch(() => {});
   }, [instId]);
 
-  function pick(f: File) {
+  async function pick(f: File) {
     const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
     if (!["csv", "xlsx", "xls"].includes(ext)) {
       setErr("Yalnızca CSV veya Excel (.xlsx, .xls) dosyası kabul edilir."); return;
     }
-    setFile(f); setErr(""); setPreview([]);
-    if (ext === "csv") {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const text = (e.target?.result as string) ?? "";
-        const lines = text.split(/\r?\n/).filter(Boolean).slice(0, 6);
-        setPreview(lines.map(l => l.split(",")));
-      };
-      reader.readAsText(f);
-    } else {
-      setPreview([]);
+    setFile(f); setErr(""); setColsLoading(true);
+    try {
+      const result = await api.gec.columns(f);
+      setColumns(result.columns);
+      setColPreview(result.preview);
+      setColMap({
+        hour:        result.suggestedMap.hour        ?? "",
+        consumption: result.suggestedMap.consumption ?? "",
+        production:  result.suggestedMap.production  ?? "",
+      });
+      setStep("mapping");
+    } catch {
+      setErr("Kolon bilgisi alınamadı. Dosyayı kontrol edin.");
+    } finally {
+      setColsLoading(false);
     }
   }
 
   async function calculate() {
-    if (!file) return;
+    if (!file || !colMap.hour || !colMap.consumption) return;
     setLoading(true); setErr("");
     try {
-      const result = await api.gec.calculate(file, zoneId, periodId || undefined);
+      const result = await api.gec.calculate(file, zoneId, periodId || undefined, {
+        hour:        colMap.hour        || undefined,
+        consumption: colMap.consumption || undefined,
+        production:  colMap.production  || undefined,
+      });
       onResult(result);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Hesaplama hatası oluştu.");
-    } finally {
       setLoading(false);
     }
   }
 
-  const selectedZone = zones.find(z => z.zoneId === zoneId);
-  const isExcel = file && !file.name.endsWith(".csv");
+  function resetPick() {
+    setStep("pick"); setFile(null); setColumns([]); setColPreview([]);
+    setColMap({ hour: "", consumption: "", production: "" }); setErr("");
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
-  return (
-    <div style={{ maxWidth: 640, margin: "0 auto" }}>
-      {/* Zone seçici */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 6 }}>
+  const selectedZone = zones.find(z => z.zoneId === zoneId);
+  const canCalculate = !!colMap.hour && !!colMap.consumption;
+
+  // ── Ortak üst panel: zone + dönem ─────────────────────────────────────────
+  const topPanel = (
+    <>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#1a3530", marginBottom: 5 }}>
           EF Zone (Emisyon Faktörü Bölgesi)
         </div>
         <select
-          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #d4ece4",
-                   fontSize: 14, background: "#fff", cursor: "pointer", color: "#0a1f1a" }}
-          value={zoneId}
-          onChange={e => setZoneId(e.target.value)}
+          style={{ width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #d4ece4",
+                   fontSize: 13, background: "#fff", color: "#0a1f1a" }}
+          value={zoneId} onChange={e => setZoneId(e.target.value)}
         >
           {zones.length === 0 && <option value="TR">TR — Türkiye (yükleniyor…)</option>}
           {zones.map(z => (
-            <option key={z.zoneId} value={z.zoneId}>
-              {z.zoneId} — {z.zoneName || z.country}
-            </option>
+            <option key={z.zoneId} value={z.zoneId}>{z.zoneId} — {z.zoneName || z.country}</option>
           ))}
         </select>
         {selectedZone && (
-          <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 3 }}>
             {selectedZone.rowCount.toLocaleString()} saatlik kayıt · 2024
           </div>
         )}
       </div>
 
-      {/* Döneme bağla */}
-      <div style={{ marginBottom: 20, padding: "14px 16px", background: "#f4fbf8",
+      <div style={{ marginBottom: 20, padding: "12px 14px", background: "#f4fbf8",
                     borderRadius: 8, border: "1px solid #d4ece4" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#5c7a72", marginBottom: 10,
-                      textTransform: "uppercase", letterSpacing: ".05em" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", marginBottom: 8,
+                      textTransform: "uppercase" as const, letterSpacing: ".05em" }}>
           Döneme Bağla (opsiyonel)
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <select
-            style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4",
-                     fontSize: 13, background: "#fff", color: "#0a1f1a" }}
-            value={instId} onChange={e => setInstId(e.target.value)}
-          >
+          <select style={{ padding: "7px 10px", borderRadius: 6, border: "1px solid #d4ece4",
+                           fontSize: 13, background: "#fff", color: "#0a1f1a" }}
+            value={instId} onChange={e => setInstId(e.target.value)}>
             <option value="">— Tesis seç —</option>
             {installations.map(i => <option key={i.id} value={i.id}>{i.facilityName}</option>)}
           </select>
-          <select
-            style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d4ece4",
-                     fontSize: 13, background: "#fff", color: "#0a1f1a" }}
+          <select style={{ padding: "7px 10px", borderRadius: 6, border: "1px solid #d4ece4",
+                           fontSize: 13, background: "#fff", color: "#0a1f1a" }}
             value={periodId} onChange={e => setPeriodId(e.target.value)}
-            disabled={!instId || periods.length === 0}
-          >
+            disabled={!instId || periods.length === 0}>
             <option value="">— Dönem seç —</option>
             {periods.map(p => <option key={p.id} value={p.id}>{p.periodName}</option>)}
           </select>
         </div>
         {periodId && (
-          <div style={{ fontSize: 11, color: "#009966", marginTop: 6 }}>
-            Saatlik veriler hesaplama ile birlikte bu döneme kaydedilecek.
-            {" "}production_kwh sütunu varsa CFE matching de hesaplanır.
+          <div style={{ fontSize: 11, color: "#009966", marginTop: 5 }}>
+            Saatlik veriler bu döneme kaydedilecek · Üretim varsa CFE otomatik hesaplanır
           </div>
         )}
       </div>
+    </>
+  );
 
-      {/* Dosya drop zone */}
-      <div
-        style={{ ...s.dzone, ...(drag ? s.dzA : {}) }}
-        onDragOver={e => { e.preventDefault(); setDrag(true); }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) pick(f); }}
-        onClick={() => inputRef.current?.click()}
-      >
-        <div style={{ fontSize: 40, marginBottom: 12 }}>{isExcel ? "📊" : "📂"}</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "#0a1f1a", marginBottom: 6 }}>
-          {file ? file.name : "CSV veya Excel dosyasını yükle"}
+  // ── Adım 1: Dosya seçimi ───────────────────────────────────────────────────
+  if (step === "pick") {
+    return (
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+        {topPanel}
+
+        <div
+          style={{ ...s.dzone, ...(drag ? s.dzA : {}) }}
+          onDragOver={e => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) pick(f); }}
+          onClick={() => !colsLoading && inputRef.current?.click()}
+        >
+          <div style={{ fontSize: 38, marginBottom: 10 }}>
+            {colsLoading ? "⏳" : "📂"}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#0a1f1a", marginBottom: 6 }}>
+            {colsLoading ? "Kolon bilgisi alınıyor…" : "CSV veya Excel dosyasını yükle"}
+          </div>
+          <div style={{ fontSize: 13, color: "#5c7a72" }}>
+            {colsLoading ? "Lütfen bekleyin" : "Dosyayı buraya sürükle veya tıklayarak seç"}
+          </div>
+          <input
+            ref={inputRef} type="file" accept=".csv,.xlsx,.xls"
+            style={{ display: "none" }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); }}
+          />
         </div>
-        <div style={{ fontSize: 13, color: "#5c7a72" }}>
-          {file
-            ? `${(file.size / 1024).toFixed(1)} KB — değiştirmek için tekrar tıkla`
-            : "Dosyayı buraya sürükle veya tıklayarak seç"}
+
+        <div style={s.how}>
+          <strong>Desteklenen:</strong> CSV (virgül / <code>;</code>), Excel (.xlsx)<br />
+          <strong>Kolon formatları:</strong><br />
+          <code>hour &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consumptionKwh &nbsp;&nbsp;production_kwh</code><br />
+          <code>EIC &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Zaman &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tüketim (Çekiş) &nbsp;Üretim (Veriş)</code><br />
+          <code style={{ color: "#94A3B8" }}>Konsolide &nbsp;2025-01-01 00:00:00 &nbsp;&nbsp;&nbsp;14068,5 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0</code><br />
+          <br />
+          Dosya yüklendikten sonra <strong>kolon eşleştirme</strong> ekranı açılır.
         </div>
-        <input
-          ref={inputRef} type="file" accept=".csv,.xlsx,.xls"
-          style={{ display: "none" }}
-          onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); }}
-        />
+
+        {err && <div style={s.err}>{err}</div>}
+      </div>
+    );
+  }
+
+  // ── Adım 2: Kolon Eşleştirme ───────────────────────────────────────────────
+  const selStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px", borderRadius: 7,
+    border: "1px solid #d4ece4", fontSize: 13,
+    background: "#fff", color: "#0a1f1a", fontFamily: "inherit",
+  };
+  const lblStyle: React.CSSProperties = {
+    fontSize: 12, fontWeight: 700, color: "#1a3530", marginBottom: 5, display: "block",
+  };
+
+  const mappedPreview = colPreview.map(row => ({
+    _hour:        colMap.hour        ? row[colMap.hour]        ?? "—" : "—",
+    _consumption: colMap.consumption ? row[colMap.consumption] ?? "—" : "—",
+    _production:  colMap.production  ? row[colMap.production]  ?? "—" : "—",
+  }));
+
+  return (
+    <div style={{ maxWidth: 780, margin: "0 auto" }}>
+      {topPanel}
+
+      {/* Dosya başlığı */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20,
+                    padding: "12px 16px", background: "#e6f9f2", borderRadius: 8,
+                    border: "1px solid rgba(0,184,122,.3)" }}>
+        <span style={{ fontSize: 22 }}>{file?.name.endsWith(".csv") ? "📄" : "📊"}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "#0a1f1a" }}>{file?.name}</div>
+          <div style={{ fontSize: 12, color: "#5c7a72" }}>
+            {file ? `${(file.size / 1024).toFixed(1)} KB · ${columns.length} sütun tespit edildi` : ""}
+          </div>
+        </div>
+        <button onClick={resetPick}
+          style={{ ...s.btnSm, fontSize: 12, padding: "6px 12px" }}>
+          ← Değiştir
+        </button>
       </div>
 
-      {/* CSV önizleme */}
-      {preview.length > 0 && (
-        <div style={{ marginTop: 12, marginBottom: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase" as const,
-                        letterSpacing: ".06em", marginBottom: 6 }}>
-            Önizleme (ilk {preview.length - 1} satır)
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        {/* Kolon eşleştirme */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#5c7a72", marginBottom: 12,
+                        textTransform: "uppercase" as const, letterSpacing: ".07em" }}>
+            Kolon Eşleştirme
           </div>
-          <div style={{ overflowX: "auto", borderRadius: 7, border: "1px solid #d4ece4" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: 11 }}>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={lblStyle}>
+              ⏱ Zaman / Saat <span style={{ color: "#ef4444" }}>*</span>
+            </label>
+            <select style={selStyle} value={colMap.hour ?? ""}
+              onChange={e => setColMap(m => ({ ...m, hour: e.target.value }))}>
+              <option value="">— Sütun seçin —</option>
+              {columns.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={lblStyle}>
+              ⚡ Tüketim (kWh) <span style={{ color: "#ef4444" }}>*</span>
+            </label>
+            <select style={selStyle} value={colMap.consumption ?? ""}
+              onChange={e => setColMap(m => ({ ...m, consumption: e.target.value }))}>
+              <option value="">— Sütun seçin —</option>
+              {columns.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={lblStyle}>
+              ☀ Üretim (kWh)
+              <span style={{ color: "#5c7a72", fontWeight: 400, marginLeft: 6 }}>— opsiyonel</span>
+            </label>
+            <select style={selStyle} value={colMap.production ?? ""}
+              onChange={e => setColMap(m => ({ ...m, production: e.target.value }))}>
+              <option value="">— Yok / Atla —</option>
+              {columns.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {!canCalculate && (
+            <div style={{ fontSize: 12, color: "#f59e0b", background: "#fef3c7",
+                          borderRadius: 6, padding: "8px 10px" }}>
+              Zaman ve Tüketim sütunları seçilmeden hesaplama başlatılamaz.
+            </div>
+          )}
+        </div>
+
+        {/* Tüm sütunlar listesi */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#5c7a72", marginBottom: 12,
+                        textTransform: "uppercase" as const, letterSpacing: ".07em" }}>
+            Dosyadaki Sütunlar ({columns.length})
+          </div>
+          <div style={{ border: "1px solid #d4ece4", borderRadius: 8, overflow: "hidden" }}>
+            {columns.map(col => {
+              const isHour  = colMap.hour        === col;
+              const isCons  = colMap.consumption === col;
+              const isProd  = colMap.production  === col;
+              const tag     = isHour ? "ZAMAN" : isCons ? "TÜKETİM" : isProd ? "ÜRETİM" : null;
+              const tagClr  = isHour ? "#3b82f6" : isCons ? "#00b87a" : "#f59e0b";
+              return (
+                <div key={col} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "8px 12px", borderBottom: "1px solid #eef7f3",
+                  background: tag ? "#f4fbf8" : "#fff",
+                }}>
+                  <span style={{ fontSize: 13, color: "#1a3530", fontFamily: "monospace" }}>{col}</span>
+                  {tag && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff",
+                                   background: tagClr, borderRadius: 4, padding: "2px 7px" }}>
+                      {tag}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Veri önizlemesi */}
+      {colPreview.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#5c7a72", marginBottom: 8,
+                        textTransform: "uppercase" as const, letterSpacing: ".07em" }}>
+            Veri Önizlemesi — ilk {colPreview.length} satır (seçilen kolonlar)
+          </div>
+          <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid #d4ece4" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: 12 }}>
               <thead>
                 <tr style={{ background: "#f4fbf8" }}>
-                  {(preview[0] ?? []).map((h, i) => (
-                    <th key={i} style={{ padding: "6px 10px", textAlign: "left" as const,
-                                         fontWeight: 700, color: "#5c7a72", whiteSpace: "nowrap" as const }}>{h.trim()}</th>
-                  ))}
+                  <th style={{ padding: "8px 12px", textAlign: "left" as const,
+                               fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" as const }}>
+                    Zaman {colMap.hour ? `(${colMap.hour})` : "— seçilmedi"}
+                  </th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" as const,
+                               fontWeight: 700, color: "#00b87a", whiteSpace: "nowrap" as const }}>
+                    Tüketim kWh {colMap.consumption ? `(${colMap.consumption})` : "— seçilmedi"}
+                  </th>
+                  {colMap.production && (
+                    <th style={{ padding: "8px 12px", textAlign: "right" as const,
+                                 fontWeight: 700, color: "#f59e0b", whiteSpace: "nowrap" as const }}>
+                      Üretim kWh ({colMap.production})
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {preview.slice(1).map((row, ri) => (
-                  <tr key={ri} style={{ borderTop: "1px solid #eef7f3" }}>
-                    {row.map((cell, ci) => (
-                      <td key={ci} style={{ padding: "5px 10px", color: "#1a3530", whiteSpace: "nowrap" as const }}>{cell.trim()}</td>
-                    ))}
+                {mappedPreview.map((row, i) => (
+                  <tr key={i} style={{ borderTop: "1px solid #eef7f3" }}>
+                    <td style={{ padding: "7px 12px", color: "#1a3530",
+                                 whiteSpace: "nowrap" as const, fontFamily: "monospace", fontSize: 11 }}>
+                      {row._hour}
+                    </td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" as const,
+                                 color: "#0a1f1a", fontWeight: 600 }}>
+                      {row._consumption}
+                    </td>
+                    {colMap.production && (
+                      <td style={{ padding: "7px 12px", textAlign: "right" as const,
+                                   color: "#0a1f1a" }}>
+                        {row._production}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -244,40 +418,16 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
         </div>
       )}
 
-      {isExcel && (
-        <div style={{ marginTop: 10, background: "#e6f9f2", borderRadius: 7,
-                      padding: "8px 12px", fontSize: 12, color: "#009966" }}>
-          Excel dosyası seçildi — önizleme hesaplama sonrasında gösterilecek.
-        </div>
-      )}
-
-      <div style={s.how}>
-        <strong>Desteklenen formatlar:</strong> CSV (virgül veya <code>;</code>), Excel (.xlsx)<br />
-        <br />
-        <strong>Format 1 — Standart başlıklar:</strong><br />
-        <code>hour &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;consumptionKwh &nbsp;&nbsp;production_kwh</code><br />
-        <code style={{ color: "#94A3B8" }}>1.01.2025 00:00 &nbsp;&nbsp;14068 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14068</code><br />
-        <br />
-        <strong>Format 2 — Konsolide / OSOS / TEDAŞ:</strong><br />
-        <code>EIC &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Zaman &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tüketim (Çekiş) &nbsp;Üretim (Veriş)</code><br />
-        <code style={{ color: "#94A3B8" }}>Konsolide &nbsp;2025-01-01 00:00:00 &nbsp;&nbsp;&nbsp;14068 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0</code><br />
-        <br />
-        <strong>Notlar:</strong><br />
-        · Üretim / <code>production_kwh</code> opsiyonel — sadece tüketim de yüklenebilir<br />
-        · Her iki sütun varsa 24/7 CFE matching otomatik hesaplanır<br />
-        · Sayı formatı: <code>14068</code> veya <code>14068,2</code> (virgüllü ondalık)<br />
-        · Zone: <strong>{zoneId}</strong> · 2024 saatlik EF verisi
-      </div>
-
       {err && <div style={s.err}>{err}</div>}
 
-      <div style={{ textAlign: "center", marginTop: 20 }}>
+      <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+        <button style={s.btnSm} onClick={resetPick}>← Farklı Dosya</button>
         <button
-          style={{ ...s.btn, opacity: !file || loading ? 0.5 : 1, minWidth: 200 }}
-          disabled={!file || loading}
+          style={{ ...s.btn, opacity: !canCalculate || loading ? 0.5 : 1, minWidth: 220 }}
+          disabled={!canCalculate || loading}
           onClick={calculate}
         >
-          {loading ? "Hesaplanıyor…" : "Granüler Emisyon Hesapla"}
+          {loading ? "Hesaplanıyor…" : "Onayla ve Hesapla →"}
         </button>
       </div>
     </div>

@@ -8,8 +8,6 @@ import { calculateCFEMatching } from "../../../../src/cbam/cfe-matching.js";
 import type { HourlySlot } from "../../../../src/cbam/cfe-matching.js";
 
 // ── GEC — Granular Emission Calculation API ───────────────────────────────────
-// CSV / Excel upload → join with hourly EF → tCO₂ per hour
-// Opsiyonel: production_kwh sütunu varsa → 24/7 CFE matching de hesaplanır
 
 type EFRow = { hour: Date; ci_direct: number };
 
@@ -28,26 +26,33 @@ interface MonthAgg {
   tco2: number; efSum: number; hours: number;
 }
 
-// ── Tarih ayrıştırıcısı: Türkçe + ISO + Konsolide formatları ─────────────────
+// Kullanıcının seçtiği kolon eşlemesi
+interface ColumnMap {
+  hour?:        string;  // hangi sütun = saat
+  consumption?: string;  // hangi sütun = tüketimKwh
+  production?:  string;  // hangi sütun = üretimKwh (opsiyonel)
+}
+
+// ── Tarih ayrıştırıcısı ───────────────────────────────────────────────────────
 function parseDate(s: string): Date | null {
   if (!s) return null;
   const t = s.trim();
 
-  // Türkçe: D.MM.YYYY HH:mm  (örn: 1.01.2025 00:00)
+  // Türkçe: D.MM.YYYY HH:mm
   const tr = t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2})$/);
   if (tr) {
     const d = new Date(Date.UTC(+tr[3], +tr[2] - 1, +tr[1], +tr[4], +tr[5]));
     if (!isNaN(d.getTime())) return d;
   }
 
-  // Konsolide / OSOS: YYYY-MM-DD HH:mm:ss (veya HH:mm) — açık UTC olarak işle
+  // Konsolide / OSOS: YYYY-MM-DD HH:mm:ss (veya HH:mm) — açık UTC
   const isoSpc = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (isoSpc) {
     const d = new Date(Date.UTC(+isoSpc[1], +isoSpc[2] - 1, +isoSpc[3], +isoSpc[4], +isoSpc[5]));
     if (!isNaN(d.getTime())) return d;
   }
 
-  // ISO 8601 (Z suffix veya offset) — native parser güvenli
+  // ISO 8601 (Z suffix veya offset)
   if (/Z$|[+-]\d{2}:\d{2}$/.test(t)) {
     const iso = new Date(t);
     if (!isNaN(iso.getTime())) return iso;
@@ -56,18 +61,15 @@ function parseDate(s: string): Date | null {
   return null;
 }
 
-// Excel seri tarihi → UTC Date (1900 epoch, 1900 artık-yıl hatası dahil)
 function excelSerialToDate(serial: number): Date | null {
   if (serial < 1) return null;
-  const adj = serial > 59 ? serial - 1 : serial;   // 60 = sahte 29 Şub 1900
+  const adj = serial > 59 ? serial - 1 : serial;
   const d = new Date(Date.UTC(1900, 0, 1) + (adj - 1) * 86_400_000);
   return isNaN(d.getTime()) ? null : d;
 }
 
-// Hücre değeri → UTC Date
 function cellToDate(v: unknown): Date | null {
   if (v instanceof Date) {
-    // xlsx cellDates:true → JS Date (yerel saat) → UTC'ye çevir
     return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate(),
                              v.getHours(), v.getMinutes()));
   }
@@ -76,13 +78,11 @@ function cellToDate(v: unknown): Date | null {
   return null;
 }
 
-// Sayısal hücre: number döner, virgüllü string de kabul edilir
 function parseNum(v: unknown): number | undefined {
   if (typeof v === "number" && isFinite(v) && v >= 0) return v;
   if (typeof v === "string") {
     const s = v.trim();
     if (!s) return undefined;
-    // Önce standart float dene; başarısız olursa Türkçe ondalık (virgül) dene
     let n = parseFloat(s);
     if (isNaN(n)) n = parseFloat(s.replace(",", "."));
     if (!isNaN(n) && n >= 0) return n;
@@ -90,7 +90,7 @@ function parseNum(v: unknown): number | undefined {
   return undefined;
 }
 
-// Esnek alan arama: string key veya regex ile eşleşen ilk değeri döner
+// Esnek alan arama: string veya regex ile eşleşen ilk değeri döner
 function findVal(r: Record<string, unknown>, ...patterns: (string | RegExp)[]): unknown {
   for (const pat of patterns) {
     if (typeof pat === "string") {
@@ -103,11 +103,43 @@ function findVal(r: Record<string, unknown>, ...patterns: (string | RegExp)[]): 
   return undefined;
 }
 
-// Ham satır kaydı → FileRow
-// Desteklenen başlıklar:
-//   Zaman sütunu : hour | timestamp | datetime | Zaman
-//   Tüketim      : consumptionKwh | consumption_kwh | /T.{0,5}ketim/  (Konsolide / Türkçe)
-//   Üretim       : production_kwh | productionKwh   | /[UÜ].{0,3}retim/ (Konsolide / Türkçe)
+// Kolon eşleme uygula: kullanıcı seçimi → standart alan adlarına kopyala
+function remapRow(r: Record<string, unknown>, colMap: ColumnMap): Record<string, unknown> {
+  const out = { ...r };
+  if (colMap.hour        && colMap.hour in r)        out["hour"]           = r[colMap.hour];
+  if (colMap.consumption && colMap.consumption in r) out["consumptionKwh"] = r[colMap.consumption];
+  if (colMap.production  && colMap.production in r)  out["production_kwh"] = r[colMap.production];
+  return out;
+}
+
+// Kolon adlarından otomatik eşlem tahmini
+function detectSuggestedMap(columns: string[]): ColumnMap {
+  const map: ColumnMap = {};
+  for (const col of columns) {
+    const lc = col.toLowerCase().trim();
+    if (!map.hour && (
+      /^(hour|zaman|timestamp|datetime)$/i.test(lc) ||
+      lc.includes("zaman") || lc.includes("tarih") || lc.includes("saat")
+    )) { map.hour = col; }
+
+    if (!map.consumption && (
+      /^(consumptionkwh|consumption_kwh)$/i.test(lc) ||
+      /t.{0,5}ketim/i.test(col) ||
+      lc.includes("consumption") || lc.includes("tüketim") ||
+      lc.includes("tuketim") || lc.includes("çekiş") || lc.includes("cekis")
+    )) { map.consumption = col; }
+
+    if (!map.production && (
+      /^(production_kwh|productionkwh)$/i.test(lc) ||
+      /[uü].{0,3}retim/i.test(col) ||
+      lc.includes("production") || lc.includes("üretim") ||
+      lc.includes("uretim") || lc.includes("veriş") || lc.includes("veris")
+    )) { map.production = col; }
+  }
+  return map;
+}
+
+// Ham satır → FileRow (kolon eşlemesi zaten uygulanmış olmalı)
 function parseRowRecord(r: Record<string, unknown>): FileRow | null {
   const ts = findVal(r,
     "hour", "timestamp", "datetime", "Datetime (UTC)", "Zaman", "zaman",
@@ -120,12 +152,12 @@ function parseRowRecord(r: Record<string, unknown>): FileRow | null {
 
   const consumption = parseNum(findVal(r,
     "consumptionKwh", "consumption_kwh",
-    /t.{0,5}ketim/i,    // Tüketim (Excel UTF-8 veya garbled)
+    /t.{0,5}ketim/i,
     /consumption/i,
   ));
   const production = parseNum(findVal(r,
     "production_kwh", "productionKwh",
-    /[uü].{0,3}retim/i, // Üretim (Excel UTF-8)
+    /[uü].{0,3}retim/i,
     /production/i,
   ));
 
@@ -134,27 +166,20 @@ function parseRowRecord(r: Record<string, unknown>): FileRow | null {
 }
 
 // ── CSV Parser ────────────────────────────────────────────────────────────────
-// Otomatik ayraç tespiti (noktalı virgül / virgül) + Konsolide format normalizasyonu
-// Konsolide format: EIC;Zaman;Tüketim (Çekiş);Üretim (Veriş)
-//   → Başlık satırı "_eic;hour;consumptionKwh;production_kwh" ile değiştirilir
-//   → Türkçe karakter kodlama sorunları (Windows-1254) atlatılmış olur
-function parseCsvFile(text: string): Promise<FileRow[]> {
-  // BOM temizle
-  const clean = text.replace(/^﻿/, "");
+// Ayraç tespiti + Konsolide format normalizasyonu + opsiyonel colMap uygulaması
+function parseCsvFile(text: string, colMap?: ColumnMap): Promise<FileRow[]> {
+  const clean  = text.replace(/^﻿/, "");
   const lines  = clean.split(/\r?\n/);
   const hdrIdx = lines.findIndex(l => l.trim() !== "");
   const header = lines[hdrIdx] ?? "";
-
-  // Ayraç tespiti
   const delimiter = header.includes(";") ? ";" : ",";
 
   let parseText = clean;
 
   if (delimiter === ";") {
-    // Konsolide / OSOS / TEDAŞ format: ilk iki sütun ASCII ile tespit edilir
     const cols = header.split(";").map(c => c.trim());
     if (cols[0] === "EIC" && cols[1] === "Zaman") {
-      // Başlığı normalize et — veri satırlarına dokunma
+      // Konsolide / OSOS / TEDAŞ: başlığı normalize et
       const newLines = [...lines];
       newLines[hdrIdx] = "_eic;hour;consumptionKwh;production_kwh";
       parseText = newLines.join("\n");
@@ -164,13 +189,11 @@ function parseCsvFile(text: string): Promise<FileRow[]> {
   return new Promise((resolve, reject) => {
     const rows: FileRow[] = [];
     const parser = parse(parseText, {
-      columns:           true,
-      skip_empty_lines:  true,
-      trim:              true,
-      delimiter,
+      columns: true, skip_empty_lines: true, trim: true, delimiter,
     });
     parser.on("data", (r: Record<string, string>) => {
-      const row = parseRowRecord(r);
+      const mapped = colMap ? remapRow(r as Record<string, unknown>, colMap) : r;
+      const row = parseRowRecord(mapped);
       if (row) rows.push(row);
     });
     parser.on("end",   () => resolve(rows));
@@ -179,16 +202,43 @@ function parseCsvFile(text: string): Promise<FileRow[]> {
 }
 
 // ── Excel Parser ──────────────────────────────────────────────────────────────
-function parseExcelFile(buffer: Buffer): FileRow[] {
-  const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
+function parseExcelFile(buffer: Buffer, colMap?: ColumnMap): FileRow[] {
+  const wb  = XLSX.read(buffer, { type: "buffer", cellDates: true });
+  const ws  = wb.Sheets[wb.SheetNames[0]];
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
   const rows: FileRow[] = [];
   for (const r of raw) {
-    const row = parseRowRecord(r);
+    const mapped = colMap ? remapRow(r, colMap) : r;
+    const row    = parseRowRecord(mapped);
     if (row) rows.push(row);
   }
   return rows;
+}
+
+// ── Kolon bilgisi için CSV header + preview çıkar ─────────────────────────────
+function extractCsvColumnsAndPreview(
+  text:  string,
+): { columns: string[]; preview: Record<string, string>[]; isKonsolide: boolean } {
+  const clean     = text.replace(/^﻿/, "");
+  const lines     = clean.split(/\r?\n/).filter(l => l.trim() !== "");
+  const header    = lines[0] ?? "";
+  const delimiter = header.includes(";") ? ";" : ",";
+  const rawCols   = header.split(delimiter).map(c => c.trim());
+
+  // Konsolide tespiti
+  const isKonsolide = rawCols[0] === "EIC" && rawCols[1] === "Zaman";
+  const columns     = isKonsolide
+    ? ["EIC", "Zaman", "Tüketim (Çekiş)", "Üretim (Veriş)"]
+    : rawCols;
+
+  const preview = lines.slice(1, 6).map(line => {
+    const vals = line.split(delimiter);
+    const obj: Record<string, string> = {};
+    columns.forEach((col, i) => { obj[col] = (vals[i] ?? "").trim(); });
+    return obj;
+  });
+
+  return { columns, preview, isKonsolide };
 }
 
 export const gecRoutes: FastifyPluginAsync = async (app) => {
@@ -196,23 +246,52 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
     await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } });
   }
 
-  /**
-   * POST /gec/calculate
-   * Content-Type: multipart/form-data
-   * Field: file (CSV veya Excel .xlsx/.xls)
-   *
-   * Başlıklar: hour | consumptionKwh | production_kwh
-   *   - consumptionKwh: opsiyonel → Scope 2 emisyon hesaplar
-   *   - production_kwh: opsiyonel → CFE matching hesaplar (tüketimle birlikte)
-   *   - İkisi birlikte veya ayrı ayrı olabilir
-   *
-   * Tarih formatları:
-   *   - ISO 8601:    2025-01-01T00:00:00Z  veya  2025-01-01 00:00
-   *   - Türkçe:      1.01.2025 00:00
-   *
-   * Query: zoneId (default: TR), periodId (opsiyonel — döneme kaydeder)
-   * periodId + her iki sütun → HourlyConsumption + CFEMatchingResult güncellenir
-   */
+  // ── POST /gec/columns — kolon adları + önizleme satırları ───────────────────
+  // Dosyayı parse etmeden önce kolon seçimi için UI'ya veri sağlar
+  app.post("/gec/columns", {}, async (request, reply) => {
+    const data = await request.file();
+    if (!data) return reply.status(400).send({ error: "MISSING_FILE" });
+
+    const filename = (data.filename ?? "").toLowerCase();
+    const isExcel  = filename.endsWith(".xlsx") || filename.endsWith(".xls");
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of data.file) chunks.push(chunk);
+    const buffer = Buffer.concat(chunks);
+
+    try {
+      let columns: string[];
+      let preview: Record<string, string>[];
+
+      if (isExcel) {
+        const wb  = XLSX.read(buffer, { type: "buffer", cellDates: false, raw: false });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: false });
+        columns = raw.length > 0 ? Object.keys(raw[0]) : [];
+        preview = raw.slice(0, 5).map(r => {
+          const obj: Record<string, string> = {};
+          for (const [k, v] of Object.entries(r)) obj[k] = String(v ?? "");
+          return obj;
+        });
+      } else {
+        const text = buffer.toString("utf-8");
+        const extracted = extractCsvColumnsAndPreview(text);
+        columns = extracted.columns;
+        preview = extracted.preview;
+      }
+
+      const suggestedMap = detectSuggestedMap(columns);
+      return reply.send({ columns, preview, suggestedMap });
+    } catch {
+      return reply.status(422).send({
+        error: "PARSE_ERROR",
+        message: "Kolon bilgisi alınamadı. CSV veya Excel formatını kontrol edin.",
+      });
+    }
+  });
+
+  // ── POST /gec/calculate ──────────────────────────────────────────────────────
+  // Query: zoneId, periodId, colHour, colConsumption, colProduction
   app.post("/gec/calculate", {}, async (request, reply) => {
     const data = await request.file();
     if (!data) return reply.status(400).send({ error: "MISSING_FILE", message: "CSV veya Excel dosyası gerekli." });
@@ -224,11 +303,21 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
     for await (const chunk of data.file) chunks.push(chunk);
     const buffer = Buffer.concat(chunks);
 
+    // Kullanıcı kolon eşlemesi (opsiyonel)
+    const q = request.query as {
+      zoneId?: string; periodId?: string;
+      colHour?: string; colConsumption?: string; colProduction?: string;
+    };
+    const colMap: ColumnMap | undefined =
+      (q.colHour || q.colConsumption || q.colProduction)
+        ? { hour: q.colHour || undefined, consumption: q.colConsumption || undefined, production: q.colProduction || undefined }
+        : undefined;
+
     let rows: FileRow[];
     try {
       rows = isExcel
-        ? parseExcelFile(buffer)
-        : await parseCsvFile(buffer.toString("utf-8"));
+        ? parseExcelFile(buffer, colMap)
+        : await parseCsvFile(buffer.toString("utf-8"), colMap);
     } catch {
       return reply.status(422).send({
         error: "PARSE_ERROR",
@@ -239,14 +328,14 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
     if (!rows.length) {
       return reply.status(422).send({
         error: "NO_VALID_ROWS",
-        message: "Geçerli satır bulunamadı. Beklenen başlıklar: hour, consumptionKwh, production_kwh",
+        message: "Geçerli satır bulunamadı. Kolon eşleştirmesini kontrol edin.",
       });
     }
 
     const hasConsumption = rows.some(r => r.consumptionKwh !== undefined);
     const hasProduction  = rows.some(r => r.productionKwh  !== undefined);
 
-    // Üretim verisi var ama tüketim yok → üretim özeti döndür
+    // Sadece üretim verisi varsa özet döndür
     if (!hasConsumption) {
       const prodMonth = new Map<number, { month: number; monthName: string; productionKwh: number; hours: number }>();
       let totalProd = 0;
@@ -260,22 +349,19 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
         agg.hours++;
       }
       return reply.send({
-        zoneId: (request.query as { zoneId?: string }).zoneId ?? "TR",
-        hasConsumption: false,
-        hasProduction:  true,
+        zoneId: q.zoneId ?? "TR",
+        hasConsumption: false, hasProduction: true,
         totalProductionKwh: Math.round(totalProd * 100) / 100,
         totalRows: rows.length,
         productionMonthly: Array.from(prodMonth.values())
           .sort((a, b) => a.month - b.month)
           .map(m => ({ ...m, productionKwh: Math.round(m.productionKwh * 100) / 100 })),
-        savedToPeriod: false,
-        savedCFE: false,
-        note: "GEC hesaplama için consumptionKwh sütunu gereklidir. CFE için her iki sütunu ekleyin.",
+        savedToPeriod: false, savedCFE: false,
+        note: "GEC hesaplama için Tüketim sütunu gereklidir.",
       });
     }
 
-    // ── GEC: tüketim × EF ──────────────────────────────────────────────────────
-    const { zoneId = "TR", periodId } = request.query as { zoneId?: string; periodId?: string };
+    const { zoneId = "TR", periodId } = q;
     const source = isExcel ? "excel" : "csv";
 
     const consumptionRows = rows.filter((r): r is FileRow & { consumptionKwh: number } =>
@@ -337,7 +423,6 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
       m.tco2           += tco2;
       m.efSum          += ci;
       m.hours++;
-
       totalConsumptionKwh += row.consumptionKwh;
       totalTco2           += tco2;
       matchedHours++;
@@ -346,8 +431,7 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
     const monthly = Array.from(monthMap.values())
       .sort((a, b) => a.month - b.month)
       .map(m => ({
-        month:          m.month,
-        monthName:      m.monthName,
+        month: m.month, monthName: m.monthName,
         consumptionKwh: Math.round(m.consumptionKwh * 100) / 100,
         productionKwh:  Math.round(m.productionKwh  * 100) / 100,
         tco2:           Math.round(m.tco2            * 1000) / 1000,
@@ -359,7 +443,6 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
       ? monthly.reduce((s, m) => s + m.avgEfGco2Kwh * m.hours, 0) / matchedHours
       : 0;
 
-    // ── Döneme kaydet ──────────────────────────────────────────────────────────
     let savedToPeriod = false;
     let savedCFE      = false;
     let cfeResult: object | null = null;
@@ -370,7 +453,6 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
       });
 
       if (period) {
-        // Saatlik tüketim kaydet
         await prisma.$transaction(
           consumptionRows.map(r =>
             prisma.hourlyConsumption.upsert({
@@ -382,7 +464,6 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
         );
         savedToPeriod = true;
 
-        // CFE matching: her iki sütun da mevcutsa
         if (hasProduction) {
           const slots: HourlySlot[] = rows
             .filter((r): r is FileRow & { consumptionKwh: number; productionKwh: number } =>
@@ -434,7 +515,7 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
             });
 
             cfeResult = {
-              cfeScore:            Math.round(cfeCalc.cfeScore * 1000) / 10, // % olarak
+              cfeScore:            Math.round(cfeCalc.cfeScore * 1000) / 10,
               totalConsumptionKwh: Math.round(cfeCalc.totalConsumptionKwh),
               totalProductionKwh:  Math.round(cfeCalc.totalProductionKwh),
               totalMatchedKwh:     Math.round(cfeCalc.totalMatchedKwh),
@@ -445,12 +526,9 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
 
             await prisma.auditLog.create({
               data: {
-                tenantId:   request.tenantId,
-                userId:     request.userId ?? undefined,
-                action:     "IMPORT",
-                resource:   "CFEMatchingResult",
-                resourceId: periodId,
-                payload:    { slots: slots.length, cfeScore: cfeCalc.cfeScore, source },
+                tenantId: request.tenantId, userId: request.userId ?? undefined,
+                action: "IMPORT", resource: "CFEMatchingResult", resourceId: periodId,
+                payload: { slots: slots.length, cfeScore: cfeCalc.cfeScore, source },
               },
             });
           }
@@ -458,32 +536,25 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
 
         await prisma.auditLog.create({
           data: {
-            tenantId:   request.tenantId,
-            userId:     request.userId ?? undefined,
-            action:     "IMPORT",
-            resource:   "HourlyConsumption",
-            resourceId: periodId,
-            payload:    { rows: rows.length, matchedHours, zoneId, hasProduction, source },
+            tenantId: request.tenantId, userId: request.userId ?? undefined,
+            action: "IMPORT", resource: "HourlyConsumption", resourceId: periodId,
+            payload: { rows: rows.length, matchedHours, zoneId, hasProduction, source },
           },
         });
       }
     }
 
     return reply.send({
-      zoneId,
-      hasConsumption,
-      hasProduction,
+      zoneId, hasConsumption, hasProduction,
       totalConsumptionKwh: Math.round(totalConsumptionKwh * 100) / 100,
-      totalTco2:           Math.round(totalTco2 * 1000)          / 1000,
-      avgEfGco2Kwh:        Math.round(avgEf     * 100)           / 100,
-      matchedHours,
-      totalRows:           rows.length,
+      totalTco2:           Math.round(totalTco2 * 1000) / 1000,
+      avgEfGco2Kwh:        Math.round(avgEf     * 100)  / 100,
+      matchedHours, totalRows: rows.length,
       totalProductionKwh:  Math.round(totalProductionKwh * 100) / 100,
       monthly,
       methodology: "hourly_consumption_x_location_based_ef",
       unit: { consumption: "kWh", emission: "tCO₂eq", ef: "gCO₂/kWh" },
-      savedToPeriod,
-      savedCFE,
+      savedToPeriod, savedCFE,
       ...(cfeResult ? { cfeResult } : {}),
     });
   });

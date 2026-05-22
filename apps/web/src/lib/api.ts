@@ -158,14 +158,33 @@ export const api = {
   },
 
   gec: {
-    calculate: async (file: File, zoneId?: string, periodId?: string): Promise<GecResult> => {
+    columns: async (file: File): Promise<GecColumnsResult> => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Oturum bulunamadı.");
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${BASE}/gec/columns`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session.access_token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw Object.assign(new Error(err.message ?? err.error ?? "Kolon bilgisi alınamadı"), { status: res.status });
+      }
+      return res.json();
+    },
+    calculate: async (file: File, zoneId?: string, periodId?: string, colMap?: GecColMap): Promise<GecResult> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Oturum bulunamadı.");
       const form = new FormData();
       form.append("file", file);
       const q = new URLSearchParams();
-      if (zoneId)   q.set("zoneId",   zoneId);
-      if (periodId) q.set("periodId", periodId);
+      if (zoneId)              q.set("zoneId",         zoneId);
+      if (periodId)            q.set("periodId",        periodId);
+      if (colMap?.hour)        q.set("colHour",         colMap.hour);
+      if (colMap?.consumption) q.set("colConsumption",  colMap.consumption);
+      if (colMap?.production)  q.set("colProduction",   colMap.production);
       const qs = q.toString() ? "?" + q : "";
       const res = await fetch(`${BASE}/gec/calculate${qs}`, {
         method: "POST",
@@ -476,6 +495,17 @@ export interface AdminWebhookStats { total: number; success: number; failed: num
 export interface EntsoeZone { code: string; eicCode: string; name: string; country: string; }
 export interface EntsoeImportBody { token: string; zoneCode: string; startDate: string; endDate: string; }
 export interface EntsoeImportLog { id: string; year: number; zoneId: string | null; rowsAdded: number; status: string; message: string | null; startedAt: string; endedAt: string; createdAt: string; }
+
+export interface GecColMap {
+  hour?:        string;
+  consumption?: string;
+  production?:  string;
+}
+export interface GecColumnsResult {
+  columns:      string[];
+  preview:      Record<string, string>[];
+  suggestedMap: GecColMap;
+}
 
 export interface GecMonthlyPoint {
   month: number; monthName: string;

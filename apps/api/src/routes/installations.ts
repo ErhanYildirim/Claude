@@ -53,14 +53,28 @@ export const installationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send(installation);
   });
 
-  // GET /installations
+  // GET /installations — cursor-based pagination destekli
   app.get("/installations", async (request, reply) => {
+    const q = request.query as { limit?: string; cursor?: string };
+    const limit  = Math.min(parseInt(q.limit ?? "100"), 200);
+    const cursor = q.cursor ? Buffer.from(q.cursor, "base64").toString("utf8") : undefined;
+
     const installations = await prisma.installation.findMany({
-      where: { tenantId: request.tenantId },
+      where:   { tenantId: request.tenantId },
       orderBy: { createdAt: "desc" },
+      take:    limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { _count: { select: { periods: true } } },
     });
-    return reply.send(installations);
+
+    const hasMore   = installations.length > limit;
+    const items     = hasMore ? installations.slice(0, limit) : installations;
+    const lastItem  = items[items.length - 1];
+    const nextCursor = hasMore && lastItem
+      ? Buffer.from(lastItem.id).toString("base64")
+      : null;
+
+    return reply.send({ installations: items, nextCursor, count: items.length });
   });
 
   // GET /installations/:id

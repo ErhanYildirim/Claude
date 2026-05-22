@@ -31,7 +31,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // ── Installations ─────────────────────────────────────────────────────────────
 export const api = {
   installations: {
-    list: () => request<Installation[]>("GET", "/installations"),
+    list: () => request<{ installations: Installation[]; nextCursor: string | null; count: number }>("GET", "/installations")
+      .then(r => r.installations),
     get:  (id: string) => request<InstallationDetail>("GET", `/installations/${id}`),
     create: (body: CreateInstallationBody) =>
       request<Installation>("POST", "/installations", body),

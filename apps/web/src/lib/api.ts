@@ -375,7 +375,7 @@ export interface EmbeddedEmission {
   reductionTco2: number; reductionPct: number;
   seeBaseline: number; seeVoltfox: number;
   defaultSee: number | null; savingsVsDefaultEur: number | null;
-  calcEngineVersion: string; efDataVersion: string; calculatedAt: string;
+  calcEngineVersion: string; calcMethodology: string; efDataVersion: string; calculatedAt: string;
 }
 
 export interface CalculationResult {

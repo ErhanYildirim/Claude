@@ -28,6 +28,7 @@ const ApiPlaygroundPage      = lazy(() => import("./pages/ApiPlaygroundPage.js")
 const CarbonPricePage        = lazy(() => import("./pages/CarbonPricePage.js"));
 const ComparisonPage         = lazy(() => import("./pages/ComparisonPage.js"));
 const EmissionTargetsPage    = lazy(() => import("./pages/EmissionTargetsPage.js"));
+const ImportWizardPage       = lazy(() => import("./pages/ImportWizardPage.js"));
 
 // Admin pages (super-admin only)
 const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
@@ -135,6 +136,7 @@ function AppRouter() {
           <Route path="/carbon-prices"                                     element={<CarbonPricePage />} />
           <Route path="/comparison"                                        element={<ComparisonPage />} />
           <Route path="/emission-targets"                                  element={<EmissionTargetsPage />} />
+          <Route path="/import"                                            element={<ImportWizardPage />} />
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
           <Route path="*"                                                  element={<Navigate to="/gec" replace />} />

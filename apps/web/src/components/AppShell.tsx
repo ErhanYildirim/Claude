@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useTheme } from "../contexts/ThemeContext.js";
+import NotificationBell from "./NotificationBell.js";
 
 interface NavItem { icon: string; label: string; path: string; }
 interface NavGroup { title: string; items: NavItem[]; }
@@ -113,6 +114,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
             ☰
           </button>
           <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>Voltfox</div>
+          <div style={{ marginLeft: "auto" }}>
+            <NotificationBell />
+          </div>
         </div>
       )}
 
@@ -154,6 +158,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div style={bottomArea}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+            <NotificationBell />
+          </div>
           {user?.email && (
             <Link
               to="/profile"

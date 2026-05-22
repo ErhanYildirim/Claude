@@ -208,6 +208,14 @@ export const api = {
     },
   },
 
+  carbonPrices: {
+    list:   () => request<{ prices: CarbonPriceEntry[] }>("GET", "/carbon-prices"),
+    latest: () => request<{ price: CarbonPriceEntry | null }>("GET", "/carbon-prices/latest"),
+    create: (body: { date: string; etsPriceEur: number; cbamEstEur?: number; source?: string; notes?: string }) =>
+      request<CarbonPriceEntry>("POST", "/carbon-prices", body),
+    delete: (id: string) => request<void>("DELETE", `/carbon-prices/${id}`),
+  },
+
   admin: {
     metrics: () => request<AdminMetrics>("GET", "/admin/metrics"),
 
@@ -386,6 +394,11 @@ export interface EFImportStatus {
   totalRows: number;
   nextScheduledRun: string;
   schedule: string;
+}
+
+export interface CarbonPriceEntry {
+  id: string; date: string; etsPriceEur: number; cbamEstEur: number | null;
+  source: string; notes: string | null; createdAt: string;
 }
 
 // Admin types

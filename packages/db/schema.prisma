@@ -326,6 +326,21 @@ model MemberInvite {
   @@map("member_invites")
 }
 
+// ── CarbonPrice (EU ETS / CBAM fiyat geçmişi) ────────────────────────────────
+model CarbonPrice {
+  id          String   @id @default(uuid()) @db.Uuid
+  date        DateTime @db.Date
+  etsPriceEur Decimal  @map("ets_price_eur") @db.Decimal(10, 4)
+  cbamEstEur  Decimal? @map("cbam_est_eur")  @db.Decimal(10, 4)
+  source      String   @default("manual")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([date, source])
+  @@index([date(sort: Desc)])
+  @@map("carbon_prices")
+}
+
 // ── HourlyConsumption (Saatlik Tüketim Verisi) ───────────────────────────────
 model HourlyConsumption {
   id             String          @id @default(uuid()) @db.Uuid

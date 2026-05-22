@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import type { InstallationDetail, Period, CreatePeriodBody, EFEntry } from "../lib/api.js";
+import { Scope1Calculator } from "../components/Scope1Calculator.js";
 
 const s: Record<string, React.CSSProperties> = {
   nav:     { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
@@ -64,8 +65,9 @@ const EMPTY_FUEL_ROW: FuelRow = { fuelType: "natural_gas", consumedMwh: 0 };
 export default function InstallationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [installation, setInstallation] = useState<InstallationDetail | null>(null);
-  const [showModal, setShowModal]         = useState(false);
-  const [editingPeriod, setEditingPeriod] = useState<Period | null>(null);
+  const [showModal, setShowModal]           = useState(false);
+  const [editingPeriod, setEditingPeriod]   = useState<Period | null>(null);
+  const [showScope1Calc, setShowScope1Calc] = useState(false);
   const [form, setForm]                   = useState<CreatePeriodBody>(EMPTY_FORM);
   const [saving, setSaving]               = useState(false);
   const [calculating, setCalculating]     = useState<string | null>(null);
@@ -370,7 +372,14 @@ export default function InstallationDetailPage() {
               <input style={s.input} type="number" min="0" step="0.001" value={form.prodVolumeTonne || ""}
                 onChange={e => set("prodVolumeTonne", parseFloat(e.target.value))} required />
 
-              <div style={s.section}>Scope 1</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...s.section as object }}>
+                Scope 1
+                <button type="button" onClick={() => setShowScope1Calc(true)}
+                  style={{ fontSize: 11, color: "#009966", background: "#e6f9f2", border: "1px solid rgba(0,153,102,.3)",
+                           borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>
+                  Hesaplama Yardımcısı
+                </button>
+              </div>
               <div style={s.row2}>
                 <div>
                   <label style={s.label}>Direkt Emisyon (tCO₂) *</label>
@@ -656,6 +665,13 @@ export default function InstallationDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {showScope1Calc && (
+        <Scope1Calculator
+          onApply={tco2 => set("scope1DirectTco2", tco2)}
+          onClose={() => setShowScope1Calc(false)}
+        />
       )}
     </>
   );

@@ -688,18 +688,132 @@ function TenantTab() {
   );
 }
 
+// ── İzin Matrisi Sekmesi ─────────────────────────────────────────────────────
+type Role = "owner" | "admin" | "analyst" | "viewer";
+
+const ROLE_LABELS: Record<Role, string> = {
+  owner:   "Owner",
+  admin:   "Admin",
+  analyst: "Analyst",
+  viewer:  "Viewer",
+};
+
+const ROLE_COLORS_DEF: Record<Role, { bg: string; color: string }> = {
+  owner:   { bg: "#FEF3C7", color: "#92400E" },
+  admin:   { bg: "#DBEAFE", color: "#009966" },
+  analyst: { bg: "#D1FAE5", color: "#065F46" },
+  viewer:  { bg: "#eef7f3", color: "#5c7a72" },
+};
+
+interface PermRow { feature: string; owner: boolean; admin: boolean; analyst: boolean; viewer: boolean; }
+
+const PERMISSION_MATRIX: PermRow[] = [
+  { feature: "Tesis görüntüleme",            owner: true,  admin: true,  analyst: true,  viewer: true  },
+  { feature: "Dönem görüntüleme",            owner: true,  admin: true,  analyst: true,  viewer: true  },
+  { feature: "Rapor indirme",                owner: true,  admin: true,  analyst: true,  viewer: true  },
+  { feature: "EF veri servisi",              owner: true,  admin: true,  analyst: true,  viewer: true  },
+  { feature: "GEC hesaplama",               owner: true,  admin: true,  analyst: true,  viewer: false },
+  { feature: "CFE matching",                owner: true,  admin: true,  analyst: true,  viewer: false },
+  { feature: "CBAM emisyon hesaplama",      owner: true,  admin: true,  analyst: true,  viewer: false },
+  { feature: "Dönem oluşturma/düzenleme",   owner: true,  admin: true,  analyst: true,  viewer: false },
+  { feature: "Tesis oluşturma/düzenleme",   owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "Tesis silme",                 owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "Üye davet",                   owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "Üye rolü değiştirme",         owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "API anahtarı oluşturma",      owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "Webhook yönetimi",            owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "Şirket profili düzenleme",    owner: true,  admin: true,  analyst: false, viewer: false },
+  { feature: "Üye çıkarma",                 owner: true,  admin: false, analyst: false, viewer: false },
+  { feature: "Owner atama",                 owner: true,  admin: false, analyst: false, viewer: false },
+];
+
+function PermissionsTab() {
+  const roles: Role[] = ["owner", "admin", "analyst", "viewer"];
+
+  return (
+    <div>
+      <div style={s.card}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Rol Açıklamaları</div>
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 16, lineHeight: 1.6 }}>
+          Her rol, platforma farklı düzeyde erişim sağlar. Roller hiyerarşiktir: üst roller alt rollerin tüm yetkilerini içerir.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 8 }}>
+          {roles.map(r => {
+            const rc = ROLE_COLORS_DEF[r];
+            const descs: Record<Role, string> = {
+              owner:   "Tam yetki. Rol değiştirme, silme, owner atama dahil.",
+              admin:   "Tesis, üye, API, webhook yönetimi. Silme hariç her şey.",
+              analyst: "Hesaplama ve analiz. Tesis/üye yönetimi yok.",
+              viewer:  "Yalnızca görüntüleme. Veri değiştirme yok.",
+            };
+            return (
+              <div key={r} style={{ padding: "12px 14px", borderRadius: 8,
+                                     background: rc.bg, border: `1px solid ${rc.color}30` }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: rc.color, marginBottom: 4 }}>
+                  {ROLE_LABELS[r]}
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72", lineHeight: 1.5 }}>{descs[r]}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Özellik Erişim Matrisi</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #d4ece4" }}>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: "#5c7a72",
+                             fontWeight: 700, fontSize: 12, width: "55%" }}>Özellik</th>
+                {roles.map(r => {
+                  const rc = ROLE_COLORS_DEF[r];
+                  return (
+                    <th key={r} style={{ textAlign: "center", padding: "8px 12px", width: "12.5%" }}>
+                      <span style={{ background: rc.bg, color: rc.color, padding: "3px 10px",
+                                     borderRadius: 20, fontSize: 11, fontWeight: 700,
+                                     display: "inline-block" }}>{ROLE_LABELS[r]}</span>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {PERMISSION_MATRIX.map((row, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #eef7f3",
+                                      background: i % 2 === 0 ? "transparent" : "#fafffe" }}>
+                  <td style={{ padding: "8px 12px", color: "#0a1f1a" }}>{row.feature}</td>
+                  {roles.map(r => (
+                    <td key={r} style={{ textAlign: "center", padding: "8px 12px" }}>
+                      {row[r]
+                        ? <span style={{ color: "#00b87a", fontSize: 16 }}>✓</span>
+                        : <span style={{ color: "#d1d5db", fontSize: 14 }}>—</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
-type Tab = "team" | "company" | "apikeys" | "webhooks" | "audit";
+type Tab = "team" | "company" | "permissions" | "apikeys" | "webhooks" | "audit";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "team",     label: "Ekip" },
-    { id: "company",  label: "Şirket" },
-    { id: "apikeys",  label: "API Anahtarları" },
-    { id: "webhooks", label: "Webhook'lar" },
-    { id: "audit",    label: "Audit Trail" },
+    { id: "team",        label: "Ekip" },
+    { id: "company",     label: "Şirket" },
+    { id: "permissions", label: "İzinler" },
+    { id: "apikeys",     label: "API Anahtarları" },
+    { id: "webhooks",    label: "Webhook'lar" },
+    { id: "audit",       label: "Audit Trail" },
   ];
 
   return (
@@ -721,11 +835,12 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {tab === "team"     && <TeamTab />}
-        {tab === "company"  && <TenantTab />}
-        {tab === "apikeys"  && <ApiKeysTab />}
-        {tab === "webhooks" && <WebhooksTab />}
-        {tab === "audit"    && <AuditTrailTab />}
+        {tab === "team"        && <TeamTab />}
+        {tab === "company"     && <TenantTab />}
+        {tab === "permissions" && <PermissionsTab />}
+        {tab === "apikeys"     && <ApiKeysTab />}
+        {tab === "webhooks"    && <WebhooksTab />}
+        {tab === "audit"       && <AuditTrailTab />}
       </div>
     </>
   );

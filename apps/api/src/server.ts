@@ -1,5 +1,6 @@
 import "dotenv/config";
 import Fastify from "fastify";
+import { prisma } from "@voltfox/db";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
@@ -91,8 +92,26 @@ await app.register(onboardingRoutes,    { prefix: v1 });
 await app.register(efRoutes,            { prefix: v1 });
 await app.register(gecRoutes,           { prefix: v1 });
 
-// Health check — kamuya açık
-app.get("/health", { config: { public: true } }, async () => ({
+// Health check — kamuya açık, detaylı DB + uygulama durumu
+app.get("/health", { config: { public: true } }, async (_req, reply) => {
+  let db: "ok" | "error" = "ok";
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    db = "error";
+  }
+  const status = db === "ok" ? "ok" : "degraded";
+  return reply.status(db === "error" ? 503 : 200).send({
+    status,
+    version:    "1.0.0",
+    db,
+    ts:         new Date().toISOString(),
+    uptime:     Math.floor(process.uptime()),
+  });
+});
+
+// /api/v1/status — kimlik doğrulamasız durum endpoint (frontend kullanır)
+app.get(`${v1}/status`, { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async () => ({
   status:  "ok",
   version: "1.0.0",
   ts:      new Date().toISOString(),

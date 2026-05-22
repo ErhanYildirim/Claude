@@ -64,10 +64,11 @@ function UploadView({
 }: {
   onResult: (r: GecResult) => void;
 }) {
-  const [file, setFile]                   = useState<File | null>(null);
-  const [drag, setDrag]                   = useState(false);
-  const [loading, setLoading]             = useState(false);
-  const [err, setErr]                     = useState("");
+  const [file,    setFile]    = useState<File | null>(null);
+  const [drag,    setDrag]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState("");
+  const [preview, setPreview] = useState<string[][]>([]);
   const [zoneId, setZoneId]               = useState("TR");
   const [zones, setZones]                 = useState<EFZoneEntry[]>([]);
   const [installations, setInstallations] = useState<Installation[]>([]);
@@ -93,6 +94,14 @@ function UploadView({
     if (!f.name.endsWith(".csv")) { setErr("Yalnızca CSV dosyası kabul edilir."); return; }
     setFile(f);
     setErr("");
+    setPreview([]);
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = (e.target?.result as string) ?? "";
+      const lines = text.split(/\r?\n/).filter(Boolean).slice(0, 6);
+      setPreview(lines.map(l => l.split(",")));
+    };
+    reader.readAsText(f);
   }
 
   async function calculate() {
@@ -204,6 +213,35 @@ function UploadView({
           onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); }}
         />
       </div>
+
+      {/* CSV Önizleme */}
+      {preview.length > 0 && (
+        <div style={{ marginTop: 12, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase" as const, letterSpacing: ".06em", marginBottom: 6 }}>
+            Önizleme (ilk {preview.length - 1} satır)
+          </div>
+          <div style={{ overflowX: "auto", borderRadius: 7, border: "1px solid #d4ece4" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: 11 }}>
+              <thead>
+                <tr style={{ background: "#f4fbf8" }}>
+                  {(preview[0] ?? []).map((h, i) => (
+                    <th key={i} style={{ padding: "6px 10px", textAlign: "left" as const, fontWeight: 700, color: "#5c7a72", whiteSpace: "nowrap" as const }}>{h.trim()}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.slice(1).map((row, ri) => (
+                  <tr key={ri} style={{ borderTop: "1px solid #eef7f3" }}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} style={{ padding: "5px 10px", color: "#1a3530", whiteSpace: "nowrap" as const }}>{cell.trim()}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div style={s.how}>
         <strong>CSV formatı (başlık satırı zorunlu):</strong><br />

@@ -156,8 +156,9 @@ export default function CfePage() {
   const [csvFile, setCsvFile]       = useState<File | null>(null);
   const [csvDragging, setCsvDragging] = useState(false);
   const [csvUploading, setCsvUploading] = useState(false);
-  const [csvResult, setCsvResult]   = useState<{ rowCount: number; errorCount: number; errors: string[]; cfeScore: number } | null>(null);
-  const [csvErr, setCsvErr]         = useState("");
+  const [csvResult,   setCsvResult]   = useState<{ rowCount: number; errorCount: number; errors: string[]; cfeScore: number } | null>(null);
+  const [csvErr,      setCsvErr]      = useState("");
+  const [csvPreview,  setCsvPreview]  = useState<string[][]>([]);
   const [eacRef, setEacRef]         = useState("");
   const [uploadTab, setUploadTab]   = useState<"csv" | "manual">("csv");
   const [manualRows, setManualRows] = useState<ManualRow[]>(
@@ -207,6 +208,22 @@ export default function CfePage() {
     cfeRate: mb.cfeRate,
   }));
 
+  function parsePreview(file: File) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = (e.target?.result as string) ?? "";
+      const lines = text.split(/\r?\n/).filter(Boolean).slice(0, 6); // header + 5 rows
+      setCsvPreview(lines.map(l => l.split(",")));
+    };
+    reader.readAsText(file);
+  }
+
+  function selectFile(file: File | null) {
+    setCsvFile(file);
+    setCsvPreview([]);
+    if (file) parsePreview(file);
+  }
+
   async function uploadCsv() {
     if (!selected || !csvFile) return;
     setCsvUploading(true); setCsvErr("");
@@ -220,7 +237,7 @@ export default function CfePage() {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault(); setCsvDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) setCsvFile(file);
+    if (file) selectFile(file);
   }
 
   if (loading) return <div style={{ ...s.page, color: "#5c7a72" }}>Yükleniyor...</div>;
@@ -439,8 +456,38 @@ export default function CfePage() {
                         ? <div><div style={{ fontWeight: 600 }}>{csvFile.name}</div><div style={{ fontSize: 12, color: "#5c7a72" }}>{(csvFile.size / 1024).toFixed(0)} KB</div></div>
                         : <div style={{ color: "#5c7a72" }}>CSV sürükleyin veya tıklayın</div>}
                       <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
-                        onChange={e => setCsvFile(e.target.files?.[0] ?? null)} />
+                        onChange={e => selectFile(e.target.files?.[0] ?? null)} />
                     </div>
+
+                    {/* CSV Önizleme */}
+                    {csvPreview.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>
+                          Önizleme (ilk {csvPreview.length - 1} satır)
+                        </div>
+                        <div style={{ overflowX: "auto", borderRadius: 7, border: "1px solid #d4ece4" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                            <thead>
+                              <tr style={{ background: "#f4fbf8" }}>
+                                {(csvPreview[0] ?? []).map((h, i) => (
+                                  <th key={i} style={{ padding: "6px 10px", textAlign: "left", fontWeight: 700, color: "#5c7a72", whiteSpace: "nowrap" }}>{h.trim()}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {csvPreview.slice(1).map((row, ri) => (
+                                <tr key={ri} style={{ borderTop: "1px solid #eef7f3" }}>
+                                  {row.map((cell, ci) => (
+                                    <td key={ci} style={{ padding: "5px 10px", color: "#1a3530", whiteSpace: "nowrap" }}>{cell.trim()}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
                     <div style={{ display: "flex", gap: 10 }}>
                       <button style={{ flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#eef7f3", color: "#1a3530" }}
                         onClick={() => setShowCsvModal(false)}>İptal</button>
@@ -452,10 +499,30 @@ export default function CfePage() {
                   </>
                 ) : (
                   <>
-                    <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 14, marginBottom: 14 }}>
-                      <div style={{ fontWeight: 700, color: "#065F46" }}>CFE Skoru: {csvResult.cfeScore.toFixed(1)}%</div>
-                      <div style={{ fontSize: 13, color: "#1a3530" }}>{csvResult.rowCount} satır işlendi{csvResult.errorCount > 0 && ` · ${csvResult.errorCount} atlandı`}</div>
+                    <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 14, marginBottom: 12 }}>
+                      <div style={{ fontWeight: 700, color: "#065F46", fontSize: 15 }}>✓ CFE Skoru: {csvResult.cfeScore.toFixed(1)}%</div>
+                      <div style={{ fontSize: 13, color: "#1a3530", marginTop: 2 }}>
+                        {csvResult.rowCount} satır işlendi
+                        {csvResult.errorCount > 0 && <span style={{ color: "#d97706", marginLeft: 6 }}>· {csvResult.errorCount} satır atlandı</span>}
+                      </div>
                     </div>
+
+                    {/* Hata tablosu */}
+                    {csvResult.errors.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#d97706", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>
+                          Atlanan Satırlar ({csvResult.errors.length})
+                        </div>
+                        <div style={{ maxHeight: 160, overflowY: "auto", border: "1px solid #fcd34d", borderRadius: 7, background: "#fffbeb" }}>
+                          {csvResult.errors.map((err, i) => (
+                            <div key={i} style={{ padding: "5px 10px", fontSize: 11, color: "#92400e", borderBottom: i < csvResult.errors.length - 1 ? "1px solid #fde68a" : "none" }}>
+                              {err}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <button style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, background: "#00b87a", color: "#fff" }}
                       onClick={() => setShowCsvModal(false)}>Kapat</button>
                   </>

@@ -40,12 +40,12 @@ export const auditRoutes: FastifyPluginAsync = async (app) => {
         ...(q.resource   ? { resource:   q.resource }   : {}),
         ...(q.resourceId ? { resourceId: q.resourceId } : {}),
         ...(q.action     ? { action:     q.action }     : {}),
-        ...(q.cursor     ? { createdAt:  { lt: new Date(q.cursor) } } : {}),
-        ...(fromDate || toDate ? {
+        ...(q.cursor || fromDate || toDate ? {
           createdAt: {
-            ...(fromDate ? { gte: fromDate } : {}),
-            ...(toDate   ? { lte: toDate }   : {}),
-          }
+            ...(q.cursor ? { lt:  new Date(q.cursor) } : {}),
+            ...(fromDate ? { gte: fromDate }           : {}),
+            ...(toDate   ? { lte: toDate }             : {}),
+          },
         } : {}),
       },
       orderBy: { createdAt: "desc" },

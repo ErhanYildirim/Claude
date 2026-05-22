@@ -84,7 +84,7 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
     if (!efRows.length) {
       return reply.status(404).send({
         error: "EF_NOT_FOUND",
-        message: `${zoneId} zone için EF verisi bulunamadı. Desteklenen: TR`,
+        message: `${zoneId} zone için EF verisi bulunamadı. Mevcut zonlar için GET /ef/zones adresini kontrol edin.`,
       });
     }
 

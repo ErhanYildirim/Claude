@@ -102,7 +102,7 @@ export default function CbamPage() {
       operator:        inst.operator,
       facilityCountry: inst.facilityCountry,
       facilityRef:     inst.facilityRef ?? "",
-      sector:          (inst as Installation & { sector?: string }).sector ?? "steel",
+      sector:          inst.sector,
     });
     setError("");
     setShowModal(true);
@@ -271,7 +271,7 @@ export default function CbamPage() {
           ) : (
             <div style={s.grid}>
               {installations.map(inst => {
-                const sec = (inst as Installation & { sector?: string }).sector ?? "steel";
+                const sec = inst.sector;
                 const sectorColor = SECTOR_COLORS[sec] ?? "#5c7a72";
                 const sectorLabel = SECTOR_LABELS[sec] ?? sec;
                 return (

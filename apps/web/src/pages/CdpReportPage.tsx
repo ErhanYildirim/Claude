@@ -31,7 +31,7 @@ export default function CdpReportPage() {
 
   useEffect(() => {
     if (!selectedInstId) return;
-    api.installations.get(selectedInstId).then(d => { setInstDetail(d); setSelectedPeriodId(""); }).catch(() => {});
+    api.installations.get(selectedInstId).then(d => { setInstDetail(d); setSelectedPeriodId(""); setEmission(null); setCfe(null); }).catch(() => {});
   }, [selectedInstId]);
 
   useEffect(() => {

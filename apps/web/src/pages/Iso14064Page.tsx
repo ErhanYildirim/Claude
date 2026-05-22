@@ -39,7 +39,7 @@ export default function Iso14064Page() {
 
   useEffect(() => {
     if (!selectedInstId) return;
-    api.installations.get(selectedInstId).then(d => { setInstDetail(d); setSelectedPeriodId(""); }).catch(() => {});
+    api.installations.get(selectedInstId).then(d => { setInstDetail(d); setSelectedPeriodId(""); setEmission(null); }).catch(() => {});
   }, [selectedInstId]);
 
   useEffect(() => {

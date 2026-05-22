@@ -204,6 +204,7 @@ export default function CfePage() {
   const monthlyData = (selected?.cfe?.monthlyBreakdown ?? []).map((mb: MonthlyBreakdown) => ({
     month: mb.month.slice(0, 7),
     consumptionKwh: mb.consumptionKwh,
+    productionKwh: mb.productionKwh,
     matchedKwh: mb.matchedKwh,
     cfeRate: mb.cfeRate,
   }));
@@ -401,7 +402,7 @@ export default function CfePage() {
                   <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#f9fdfb" }}>
                     <td style={{ padding: "10px 12px", fontSize: 13, color: "#0a1f1a", borderBottom: "1px solid #eef7f3" }}>{m.month}</td>
                     <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3" }}>{(m.consumptionKwh / 1000).toFixed(1)}</td>
-                    <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3", color: "#5c7a72" }}>{(((m as unknown as {productionKwh?: number}).productionKwh ?? 0) / 1000).toFixed(1)}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3", color: "#5c7a72" }}>{(m.productionKwh / 1000).toFixed(1)}</td>
                     <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3", color: "#059669", fontWeight: 600 }}>{(m.matchedKwh / 1000).toFixed(1)}</td>
                     <td style={{ padding: "10px 12px", fontSize: 13, textAlign: "right" as const, borderBottom: "1px solid #eef7f3" }}>
                       <span style={{ color, fontWeight: 700 }}>{rate.toFixed(1)}%</span>

@@ -93,7 +93,7 @@ export default function InstallationDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    api.installations.get(id).then(setInstallation);
+    api.installations.get(id).then(setInstallation).catch(() => {});
     api.defaults.efList().then(r => setEfCountries(r.countries)).catch(() => {});
   }, [id]);
 
@@ -134,14 +134,14 @@ export default function InstallationDetailPage() {
       periodName:        period.periodName,
       startDate:         period.startDate?.slice(0, 10) ?? "",
       endDate:           period.endDate?.slice(0, 10) ?? "",
-      reportYear:        (period as Period & { reportYear?: number }).reportYear ?? new Date().getFullYear(),
+      reportYear:        period.reportYear,
       importCountry:     period.importCountry,
       cnCode:            period.cnCode,
       prodVolumeTonne:   period.prodVolumeTonne,
       scope1DirectTco2:  period.scope1DirectTco2,
       scope1Quality:     period.scope1Quality,
       electricityKwh:    period.electricityKwh,
-      electricitySource: (period as Period & { electricitySource?: string }).electricitySource ?? "smart_meter",
+      electricitySource: period.electricitySource,
       baselineEf:        period.baselineEf,
       renewableEf:       period.renewableEf,
       matchingRatePct:   period.matchingRatePct,

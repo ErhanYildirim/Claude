@@ -101,7 +101,7 @@ function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
         {heading("Genel Bakış")}
         <p style={{ fontSize: 13, color: "#5c7a72", margin: "0 0 12px", lineHeight: 1.7 }}>
           EF Veri Servisi REST API'si, saatlik granüler emisyon faktörü verisine programatik erişim sağlar.
-          63+ ülke, 170+ şebeke; 2024 verisi mevcut. GHG Protocol Scope 2 Location-Based metodolojisine uygundur.
+          63+ ülke, 170+ şebeke; saatlik verisi mevcut. GHG Protocol Scope 2 Location-Based metodolojisine uygundur.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {pill("REST JSON")}

@@ -172,7 +172,7 @@ function UploadView({ onResult }: { onResult: (r: GecResult) => void }) {
         </select>
         {selectedZone && (
           <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 3 }}>
-            {selectedZone.rowCount.toLocaleString()} saatlik kayıt · 2024
+            {selectedZone.rowCount.toLocaleString()} saatlik kayıt mevcut
           </div>
         )}
       </div>
@@ -585,7 +585,7 @@ ${cfeSection}
 
 <div class="method">
   <strong>Hesaplama:</strong> Σ(tüketimKwh × ci_direct_gCO₂/kWh) ÷ 1.000.000 = tCO₂eq<br/>
-  <strong>EF Kaynağı:</strong> Electricity Maps · ${result.zoneId} · 2024 saatlik · lokasyon bazlı<br/>
+  <strong>EF Kaynağı:</strong> Electricity Maps · ${result.zoneId} · saatlik · lokasyon bazlı<br/>
   <strong>Kapsam:</strong> GHG Protocol Scope 2 — market-based (saatlik granüler)<br/>
   <strong>Referans:</strong> EU 2023/1773 Ek IV · ISO 14064-1:2018
 </div>
@@ -808,7 +808,7 @@ function ResultView({ result, onReset }: { result: GecResult; onReset: () => voi
         <div style={s.cardH}>Metodoloji</div>
         <div>
           <strong>Hesaplama:</strong> Σ(tüketimKwh × ci_direct_gCO₂/kWh) ÷ 1.000.000 = tCO₂eq<br />
-          <strong>EF Kaynağı:</strong> Electricity Maps · {result.zoneId} · 2024 saatlik · lokasyon bazlı<br />
+          <strong>EF Kaynağı:</strong> Electricity Maps · {result.zoneId} · saatlik · lokasyon bazlı<br />
           <strong>Kapsam:</strong> GHG Protocol Scope 2 — market-based (saatlik granüler)<br />
           <strong>Referans:</strong> EU 2023/1773 Ek IV · ISO 14064-1:2018
           {result.savedCFE && (

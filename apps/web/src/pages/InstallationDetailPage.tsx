@@ -65,6 +65,7 @@ export default function InstallationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [installation, setInstallation] = useState<InstallationDetail | null>(null);
   const [showModal, setShowModal]         = useState(false);
+  const [editingPeriod, setEditingPeriod] = useState<Period | null>(null);
   const [form, setForm]                   = useState<CreatePeriodBody>(EMPTY_FORM);
   const [saving, setSaving]               = useState(false);
   const [calculating, setCalculating]     = useState<string | null>(null);
@@ -125,22 +126,69 @@ export default function InstallationDetailPage() {
     }, 0);
   }
 
+  function openEditPeriod(period: Period) {
+    setEditingPeriod(period);
+    setForm({
+      periodName:        period.periodName,
+      startDate:         period.startDate?.slice(0, 10) ?? "",
+      endDate:           period.endDate?.slice(0, 10) ?? "",
+      reportYear:        (period as Period & { reportYear?: number }).reportYear ?? new Date().getFullYear(),
+      importCountry:     period.importCountry,
+      cnCode:            period.cnCode,
+      prodVolumeTonne:   period.prodVolumeTonne,
+      scope1DirectTco2:  period.scope1DirectTco2,
+      scope1Quality:     period.scope1Quality,
+      electricityKwh:    period.electricityKwh,
+      electricitySource: (period as Period & { electricitySource?: string }).electricitySource ?? "smart_meter",
+      baselineEf:        period.baselineEf,
+      renewableEf:       period.renewableEf,
+      matchingRatePct:   period.matchingRatePct,
+      gecConnected:      period.gecConnected,
+      carbonPriceEur:    period.carbonPriceEur ?? undefined,
+    });
+    setEfManual(true);
+    setError("");
+    setShowModal(true);
+  }
+
   async function createPeriod(e: React.FormEvent) {
     e.preventDefault();
     if (!id) return;
     setError(""); setSaving(true);
     try {
-      const body: CreatePeriodBody = { ...form };
-      if (showFuel && fuelRows.some(r => r.consumedMwh > 0)) {
-        (body as any).fuelBreakdown = fuelRows
-          .filter(r => r.consumedMwh > 0)
-          .map(r => ({ fuelType: r.fuelType, consumedMwh: r.consumedMwh, emissionFactorOverride: r.efOverride }));
-        body.scope1DirectTco2 = fuelTotal();
+      if (editingPeriod) {
+        const updated = await api.periods.update(id, editingPeriod.id, {
+          periodName:        form.periodName,
+          importCountry:     form.importCountry,
+          cnCode:            form.cnCode,
+          prodVolumeTonne:   form.prodVolumeTonne,
+          scope1DirectTco2:  form.scope1DirectTco2,
+          scope1Quality:     form.scope1Quality,
+          scope1AuditNote:   form.scope1AuditNote,
+          electricityKwh:    form.electricityKwh,
+          electricitySource: form.electricitySource,
+          matchingRatePct:   form.matchingRatePct,
+          gecConnected:      form.gecConnected,
+          carbonPriceEur:    form.carbonPriceEur,
+        });
+        setInstallation(prev => prev ? {
+          ...prev,
+          periods: prev.periods.map(p => p.id === updated.id ? { ...p, ...updated, result: undefined } : p),
+        } : prev);
+      } else {
+        const body: CreatePeriodBody = { ...form };
+        if (showFuel && fuelRows.some(r => r.consumedMwh > 0)) {
+          (body as CreatePeriodBody & { fuelBreakdown?: unknown[] }).fuelBreakdown = fuelRows
+            .filter(r => r.consumedMwh > 0)
+            .map(r => ({ fuelType: r.fuelType, consumedMwh: r.consumedMwh, emissionFactorOverride: r.efOverride }));
+          body.scope1DirectTco2 = fuelTotal();
+        }
+        const period = await api.periods.create(id, body);
+        setInstallation(prev => prev ? { ...prev, periods: [period, ...prev.periods] } : prev);
       }
-      const period = await api.periods.create(id, body);
-      setInstallation(prev => prev ? { ...prev, periods: [period, ...prev.periods] } : prev);
       setShowModal(false);
       setForm(EMPTY_FORM);
+      setEditingPeriod(null);
       setEfManual(false);
       setEfEntry(null);
       setShowFuel(false);
@@ -252,7 +300,7 @@ export default function InstallationDetailPage() {
                       : <span style={{ color: "#5c7a72" }}>—</span>}
                   </td>
                   <td style={s.td}>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
                       <button style={{ ...s.btnSm, ...(p.result ? s.blue : s.green) }}
                         disabled={calculating === p.id}
                         onClick={() => calculate(p)}>
@@ -260,6 +308,10 @@ export default function InstallationDetailPage() {
                       </button>
                       <button style={{ ...s.btnSm, ...s.gray }} onClick={() => openCsvModal(p.id)}>
                         CSV Yükle
+                      </button>
+                      <button style={{ ...s.btnSm, background: "#e6f9f2", color: "#009966" }}
+                        onClick={() => openEditPeriod(p)}>
+                        Düzenle
                       </button>
                       <button style={{ ...s.btnSm, background: "#FEE2E2", color: "#DC2626" }}
                         onClick={() => deletePeriod(p)}>
@@ -274,11 +326,11 @@ export default function InstallationDetailPage() {
         )}
       </div>
 
-      {/* ── Dönem oluşturma modal ── */}
+      {/* ── Dönem oluşturma / düzenleme modal ── */}
       {showModal && (
-        <div style={s.modal} onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+        <div style={s.modal} onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setEditingPeriod(null); } }}>
           <div style={s.mCard}>
-            <div style={s.mTitle}>Yeni Raporlama Dönemi</div>
+            <div style={s.mTitle}>{editingPeriod ? "Dönem Düzenle" : "Yeni Raporlama Dönemi"}</div>
             {error && <div style={s.err}>{error}</div>}
             <form onSubmit={createPeriod}>
               <div style={s.section}>Dönem Bilgileri</div>

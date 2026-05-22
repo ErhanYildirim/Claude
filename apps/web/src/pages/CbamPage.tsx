@@ -30,17 +30,21 @@ const s: Record<string, React.CSSProperties> = {
   btnS:      { background: "#eef7f3", color: "#1a3530" },
   err:       { color: "#DC2626", fontSize: 13, marginBottom: 12 },
   empty:     { textAlign: "center" as const, padding: "60px 0", color: "#5c7a72" },
+  actBtns:   { position: "absolute" as const, top: 10, right: 10, display: "flex", gap: 4, zIndex: 1 },
 };
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Sahip", admin: "Yönetici", analyst: "Analist", viewer: "İzleyici",
 };
 
+const EMPTY_FORM = { facilityName: "", operator: "", facilityCountry: "TR", facilityRef: "", sector: "steel" };
+
 export default function CbamPage() {
   const [installations, setInstallations] = useState<Installation[]>([]);
   const [loading, setLoading]             = useState(true);
   const [showModal, setShowModal]         = useState(false);
-  const [form, setForm] = useState({ facilityName: "", operator: "", facilityCountry: "TR", facilityRef: "", sector: "steel" });
+  const [editingInst, setEditingInst]     = useState<Installation | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
   const [myRole, setMyRole]   = useState<string | null>(null);
@@ -53,19 +57,51 @@ export default function CbamPage() {
     api.members.me().then(r => setMyRole(r.role)).catch(() => {});
   }, []);
 
-  async function createInstallation(e: React.FormEvent) {
+  function openCreate() {
+    setEditingInst(null);
+    setForm(EMPTY_FORM);
+    setError("");
+    setShowModal(true);
+  }
+
+  function openEdit(e: React.MouseEvent, inst: Installation) {
+    e.preventDefault(); e.stopPropagation();
+    setEditingInst(inst);
+    setForm({
+      facilityName:    inst.facilityName,
+      operator:        inst.operator,
+      facilityCountry: inst.facilityCountry,
+      facilityRef:     inst.facilityRef ?? "",
+      sector:          (inst as Installation & { sector?: string }).sector ?? "steel",
+    });
+    setError("");
+    setShowModal(true);
+  }
+
+  async function saveInstallation(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setSaving(true);
     try {
-      const inst = await api.installations.create({
-        facilityName: form.facilityName, operator: form.operator,
-        facilityCountry: form.facilityCountry,
-        facilityRef: form.facilityRef || undefined,
-        sector: form.sector,
-      });
-      setInstallations(prev => [inst, ...prev]);
+      if (editingInst) {
+        const updated = await api.installations.update(editingInst.id, {
+          facilityName:    form.facilityName,
+          operator:        form.operator,
+          facilityCountry: form.facilityCountry,
+          facilityRef:     form.facilityRef || undefined,
+          sector:          form.sector,
+        });
+        setInstallations(prev => prev.map(i => i.id === updated.id ? { ...i, ...updated } : i));
+      } else {
+        const inst = await api.installations.create({
+          facilityName:    form.facilityName,
+          operator:        form.operator,
+          facilityCountry: form.facilityCountry,
+          facilityRef:     form.facilityRef || undefined,
+          sector:          form.sector,
+        });
+        setInstallations(prev => [inst, ...prev]);
+      }
       setShowModal(false);
-      setForm({ facilityName: "", operator: "", facilityCountry: "TR", facilityRef: "", sector: "steel" });
     } catch (e: unknown) { setError(e instanceof Error ? e.message : "Hata oluştu"); }
     setSaving(false);
   }
@@ -80,6 +116,7 @@ export default function CbamPage() {
   }
 
   const totalPeriods = installations.reduce((s, i) => s + (i._count?.periods ?? 0), 0);
+  const canEdit = ["owner", "admin"].includes(myRole ?? "");
 
   return (
     <>
@@ -91,23 +128,13 @@ export default function CbamPage() {
           <button style={{ marginLeft: 10, background: "none", border: "none", color: "#5c7a72", cursor: "pointer", fontSize: 12 }} onClick={() => supabase.auth.signOut()}>Çıkış</button>
         </div>
 
-        {/* KPI özet */}
         <div style={s.kpiRow}>
-          <div style={s.kpi}>
-            <div style={s.kpiL}>Toplam Tesis</div>
-            <div style={s.kpiV}>{installations.length}</div>
-          </div>
-          <div style={s.kpi}>
-            <div style={s.kpiL}>Toplam Dönem</div>
-            <div style={s.kpiV}>{totalPeriods}</div>
-          </div>
-          <div style={s.kpi}>
-            <div style={s.kpiL}>Hesaplanmış Dönem</div>
-            <div style={{ ...s.kpiV, color: "#059669" }}>—</div>
-          </div>
+          <div style={s.kpi}><div style={s.kpiL}>Toplam Tesis</div><div style={s.kpiV}>{installations.length}</div></div>
+          <div style={s.kpi}><div style={s.kpiL}>Toplam Dönem</div><div style={s.kpiV}>{totalPeriods}</div></div>
+          <div style={s.kpi}><div style={s.kpiL}>Hesaplanmış Dönem</div><div style={{ ...s.kpiV, color: "#059669" }}>—</div></div>
         </div>
 
-        <button style={s.addBtn} onClick={() => setShowModal(true)}>+ Yeni Tesis</button>
+        {canEdit && <button style={s.addBtn} onClick={openCreate}>+ Yeni Tesis</button>}
 
         {loading ? (
           <div style={s.empty}>Yükleniyor...</div>
@@ -128,20 +155,19 @@ export default function CbamPage() {
                     <div style={s.cardTitle}>{inst.facilityName}</div>
                     <div style={s.cardSub}>{inst.operator} · {inst.facilityCountry}</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ ...s.badge, background: sectorColor + "20", color: sectorColor }}>
-                        {sectorLabel}
-                      </span>
-                      <span style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>
-                        {inst._count?.periods ?? 0} dönem
-                      </span>
+                      <span style={{ ...s.badge, background: sectorColor + "20", color: sectorColor }}>{sectorLabel}</span>
+                      <span style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>{inst._count?.periods ?? 0} dönem</span>
                     </div>
                   </Link>
-                  {["owner", "admin"].includes(myRole ?? "") && (
-                    <button
-                      style={{ position: "absolute", top: 10, right: 10, background: "#FEE2E2", border: "none", borderRadius: 5, color: "#DC2626", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600, zIndex: 1 }}
-                      onClick={e => deleteInstallation(e, inst.id, inst.facilityName)}>
-                      Sil
-                    </button>
+                  {canEdit && (
+                    <div style={s.actBtns}>
+                      <button
+                        style={{ background: "#e6f9f2", border: "none", borderRadius: 5, color: "#009966", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600 }}
+                        onClick={e => openEdit(e, inst)}>Düzenle</button>
+                      <button
+                        style={{ background: "#FEE2E2", border: "none", borderRadius: 5, color: "#DC2626", cursor: "pointer", padding: "3px 8px", fontSize: 11, fontWeight: 600 }}
+                        onClick={e => deleteInstallation(e, inst.id, inst.facilityName)}>Sil</button>
+                    </div>
                   )}
                 </div>
               );
@@ -153,9 +179,9 @@ export default function CbamPage() {
       {showModal && (
         <div style={s.modal} onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div style={s.mCard}>
-            <div style={s.mTitle}>Yeni Tesis Ekle</div>
+            <div style={s.mTitle}>{editingInst ? "Tesis Düzenle" : "Yeni Tesis Ekle"}</div>
             {error && <div style={s.err}>{error}</div>}
-            <form onSubmit={createInstallation}>
+            <form onSubmit={saveInstallation}>
               <label style={s.label}>Tesis Adı *</label>
               <input style={s.input} value={form.facilityName}
                 onChange={e => setForm(f => ({ ...f, facilityName: e.target.value }))} required />
@@ -180,7 +206,7 @@ export default function CbamPage() {
               <div style={s.row}>
                 <button type="button" style={{ ...s.btn, ...s.btnS }} onClick={() => setShowModal(false)}>İptal</button>
                 <button type="submit" style={{ ...s.btn, ...s.btnP }} disabled={saving}>
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
+                  {saving ? "Kaydediliyor..." : editingInst ? "Güncelle" : "Kaydet"}
                 </button>
               </div>
             </form>

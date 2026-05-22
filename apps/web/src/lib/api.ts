@@ -35,12 +35,16 @@ export const api = {
     get:  (id: string) => request<InstallationDetail>("GET", `/installations/${id}`),
     create: (body: CreateInstallationBody) =>
       request<Installation>("POST", "/installations", body),
+    update: (id: string, body: Partial<CreateInstallationBody>) =>
+      request<Installation>("PATCH", `/installations/${id}`, body),
     delete: (id: string) => request<void>("DELETE", `/installations/${id}`),
   },
 
   periods: {
     create: (installationId: string, body: CreatePeriodBody) =>
       request<Period>("POST", `/installations/${installationId}/periods`, body),
+    update: (installationId: string, periodId: string, body: Partial<UpdatePeriodBody>) =>
+      request<Period>("PATCH", `/installations/${installationId}/periods/${periodId}`, body),
     calculate: (installationId: string, periodId: string) =>
       request<CalculationResult>("POST", `/installations/${installationId}/periods/${periodId}/calculate`),
     getResult: (installationId: string, periodId: string) =>
@@ -289,6 +293,12 @@ export interface GecResult {
 }
 
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }
+export interface UpdatePeriodBody {
+  periodName?: string; importCountry?: string; cnCode?: string;
+  prodVolumeTonne?: number; scope1DirectTco2?: number; scope1Quality?: string;
+  scope1AuditNote?: string; electricityKwh?: number; electricitySource?: string;
+  matchingRatePct?: number; gecConnected?: boolean; carbonPriceEur?: number;
+}
 export interface CreatePeriodBody {
   periodName: string; startDate: string; endDate: string; reportYear: number;
   importCountry: string; cnCode: string; prodVolumeTonne: number;

@@ -244,6 +244,79 @@ export const periodsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(result);
   });
 
+  // PATCH /installations/:installationId/periods/:periodId
+  app.patch("/installations/:installationId/periods/:periodId", {
+    schema: {
+      body: {
+        type: "object",
+        properties: {
+          periodName:       { type: "string" },
+          importCountry:    { type: "string" },
+          cnCode:           { type: "string" },
+          prodVolumeTonne:  { type: "number", exclusiveMinimum: 0 },
+          scope1DirectTco2: { type: "number", minimum: 0 },
+          scope1Quality:    { type: "string", enum: ["measured", "calculated", "estimated"] },
+          scope1AuditNote:  { type: "string" },
+          electricityKwh:   { type: "number", minimum: 0 },
+          electricitySource:{ type: "string", enum: ["smart_meter", "erp", "invoice", "manual"] },
+          matchingRatePct:  { type: "number", minimum: 0, maximum: 100 },
+          gecConnected:     { type: "boolean" },
+          carbonPriceEur:   { type: "number", minimum: 0 },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { installationId, periodId } = request.params as {
+      installationId: string; periodId: string;
+    };
+
+    const existing = await prisma.reportingPeriod.findFirst({
+      where: { id: periodId, installationId, installation: { tenantId: request.tenantId } },
+    });
+    if (!existing) return reply.status(404).send({ error: "NOT_FOUND" });
+
+    const body = request.body as {
+      periodName?: string; importCountry?: string; cnCode?: string;
+      prodVolumeTonne?: number; scope1DirectTco2?: number; scope1Quality?: string;
+      scope1AuditNote?: string; electricityKwh?: number; electricitySource?: string;
+      matchingRatePct?: number; gecConnected?: boolean; carbonPriceEur?: number;
+    };
+
+    const updated = await prisma.reportingPeriod.update({
+      where: { id: periodId },
+      data: {
+        ...(body.periodName       !== undefined && { periodName:       body.periodName }),
+        ...(body.importCountry    !== undefined && { importCountry:    body.importCountry }),
+        ...(body.cnCode           !== undefined && { cnCode:           body.cnCode }),
+        ...(body.prodVolumeTonne  !== undefined && { prodVolumeTonne:  body.prodVolumeTonne }),
+        ...(body.scope1DirectTco2 !== undefined && { scope1DirectTco2: body.scope1DirectTco2 }),
+        ...(body.scope1Quality    !== undefined && { scope1Quality:    body.scope1Quality }),
+        ...(body.scope1AuditNote  !== undefined && { scope1AuditNote:  body.scope1AuditNote }),
+        ...(body.electricityKwh   !== undefined && { electricityKwh:   body.electricityKwh }),
+        ...(body.electricitySource !== undefined && { electricitySource: body.electricitySource }),
+        ...(body.matchingRatePct  !== undefined && { matchingRatePct:  body.matchingRatePct }),
+        ...(body.gecConnected     !== undefined && { gecConnected:     body.gecConnected }),
+        ...(body.carbonPriceEur   !== undefined && { carbonPriceEur:   body.carbonPriceEur }),
+      },
+    });
+
+    // Dönem güncellendiyse mevcut hesaplama sonucunu sil (yeniden hesaplama gerekli)
+    await prisma.embeddedEmission.deleteMany({ where: { periodId } });
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId:   request.tenantId,
+        userId:     request.userId ?? undefined,
+        action:     "UPDATE",
+        resource:   "ReportingPeriod",
+        resourceId: periodId,
+        payload:    { before: existing, after: updated },
+      },
+    });
+
+    return reply.send(updated);
+  });
+
   // DELETE /installations/:installationId/periods/:periodId
   app.delete("/installations/:installationId/periods/:periodId", async (request, reply) => {
     const { installationId, periodId } = request.params as {

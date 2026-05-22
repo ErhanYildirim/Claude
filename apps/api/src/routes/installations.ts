@@ -74,6 +74,57 @@ export const installationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(installation);
   });
 
+  // PATCH /installations/:id
+  app.patch("/installations/:id", {
+    schema: {
+      body: {
+        type: "object",
+        properties: {
+          facilityName:    { type: "string", minLength: 1 },
+          operator:        { type: "string", minLength: 1 },
+          facilityCountry: { type: "string", minLength: 1 },
+          facilityRef:     { type: "string" },
+          sector:          { type: "string", enum: ["steel", "aluminium", "cement", "fertilizer", "electricity"] },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      facilityName?: string; operator?: string; facilityCountry?: string;
+      facilityRef?: string; sector?: string;
+    };
+
+    const existing = await prisma.installation.findFirst({
+      where: { id, tenantId: request.tenantId },
+    });
+    if (!existing) return reply.status(404).send({ error: "NOT_FOUND" });
+
+    const updated = await prisma.installation.update({
+      where: { id },
+      data: {
+        ...(body.facilityName    !== undefined && { facilityName:    body.facilityName }),
+        ...(body.operator        !== undefined && { operator:        body.operator }),
+        ...(body.facilityCountry !== undefined && { facilityCountry: body.facilityCountry }),
+        ...(body.facilityRef     !== undefined && { facilityRef:     body.facilityRef }),
+        ...(body.sector          !== undefined && { sector:          body.sector }),
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId:   request.tenantId,
+        userId:     request.userId ?? undefined,
+        action:     "UPDATE",
+        resource:   "Installation",
+        resourceId: id,
+        payload:    { before: existing, after: updated },
+      },
+    });
+
+    return reply.send(updated);
+  });
+
   // DELETE /installations/:id
   app.delete("/installations/:id", async (request, reply) => {
     const { id } = request.params as { id: string };

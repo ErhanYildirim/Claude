@@ -30,7 +30,7 @@ const PERCENTILE_LABEL: Record<string, { label: string; bg: string; color: strin
 
 const SECTOR_TR: Record<string, string> = {
   steel: "Çelik", aluminium: "Alüminyum", cement: "Çimento",
-  fertilizer: "Gübre", electricity: "Elektrik", chemicals: "Kimyasal",
+  fertilizer: "Gübre", electricity: "Elektrik", chemicals: "Kimyasal", hydrogen: "Hidrojen",
 };
 
 function GaugeBar({ value, benchmark }: { value: number | null; benchmark: BenchmarkRef }) {

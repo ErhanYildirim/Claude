@@ -47,6 +47,7 @@ const SECTORS = [
   { value: "fertilizer",  label: "Gübre (Fertilizer)" },
   { value: "electricity", label: "Elektrik (Electricity)" },
   { value: "hydrogen",    label: "Hidrojen (Hydrogen)" },
+  { value: "chemicals",   label: "Kimyasal (Chemicals)" },
 ];
 
 const ROLE_OPTIONS = [

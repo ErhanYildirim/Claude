@@ -325,6 +325,8 @@ export default function CbamPage() {
                 <option value="cement">Çimento (Cement)</option>
                 <option value="fertilizer">Gübre (Fertilizer)</option>
                 <option value="electricity">Elektrik (Electricity)</option>
+                <option value="hydrogen">Hidrojen (Hydrogen)</option>
+                <option value="chemicals">Kimyasal (Chemicals)</option>
               </select>
               <label style={s.label}>Tesis Referans No</label>
               <input style={s.input} value={form.facilityRef}

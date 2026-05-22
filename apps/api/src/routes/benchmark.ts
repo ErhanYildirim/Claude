@@ -9,6 +9,7 @@ const SECTOR_BENCHMARKS: Record<string, { p25: number; median: number; p75: numb
   fertilizer:  { p25: 0.200, median: 0.310, p75: 0.440, best: 0.080, unit: "tCO₂/MWh" },
   electricity: { p25: 0.150, median: 0.280, p75: 0.420, best: 0.020, unit: "tCO₂/MWh" },
   chemicals:   { p25: 0.260, median: 0.370, p75: 0.500, best: 0.100, unit: "tCO₂/MWh" },
+  hydrogen:    { p25: 0.190, median: 0.320, p75: 0.480, best: 0.025, unit: "tCO₂/MWh" },
 };
 
 export const benchmarkRoutes: FastifyPluginAsync = async (app) => {

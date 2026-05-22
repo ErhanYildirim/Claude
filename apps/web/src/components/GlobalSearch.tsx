@@ -5,7 +5,7 @@ import type { SearchResult } from "../lib/api.js";
 
 const SECTOR_LABELS: Record<string, string> = {
   steel: "Çelik", aluminium: "Alüminyum", cement: "Çimento",
-  fertilizer: "Gübre", electricity: "Elektrik",
+  fertilizer: "Gübre", electricity: "Elektrik", chemicals: "Kimyasal", hydrogen: "Hidrojen",
 };
 
 type ResultItem =

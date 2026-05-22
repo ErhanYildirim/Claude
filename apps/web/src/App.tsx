@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { useAuth } from "./hooks/useAuth.js";
 import { api } from "./lib/api.js";
 import AppShell       from "./components/AppShell.js";
+import AdminShell     from "./components/AdminShell.js";
 import PageSkeleton   from "./components/PageSkeleton.js";
 import LoginPage      from "./pages/LoginPage.js";
 import OnboardingPage from "./pages/OnboardingPage.js";
@@ -25,6 +26,14 @@ const SettingsPage           = lazy(() => import("./pages/SettingsPage.js"));
 const ProfilePage            = lazy(() => import("./pages/ProfilePage.js"));
 const ApiPlaygroundPage      = lazy(() => import("./pages/ApiPlaygroundPage.js"));
 
+// Admin pages (super-admin only)
+const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
+const AdminTenantsPage     = lazy(() => import("./pages/admin/AdminTenantsPage.js"));
+const AdminUsersPage       = lazy(() => import("./pages/admin/AdminUsersPage.js"));
+const AdminEfDataPage      = lazy(() => import("./pages/admin/AdminEfDataPage.js"));
+const AdminAnnouncementsPage = lazy(() => import("./pages/admin/AdminAnnouncementsPage.js"));
+const AdminWebhooksPage    = lazy(() => import("./pages/admin/AdminWebhooksPage.js"));
+
 function AppLayout() {
   return (
     <AppShell>
@@ -32,6 +41,16 @@ function AppLayout() {
         <Outlet />
       </Suspense>
     </AppShell>
+  );
+}
+
+function AdminLayout() {
+  return (
+    <AdminShell>
+      <Suspense fallback={<PageSkeleton />}>
+        <Outlet />
+      </Suspense>
+    </AdminShell>
   );
 }
 
@@ -84,6 +103,16 @@ function AppRouter() {
       <Routes>
         {/* Public routes — no AppShell */}
         <Route path="/share/:token" element={<SharePage />} />
+
+        {/* Admin routes — wrapped in AdminShell (super-admin guard inside) */}
+        <Route element={<AdminLayout />}>
+          <Route path="/admin"                  element={<AdminDashboardPage />} />
+          <Route path="/admin/tenants"          element={<AdminTenantsPage />} />
+          <Route path="/admin/users"            element={<AdminUsersPage />} />
+          <Route path="/admin/ef-data"          element={<AdminEfDataPage />} />
+          <Route path="/admin/announcements"    element={<AdminAnnouncementsPage />} />
+          <Route path="/admin/webhooks"         element={<AdminWebhooksPage />} />
+        </Route>
 
         {/* Authenticated routes — wrapped in AppShell + Suspense */}
         <Route element={<AppLayout />}>

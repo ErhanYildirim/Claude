@@ -208,6 +208,46 @@ export const api = {
     },
   },
 
+  admin: {
+    metrics: () => request<AdminMetrics>("GET", "/admin/metrics"),
+
+    tenants: {
+      list:   (search = "") => request<AdminTenantList>("GET", `/admin/tenants${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+      get:    (id: string) => request<AdminTenantDetail>("GET", `/admin/tenants/${id}`),
+      update: (id: string, body: { plan?: string; disabled?: boolean; name?: string }) =>
+        request<AdminTenantDetail>("PATCH", `/admin/tenants/${id}`, body),
+      delete: (id: string) => request<void>("DELETE", `/admin/tenants/${id}`),
+    },
+
+    users: {
+      list:         (search = "", page = 1) => request<AdminUserList>("GET", `/admin/users?search=${encodeURIComponent(search)}&page=${page}`),
+      ban:          (id: string, hours = 24) => request<{ banned: boolean }>("POST", `/admin/users/${id}/ban`, { hours }),
+      unban:        (id: string) => request<{ banned: boolean }>("POST", `/admin/users/${id}/unban`),
+      confirmEmail: (id: string) => request<{ emailConfirmed: boolean }>("POST", `/admin/users/${id}/confirm-email`),
+      delete:       (id: string) => request<void>("DELETE", `/admin/users/${id}`),
+      setSuperAdmin:(id: string, superAdmin: boolean) => request<{ isSuperAdmin: boolean }>("PATCH", `/admin/users/${id}/super-admin`, { superAdmin }),
+    },
+
+    ef: {
+      zones:         (search = "") => request<AdminEfZoneList>("GET", `/admin/ef/zones${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+      triggerImport: () => request<{ message: string }>("POST", "/admin/ef/import"),
+      deleteZone:    (code: string) => request<void>("DELETE", `/admin/ef/zones/${code}`),
+    },
+
+    announcements: {
+      send:    (body: { title: string; body: string; tenantId?: string }) =>
+        request<{ created: number; message: string }>("POST", "/admin/announcements", body),
+      history: () => request<AdminAnnouncementList>("GET", "/admin/announcements"),
+    },
+
+    webhooks: {
+      deliveries: (status?: string) =>
+        request<AdminDeliveryList>("GET", `/admin/webhooks/deliveries${status ? `?status=${status}` : ""}`),
+      retry: (id: string) => request<{ message: string }>("POST", `/admin/webhooks/deliveries/${id}/retry`),
+      stats: () => request<AdminWebhookStats>("GET", "/admin/webhooks/stats"),
+    },
+  },
+
   shareLinks: {
     create: (installationId: string, periodId: string, ttlDays?: number, password?: string) =>
       request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays, password }),
@@ -242,10 +282,10 @@ export interface Period {
   id: string; installationId: string; periodName: string;
   startDate: string; endDate: string; reportYear: number;
   importCountry: string; cnCode: string; prodVolumeTonne: number;
-  scope1DirectTco2: number; scope1Quality: string;
-  electricityKwh: number; baselineEf: number; renewableEf: number;
+  scope1DirectTco2: number; scope1Quality: string; scope1AuditNote: string | null;
+  electricityKwh: number; electricitySource: string; baselineEf: number; renewableEf: number;
   matchingRatePct: number; gecConnected: boolean; carbonPriceEur: number | null;
-  createdAt: string; result?: EmbeddedEmission;
+  scope2Exempt: boolean; createdAt: string; result?: EmbeddedEmission;
 }
 
 export interface InstallationDetail extends Installation {
@@ -347,6 +387,39 @@ export interface EFImportStatus {
   nextScheduledRun: string;
   schedule: string;
 }
+
+// Admin types
+export interface AdminMetrics {
+  tenantCount: number; installationCount: number; periodCount: number;
+  cfeCount: number; auditCount30d: number; newTenants30d: number;
+  dailyActivity: { day: string; count: number }[];
+  asOf: string;
+}
+export interface AdminTenant {
+  id: string; name: string; slug: string; plan: string; disabled: boolean;
+  createdAt: string;
+  _count: { members: number; installations: number };
+}
+export interface AdminTenantList  { tenants: AdminTenant[]; total: number; }
+export interface AdminTenantDetail extends AdminTenant {
+  members:       { userId: string; role: string; createdAt: string }[];
+  installations: { id: string; facilityName: string; facilityCountry: string }[];
+}
+export interface AdminUser {
+  id: string; email: string; createdAt: string; lastSignIn: string | null;
+  banned: boolean; emailConfirmed: boolean; isSuperAdmin: boolean; tenantId: string | null;
+}
+export interface AdminUserList { users: AdminUser[]; total: number; }
+export interface AdminEfZone { zoneCode: string; zoneName: string; country: string; updatedAt: string; }
+export interface AdminEfZoneList { zones: AdminEfZone[]; count: number; }
+export interface AdminAnnouncementList { items: { id: string; tenantId: string; title: string; body: string; createdAt: string }[]; }
+export interface AdminDelivery {
+  id: string; webhookId: string; status: string; statusCode: number | null;
+  createdAt: string; durationMs: number | null;
+  webhook: { url: string; tenantId: string };
+}
+export interface AdminDeliveryList { deliveries: AdminDelivery[]; total: number; }
+export interface AdminWebhookStats { total: number; success: number; failed: number; pending: number; successRate: string; }
 
 export interface GecMonthlyPoint {
   month: number; monthName: string;

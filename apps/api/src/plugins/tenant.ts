@@ -24,6 +24,7 @@ const tenantPlugin: FastifyPluginAsync = async (app) => {
     if (
       request.routeOptions?.config?.public === true ||
       request.url.startsWith("/api/v1/share/") ||
+      request.url.startsWith("/api/v1/admin") ||
       request.url === "/health"
     ) return;
 

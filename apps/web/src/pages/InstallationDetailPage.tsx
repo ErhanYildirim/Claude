@@ -147,6 +147,8 @@ export default function InstallationDetailPage() {
       matchingRatePct:   period.matchingRatePct,
       gecConnected:      period.gecConnected,
       carbonPriceEur:    period.carbonPriceEur ?? undefined,
+      scope2Exempt:      period.scope2Exempt ?? false,
+      scope1AuditNote:   period.scope1AuditNote ?? undefined,
     });
     setEfManual(true);
     setError("");

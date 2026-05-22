@@ -234,6 +234,31 @@ export const api = {
     sectors: () => request<{ benchmarks: Record<string, BenchmarkRef> }>("GET", "/benchmark/sectors"),
   },
 
+  cbamProducts: {
+    list:   (installationId: string) =>
+      request<{ products: CbamProduct[] }>("GET", `/installations/${installationId}/products`),
+    create: (installationId: string, body: Partial<CbamProduct>) =>
+      request<{ product: CbamProduct }>("POST", `/installations/${installationId}/products`, body),
+    update: (installationId: string, productId: string, body: Partial<CbamProduct>) =>
+      request<{ product: CbamProduct }>("PATCH", `/installations/${installationId}/products/${productId}`, body),
+    delete: (installationId: string, productId: string) =>
+      request<void>("DELETE", `/installations/${installationId}/products/${productId}`),
+
+    periods: {
+      list:      (instId: string, productId: string) =>
+        request<{ product: CbamProduct; periods: CbamProductPeriod[] }>("GET", `/installations/${instId}/products/${productId}/periods`),
+      create:    (instId: string, productId: string, body: Record<string, unknown>) =>
+        request<{ period: CbamProductPeriod }>("POST", `/installations/${instId}/products/${productId}/periods`, body),
+      update:    (instId: string, productId: string, periodId: string, body: Record<string, unknown>) =>
+        request<{ period: CbamProductPeriod }>("PATCH", `/installations/${instId}/products/${productId}/periods/${periodId}`, body),
+      calculate: (instId: string, productId: string, periodId: string) =>
+        request<{ period: CbamProductPeriod; result: Record<string, unknown> }>(
+          "POST", `/installations/${instId}/products/${productId}/periods/${periodId}/calculate`),
+    },
+
+    reference: () => request<CbamReference>("GET", "/cbam/reference"),
+  },
+
   emissionTargets: {
     list:     (year?: number) => request<{ targets: EmissionTargetEntry[] }>("GET", `/emission-targets${year ? `?year=${year}` : ""}`),
     progress: (year?: number) => request<{ year: number; progress: EmissionTargetProgress[] }>("GET", `/emission-targets/progress${year ? `?year=${year}` : ""}`),

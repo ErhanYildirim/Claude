@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { CbamProduct, CbamProductPeriod, RenewableSource, CbamCountryEf } from "../lib/api.js";
+import type { CbamProduct, CbamProductPeriod, RenewableSource, CbamCountryEf, Period } from "../lib/api.js";
 
 const S: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 980, margin: "0 auto", padding: "32px 28px" },
@@ -81,6 +81,8 @@ export default function CbamProductPage() {
   const [gridEfLoad,      setGridEfLoad]      = useState(false);
   const [error,           setError]           = useState("");
   const [selectedPeriod,  setSelectedPeriod]  = useState<CbamProductPeriod | null>(null);
+  const [gecPeriods,      setGecPeriods]      = useState<Period[]>([]);
+  const [gecFilling,      setGecFilling]      = useState(false);
 
   const load = useCallback(() => {
     if (!installationId || !productId) return;
@@ -97,6 +99,7 @@ export default function CbamProductPage() {
         .then(inst => {
           const country = inst.facilityCountry ?? "";
           setFacilityCountry(country);
+          setGecPeriods(inst.periods ?? []);
           const cn = r.product.cnCode;
           if (cn && country) {
             api.defaults.lookup(country, cn)
@@ -124,6 +127,25 @@ export default function CbamProductPage() {
       }
     } catch { setError("ENTSO-E EF verisi yüklenemedi."); }
     setGridEfLoad(false);
+  }
+
+  async function autoFillFromGecPeriod(periodId: string) {
+    if (!installationId) return;
+    const p = gecPeriods.find(gp => gp.id === periodId);
+    if (!p) return;
+    setGecFilling(true);
+    setF("periodName",   p.periodName);
+    setF("startDate",    p.startDate.slice(0, 10));
+    setF("endDate",      p.endDate.slice(0, 10));
+    setF("reportYear",   String(p.reportYear));
+    setF("facilityTotalKwh", String(p.electricityKwh));
+    try {
+      const cfe = await api.cfe.get(installationId, periodId);
+      setF("facilityRenewableKwh", String(Math.round(cfe.totalMatchedKwh)));
+    } catch {
+      // CFE verisi yok, yenilenebilir alanı boş bırak
+    }
+    setGecFilling(false);
   }
 
   async function savePeriod() {
@@ -343,6 +365,30 @@ export default function CbamProductPage() {
                 </div>
               </div>
             ) : (
+              <>
+              {gecPeriods.length > 0 && (
+                <div style={{ marginBottom: 12, background: "#f0fdf4", borderRadius: 8,
+                              padding: "10px 14px", border: "1px solid #d1fae5" }}>
+                  <label style={{ ...S.lbl, color: "#065f46", fontWeight: 700, marginBottom: 6 }}>
+                    GEC Döneminden Otomatik Doldur
+                  </label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <select style={{ ...S.sel, flex: 1 }} defaultValue=""
+                      onChange={e => e.target.value && autoFillFromGecPeriod(e.target.value)}>
+                      <option value="" disabled>Dönem seçin…</option>
+                      {gecPeriods.map(gp => (
+                        <option key={gp.id} value={gp.id}>
+                          {gp.periodName} ({gp.reportYear}) — {(gp.electricityKwh / 1000000).toFixed(2)} GWh
+                        </option>
+                      ))}
+                    </select>
+                    {gecFilling && <span style={{ fontSize: 12, color: "#059669" }}>Yükleniyor…</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#065f46", marginTop: 4 }}>
+                    Tarihler, tesis tüketimi ve CFE eşleşme (yenilenebilir) verisi otomatik doldurulur.
+                  </div>
+                </div>
+              )}
               <div style={{ ...S.grid3, marginBottom: 12 }}>
                 <div>
                   <label style={S.lbl}>Tesis Toplam Elektrik (kWh) *</label>
@@ -363,6 +409,7 @@ export default function CbamProductPage() {
                   </div>
                 </div>
               </div>
+              </>
             )}
 
             <div style={{ ...S.grid2, marginBottom: 12 }}>

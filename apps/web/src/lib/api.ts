@@ -118,13 +118,15 @@ export const api = {
   },
 
   auditLogs: {
-    list: (params?: { resource?: string; resourceId?: string; action?: string; limit?: number; cursor?: string }) => {
+    list: (params?: { resource?: string; resourceId?: string; action?: string; limit?: number; cursor?: string; from?: string; to?: string }) => {
       const q = new URLSearchParams();
       if (params?.resource)   q.set("resource",   params.resource);
       if (params?.resourceId) q.set("resourceId", params.resourceId);
       if (params?.action)     q.set("action",     params.action);
       if (params?.limit)      q.set("limit",      String(params.limit));
       if (params?.cursor)     q.set("cursor",     params.cursor);
+      if (params?.from)       q.set("from",       params.from);
+      if (params?.to)         q.set("to",         params.to);
       const qs = q.toString();
       return request<AuditLogList>("GET", `/audit-logs${qs ? "?" + qs : ""}`);
     },

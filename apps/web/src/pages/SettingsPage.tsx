@@ -461,6 +461,8 @@ function AuditTrailTab() {
   const [loading, setLoading]   = useState(false);
   const [resource, setResource] = useState("");
   const [action, setAction]     = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo,   setDateTo]   = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [err, setErr]           = useState("");
 
@@ -470,6 +472,8 @@ function AuditTrailTab() {
       const res = await api.auditLogs.list({
         resource: resource || undefined,
         action:   action   || undefined,
+        from:     dateFrom || undefined,
+        to:       dateTo   || undefined,
         limit:    50,
         cursor:   cursor   || undefined,
       });
@@ -480,18 +484,48 @@ function AuditTrailTab() {
     setLoading(false);
   }
 
+  function exportCsv() {
+    const header = ["Tarih", "İşlem", "Kaynak", "Kaynak ID", "Kullanıcı ID", "IP", "Payload"];
+    const rows   = logs.map(l => [
+      new Date(l.createdAt).toISOString(),
+      l.action,
+      l.resource,
+      l.resourceId,
+      l.userId ?? "",
+      l.ipAddress ?? "",
+      JSON.stringify(l.payload).replace(/"/g, '""'),
+    ]);
+    const csv = [header, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
   useEffect(() => { load(); }, []);
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" as const, alignItems: "flex-end" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" as const, alignItems: "flex-end" }}>
         <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={resource} onChange={e => setResource(e.target.value)}>
           {RESOURCE_OPTIONS.map(r => <option key={r} value={r}>{r || "Tüm Kaynaklar"}</option>)}
         </select>
         <select style={{ ...s.select, width: "auto", marginBottom: 0 }} value={action} onChange={e => setAction(e.target.value)}>
           {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a || "Tüm İşlemler"}</option>)}
         </select>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 12 }}
+          title="Başlangıç tarihi" />
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 12 }}
+          title="Bitiş tarihi" />
         <button style={{ ...s.btnSm, ...s.btnP, padding: "7px 16px" }} onClick={() => load()}>Filtrele</button>
+        {logs.length > 0 && (
+          <button style={{ ...s.btnSm, ...s.btnSec, padding: "7px 14px" }} onClick={exportCsv} title="CSV olarak indir">
+            ↓ CSV
+          </button>
+        )}
         {count > 0 && <span style={{ fontSize: 12, color: "#5c7a72" }}>{count} kayıt</span>}
       </div>
 
@@ -533,10 +567,29 @@ function AuditTrailTab() {
                   {isOpen && (
                     <tr key={log.id + "-payload"} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #eef7f3" }}>
                       <td colSpan={5} style={{ padding: "0 14px 12px" }}>
-                        <pre style={{ background: "#f4fbf8", borderRadius: 6, padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "#1a3530" }}>
-                          {JSON.stringify(log.payload, null, 2)}
-                        </pre>
-                        {log.ipAddress && <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>IP: {log.ipAddress}</div>}
+                        <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" as const }}>
+                          {log.ipAddress && <span style={{ fontSize: 11, color: "#5c7a72", background: "#eef7f3", padding: "2px 8px", borderRadius: 4 }}>IP: {log.ipAddress}</span>}
+                          <span style={{ fontSize: 11, color: "#5c7a72", background: "#eef7f3", padding: "2px 8px", borderRadius: 4 }}>ID: {log.id.slice(0, 8)}…</span>
+                          <span style={{ fontSize: 11, color: "#5c7a72", background: "#eef7f3", padding: "2px 8px", borderRadius: 4 }}>{new Date(log.createdAt).toLocaleString("tr-TR")}</span>
+                        </div>
+                        {log.payload && typeof log.payload === "object" && !Array.isArray(log.payload) ? (
+                          <table style={{ fontSize: 11, fontFamily: "monospace", borderCollapse: "collapse" as const, width: "100%" }}>
+                            <tbody>
+                              {Object.entries(log.payload as Record<string, unknown>).map(([k, v]) => (
+                                <tr key={k} style={{ borderBottom: "1px solid #eef7f3" }}>
+                                  <td style={{ padding: "3px 8px", color: "#009966", fontWeight: 700, whiteSpace: "nowrap" as const, width: 1 }}>{k}</td>
+                                  <td style={{ padding: "3px 8px", color: "#1a3530", wordBreak: "break-all" as const }}>
+                                    {typeof v === "object" ? JSON.stringify(v) : String(v ?? "")}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <pre style={{ background: "#f4fbf8", borderRadius: 6, padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "#1a3530" }}>
+                            {JSON.stringify(log.payload, null, 2)}
+                          </pre>
+                        )}
                       </td>
                     </tr>
                   )}

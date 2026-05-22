@@ -39,6 +39,7 @@ import { invitesRoutes }       from "./routes/invites.js";
 import { searchRoutes }        from "./routes/search.js";
 import { adminRoutes }         from "./routes/admin/index.js";
 import { carbonPricesRoutes }  from "./routes/carbon-prices.js";
+import { emissionTargetsRoutes } from "./routes/emission-targets.js";
 import cron from "node-cron";
 
 const app = Fastify({
@@ -103,7 +104,8 @@ await app.register(notificationsRoutes, { prefix: v1 });
 await app.register(invitesRoutes,       { prefix: v1 });
 await app.register(searchRoutes,        { prefix: v1 });
 await app.register(adminRoutes,         { prefix: `${v1}/admin` });
-await app.register(carbonPricesRoutes,  { prefix: v1 });
+await app.register(carbonPricesRoutes,    { prefix: v1 });
+await app.register(emissionTargetsRoutes, { prefix: v1 });
 
 // Health check — kamuya açık, detaylı DB + uygulama durumu
 app.get("/health", { config: { public: true } }, async (_req, reply) => {

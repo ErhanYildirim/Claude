@@ -208,6 +208,14 @@ export const api = {
     },
   },
 
+  emissionTargets: {
+    list:     (year?: number) => request<{ targets: EmissionTargetEntry[] }>("GET", `/emission-targets${year ? `?year=${year}` : ""}`),
+    progress: (year?: number) => request<{ year: number; progress: EmissionTargetProgress[] }>("GET", `/emission-targets/progress${year ? `?year=${year}` : ""}`),
+    create:   (body: { year: number; metric: string; targetValue: number; baselineValue?: number; installationId?: string; notes?: string }) =>
+      request<EmissionTargetEntry>("POST", "/emission-targets", body),
+    delete:   (id: string) => request<void>("DELETE", `/emission-targets/${id}`),
+  },
+
   carbonPrices: {
     list:   () => request<{ prices: CarbonPriceEntry[] }>("GET", "/carbon-prices"),
     latest: () => request<{ price: CarbonPriceEntry | null }>("GET", "/carbon-prices/latest"),
@@ -394,6 +402,17 @@ export interface EFImportStatus {
   totalRows: number;
   nextScheduledRun: string;
   schedule: string;
+}
+
+export interface EmissionTargetEntry {
+  id: string; tenantId: string; installationId: string | null;
+  year: number; metric: string; targetValue: number; baselineValue: number | null;
+  notes: string | null; createdAt: string;
+}
+export interface EmissionTargetProgress extends EmissionTargetEntry {
+  actualValue:    number | null;
+  achievementPct: number | null;
+  facilityName:   string;
 }
 
 export interface CarbonPriceEntry {

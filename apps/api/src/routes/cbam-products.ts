@@ -370,6 +370,41 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ period: updated, result });
   });
 
+  // ── DELETE /installations/:installationId/products/:productId/periods/:periodId
+  app.delete("/installations/:installationId/products/:productId/periods/:periodId", async (request, reply) => {
+    if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
+    if (!await requireRole(request, reply, "analyst")) return;
+
+    const { productId, periodId } = request.params as {
+      installationId: string; productId: string; periodId: string;
+    };
+
+    const product = await prisma.cbamProduct.findFirst({
+      where: { id: productId, tenantId: request.tenantId },
+    });
+    if (!product) return reply.status(404).send({ error: "NOT_FOUND" });
+
+    const period = await prisma.cbamProductPeriod.findFirst({
+      where: { id: periodId, cbamProductId: productId },
+    });
+    if (!period) return reply.status(404).send({ error: "NOT_FOUND" });
+
+    await prisma.cbamProductPeriod.delete({ where: { id: periodId } });
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId:   request.tenantId,
+        userId:     request.userId ?? undefined,
+        action:     "DELETE",
+        resource:   "CbamProductPeriod",
+        resourceId: periodId,
+        payload:    { periodName: period.periodName, reportYear: period.reportYear },
+      },
+    }).catch(() => {});
+
+    return reply.status(204).send();
+  });
+
   // ── GET /cbam/reference — sabit referans verileri ─────────────────────────
   app.get("/cbam/reference", { config: { public: true } }, async (_request, reply) => {
     return reply.send({

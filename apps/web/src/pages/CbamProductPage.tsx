@@ -198,6 +198,17 @@ export default function CbamProductPage() {
     }
   }
 
+  async function deletePeriod(periodId: string, periodName: string) {
+    if (!installationId || !productId) return;
+    if (!confirm(`"${periodName}" dönemini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) return;
+    try {
+      await api.cbamProducts.periods.delete(installationId, productId, periodId);
+      setPeriods(prev => prev.filter(p => p.id !== periodId));
+    } catch (e: unknown) {
+      alert((e as Error)?.message ?? "Silme hatası");
+    }
+  }
+
   const isBand = product?.energyAllocationMode === "band";
 
   if (loading) return <div style={{ padding: 48, color: "#5c7a72" }}>Yükleniyor...</div>;
@@ -493,6 +504,12 @@ export default function CbamProductPage() {
                 onClick={() => { calculate(p.id); setSelectedPeriod(p); }}
               >
                 {calcLoading && calcId === p.id ? "Hesaplanıyor…" : "Hesapla"}
+              </button>
+              <button
+                style={S.btnDng}
+                onClick={() => deletePeriod(p.id, p.periodName)}
+              >
+                Sil
               </button>
             </div>
           </div>

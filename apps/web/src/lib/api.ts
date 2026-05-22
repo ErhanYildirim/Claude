@@ -254,6 +254,8 @@ export const api = {
       calculate: (instId: string, productId: string, periodId: string) =>
         request<{ period: CbamProductPeriod; result: Record<string, unknown> }>(
           "POST", `/installations/${instId}/products/${productId}/periods/${periodId}/calculate`),
+      delete: (instId: string, productId: string, periodId: string) =>
+        request<void>("DELETE", `/installations/${instId}/products/${productId}/periods/${periodId}`),
     },
 
     reference: () => request<CbamReference>("GET", "/cbam/reference"),

@@ -53,6 +53,134 @@ function CIBadge({ ci }: { ci: number }) {
   );
 }
 
+/* ── API Docs ─────────────────────────────────────────────────────────────── */
+function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
+  const exampleZone = zones[0]?.zoneId ?? "TR";
+  const block = (code: string) => (
+    <pre style={{
+      background: "#0a1f1a", color: "#00b87a", borderRadius: 8,
+      padding: "12px 16px", fontSize: 12, fontFamily: "monospace",
+      overflowX: "auto", lineHeight: 1.6, margin: "8px 0 16px",
+    }}>{code}</pre>
+  );
+  const heading = (t: string) => (
+    <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", letterSpacing: ".08em",
+                  textTransform: "uppercase", marginTop: 20, marginBottom: 8 }}>{t}</div>
+  );
+  const pill = (t: string, color = "#00b87a") => (
+    <span key={t} style={{ background: color + "18", color, padding: "3px 10px",
+                            borderRadius: 20, fontSize: 11, fontWeight: 600, marginRight: 6 }}>{t}</span>
+  );
+
+  const endpoints = [
+    {
+      method: "GET", path: "/api/v1/ef/zones",
+      desc: "Tüm mevcut EF zone'larını listeler",
+      response: `{ "count": 1, "zones": [{ "zoneId": "TR", "zoneName": "Turkey", "country": "Turkey", "rowCount": 8784 }] }`,
+    },
+    {
+      method: "GET", path: `/api/v1/ef/zones/${exampleZone}`,
+      desc: "Zone yıllık özeti: ortalama, min, max CI + CFE/RE yüzdesi",
+      response: `{ "zoneId": "${exampleZone}", "ciDirect": { "avg": 380.2, "min": 45.0, "max": 820.5 }, "cfePct": { "avg": 32.1 }, "rowCount": 8784 }`,
+    },
+    {
+      method: "GET", path: `/api/v1/ef/zones/${exampleZone}/hourly?start=2024-01-01&end=2024-01-07`,
+      desc: "Saatlik EF verisi — start/end (ISO 8601) ile filtrelenebilir",
+      response: `{ "zoneId": "${exampleZone}", "count": 168, "data": [{ "hour": "2024-01-01T00:00:00Z", "ciDirect": 412.5, "ciLifecycle": 450.2, "cfePct": 28.3, "rePct": 30.1, "dataEstimated": false }] }`,
+    },
+    {
+      method: "GET", path: `/api/v1/ef/zones/${exampleZone}/monthly?year=2024`,
+      desc: "Aylık agregat: ortalama CI, CFE%, RE% her ay için",
+      response: `{ "zoneId": "${exampleZone}", "year": 2024, "months": [{ "month": 1, "monthName": "Jan", "avgCiDirect": 398.4, "avgCfePct": 29.2, "dataPoints": 744 }] }`,
+    },
+  ];
+
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <div style={{ ...s.card, marginBottom: 16 }}>
+        {heading("Genel Bakış")}
+        <p style={{ fontSize: 13, color: "#5c7a72", margin: "0 0 12px", lineHeight: 1.7 }}>
+          EF Veri Servisi REST API'si, saatlik granüler emisyon faktörü verisine programatik erişim sağlar.
+          63+ ülke, 170+ şebeke; 2024 verisi mevcut. GHG Protocol Scope 2 Location-Based metodolojisine uygundur.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {pill("REST JSON")}
+          {pill("Saatlik Granüler")}
+          {pill("63+ Ülke", "#0284c7")}
+          {pill("gCO₂eq/kWh", "#7c3aed")}
+          {pill("UTC Saatlik", "#d97706")}
+        </div>
+      </div>
+
+      <div style={s.card}>
+        {heading("Kimlik Doğrulama")}
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
+          Bearer token (JWT) veya API Key ile:
+        </div>
+        {block(`Authorization: Bearer <jwt_token>
+# veya API Key ile:
+Authorization: Bearer vf_<api_key>`)}
+
+        {heading("Rate Limiting")}
+        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 4 }}>
+          100 istek / dakika (IP başına). Aşıldığında <code>429 RATE_LIMIT_EXCEEDED</code> döner.
+        </div>
+
+        {heading("Endpoint'ler")}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {endpoints.map((ep, i) => (
+            <div key={i} style={{ border: "1px solid #d4ece4", borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                            background: "#f4fbf8", borderBottom: "1px solid #d4ece4" }}>
+                <span style={{ background: "#00b87a", color: "#fff", padding: "2px 8px",
+                               borderRadius: 5, fontSize: 11, fontWeight: 700 }}>{ep.method}</span>
+                <code style={{ fontSize: 13, color: "#0a1f1a" }}>{ep.path}</code>
+              </div>
+              <div style={{ padding: "10px 14px" }}>
+                <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>{ep.desc}</div>
+                {block(ep.response)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {heading("Kod Örnekleri")}
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 4 }}>cURL</div>
+        {block(`curl -H "Authorization: Bearer $TOKEN" \\
+  "https://api.voltfox.io/api/v1/ef/zones/${exampleZone}/hourly?start=2024-01-01&end=2024-01-31"`)}
+
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 4 }}>JavaScript</div>
+        {block(`const res = await fetch(
+  "/api/v1/ef/zones/${exampleZone}/hourly?start=2024-01-01&end=2024-01-31",
+  { headers: { Authorization: \`Bearer \${token}\` } }
+);
+const { data } = await res.json();
+// data: [{ hour, ciDirect, cfePct, rePct, dataEstimated }]`)}
+
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 4 }}>Python</div>
+        {block(`import requests
+
+r = requests.get(
+    "/api/v1/ef/zones/${exampleZone}/hourly",
+    params={"start": "2024-01-01", "end": "2024-01-31"},
+    headers={"Authorization": f"Bearer {token}"}
+)
+data = r.json()["data"]  # list of hourly EF points`)}
+
+        {heading("Veri Yapısı")}
+        {block(`interface EFHourlyPoint {
+  hour:          string;   // ISO 8601 UTC "2024-01-01T00:00:00.000Z"
+  ciDirect:      number;   // gCO₂eq/kWh — lokasyon bazlı (Scope 2)
+  ciLifecycle:   number;   // gCO₂eq/kWh — yaşam döngüsü
+  cfePct:        number;   // 0-100 — karbon serbest enerji yüzdesi
+  rePct:         number;   // 0-100 — yenilenebilir enerji yüzdesi
+  dataEstimated: boolean;  // true ise modelle tahmin edilen
+}`)}
+      </div>
+    </div>
+  );
+}
+
 /* ── Component ───────────────────────────────────────────────────────────── */
 export default function EfDataPage() {
   const [zones,         setZones]         = useState<EFZoneEntry[]>([]);
@@ -63,6 +191,7 @@ export default function EfDataPage() {
   const [monthly,       setMonthly]       = useState<EFMonthlyPoint[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [dbEmpty,       setDbEmpty]       = useState(false);
+  const [activeTab,     setActiveTab]     = useState<"data" | "api">("data");
 
   /* selectZone — önce tanımla, sonra useEffect içinde kullan */
   async function selectZone(zone: EFZoneEntry) {
@@ -118,7 +247,24 @@ export default function EfDataPage() {
             : `${zones.length} zone · 2024 · Saatlik granüler EF verisi · Kaynak: Electricity Maps`}
       </div>
 
-      {dbEmpty ? (
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #d4ece4" }}>
+        {(["data", "api"] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)} style={{
+            padding: "8px 18px", border: "none", cursor: "pointer", fontWeight: 600,
+            fontSize: 13, borderRadius: "6px 6px 0 0",
+            background: activeTab === tab ? "#fff" : "transparent",
+            color: activeTab === tab ? "#0a1f1a" : "#5c7a72",
+            borderBottom: activeTab === tab ? "2px solid #00b87a" : "2px solid transparent",
+          }}>
+            {tab === "data" ? "Veri Servisi" : "API Dokümantasyonu"}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "api" ? (
+        <ApiDocsView zones={zones} />
+      ) : dbEmpty ? (
         <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📡</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>EF Verisi Bulunamadı</div>

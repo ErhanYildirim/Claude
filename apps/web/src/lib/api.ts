@@ -95,6 +95,8 @@ export const api = {
     me:   () => request<MemberMe>("GET", "/members/me"),
     list: () => request<MemberList>("GET", "/members"),
     add:  (body: { userId: string; role: string }) => request("POST", "/members", body),
+    invite: (body: { email: string; role: string }) =>
+      request<{ member: unknown; invited: boolean; message: string }>("POST", "/members/invite", body),
     update: (userId: string, role: string) => request("PATCH", `/members/${userId}`, { role }),
     remove: (userId: string) => request<void>("DELETE", `/members/${userId}`),
   },

@@ -19,7 +19,58 @@ export const membersRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ members });
   });
 
-  // POST /members — yeni üye ekle (admin+)
+  // POST /members/invite — email ile davet et (admin+)
+  app.post("/members/invite", {
+    schema: {
+      body: {
+        type: "object",
+        required: ["email", "role"],
+        properties: {
+          email: { type: "string", format: "email" },
+          role:  { type: "string", enum: VALID_ROLES as unknown as string[] },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    if (!await requireRole(request, reply, "admin")) return;
+
+    const { email, role } = request.body as { email: string; role: string };
+
+    if (role === "owner" && !await requireRole(request, reply, "owner")) return;
+
+    // Mevcut kullanıcıyı email ile ara
+    const { data: userList } = await app.supabase.auth.admin.listUsers({ perPage: 1000 });
+    const existingUser = userList?.users?.find(u => u.email === email);
+
+    let userId: string;
+
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      // Kullanıcı yok → davet et
+      const { data: invited, error } = await app.supabase.auth.admin.inviteUserByEmail(email, {
+        data: { invited_to_tenant: request.tenantId },
+      });
+      if (error || !invited?.user) {
+        return reply.status(422).send({ error: "INVITE_FAILED", message: error?.message ?? "Davet gönderilemedi." });
+      }
+      userId = invited.user.id;
+    }
+
+    const member = await prisma.tenantMember.upsert({
+      where:  { tenantId_userId: { tenantId: request.tenantId, userId } },
+      create: { tenantId: request.tenantId, userId, role },
+      update: { role },
+    });
+
+    return reply.status(201).send({
+      member,
+      invited: !existingUser,
+      message: existingUser ? "Mevcut kullanıcı eklendi." : "Davet e-postası gönderildi.",
+    });
+  });
+
+  // POST /members — userId ile direkt ekle (geriye uyumluluk)
   app.post("/members", {
     schema: {
       body: {
@@ -36,7 +87,6 @@ export const membersRoutes: FastifyPluginAsync = async (app) => {
 
     const { userId, role } = request.body as { userId: string; role: string };
 
-    // owner rolü sadece owner verebilir
     if (role === "owner" && !await requireRole(request, reply, "owner")) return;
 
     const member = await prisma.tenantMember.upsert({

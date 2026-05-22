@@ -40,11 +40,18 @@ const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   viewer:   { bg: "#eef7f3", color: "#5c7a72" },
 };
 
+const ROLE_LABELS_FULL: Record<string, string> = {
+  viewer:  "Viewer — sadece görüntüle",
+  analyst: "Analyst — hesapla ve görüntüle",
+  admin:   "Admin — tam yönetim",
+  owner:   "Owner — tam yetki",
+};
+
 // ── Ekip Sekmesi ─────────────────────────────────────────────────────────────
 function TeamTab() {
   const [members, setMembers] = useState<MemberList["members"]>([]);
   const [myRole, setMyRole]   = useState<string>("viewer");
-  const [userId, setUserId]   = useState("");
+  const [email, setEmail]     = useState("");
   const [role, setRole]       = useState("analyst");
   const [saving, setSaving]   = useState(false);
   const [err, setErr]         = useState("");
@@ -57,14 +64,14 @@ function TeamTab() {
 
   const canManage = ["owner", "admin"].includes(myRole);
 
-  async function add(e: React.FormEvent) {
+  async function invite(e: React.FormEvent) {
     e.preventDefault();
-    if (!userId.trim()) return;
-    setErr(""); setSaving(true);
+    if (!email.trim()) return;
+    setErr(""); setOk(""); setSaving(true);
     try {
-      await api.members.add({ userId: userId.trim(), role });
-      setOk("Üye eklendi.");
-      setUserId("");
+      const res = await api.members.invite({ email: email.trim(), role });
+      setOk(res.message);
+      setEmail("");
       const r = await api.members.list();
       setMembers(r.members);
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Hata"); }
@@ -96,8 +103,12 @@ function TeamTab() {
           return (
             <div key={m.id} style={{ ...s.row, ...(i === members.length - 1 ? { borderBottom: "none" } : {}) }}>
               <div>
-                <div style={{ fontSize: 13, fontFamily: "monospace", color: "#1a3530" }}>{m.userId.slice(0, 18)}...</div>
-                <div style={{ fontSize: 11, color: "#5c7a72" }}>{new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi</div>
+                <div style={{ fontSize: 13, color: "#1a3530", fontFamily: "monospace" }}>
+                  {m.userId.slice(0, 8)}…
+                </div>
+                <div style={{ fontSize: 11, color: "#5c7a72" }}>
+                  {new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi
+                </div>
               </div>
               <div style={s.rowR}>
                 <span style={{ ...s.badge, ...rc }}>{m.role}</span>
@@ -123,28 +134,36 @@ function TeamTab() {
 
       {canManage && (
         <div style={s.card}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Üye Ekle</div>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Üye Davet Et</div>
           {err && <div style={s.err}>{err}</div>}
           {ok  && <div style={s.ok}>{ok}</div>}
-          <form onSubmit={add}>
+          <form onSubmit={invite}>
             <div style={s.row2}>
               <div>
-                <label style={s.label}>Kullanıcı ID (UUID)</label>
-                <input style={s.input} value={userId} onChange={e => setUserId(e.target.value)}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                <label style={s.label}>E-posta Adresi</label>
+                <input
+                  style={s.input}
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="kullanici@sirket.com"
+                  required
+                />
               </div>
               <div>
                 <label style={s.label}>Rol</label>
                 <select style={s.select} value={role} onChange={e => setRole(e.target.value)}>
-                  <option value="viewer">Viewer — sadece görüntüle</option>
-                  <option value="analyst">Analyst — hesapla ve görüntüle</option>
-                  <option value="admin">Admin — tam yönetim</option>
-                  {myRole === "owner" && <option value="owner">Owner</option>}
+                  {Object.entries(ROLE_LABELS_FULL)
+                    .filter(([r]) => r !== "owner" || myRole === "owner")
+                    .map(([r, l]) => <option key={r} value={r}>{l}</option>)}
                 </select>
               </div>
             </div>
+            <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 10 }}>
+              Platformda kayıtlı değilse davet e-postası gönderilir. Kayıtlıysa direkt eklenir.
+            </div>
             <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "8px 18px", fontSize: 13 }} disabled={saving}>
-              {saving ? "Ekleniyor..." : "Ekle"}
+              {saving ? "Gönderiliyor..." : "Davet Et"}
             </button>
           </form>
         </div>

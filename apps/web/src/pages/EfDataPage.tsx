@@ -192,6 +192,10 @@ export default function EfDataPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [dbEmpty,       setDbEmpty]       = useState(false);
   const [activeTab,     setActiveTab]     = useState<"data" | "api">("data");
+  const [hourlyData,    setHourlyData]    = useState<{ hour: string; ciDirect: number; cfePct: number }[]>([]);
+  const [hourlyStart,   setHourlyStart]   = useState("2024-01-01");
+  const [hourlyEnd,     setHourlyEnd]     = useState("2024-01-07");
+  const [hourlyLoading, setHourlyLoading] = useState(false);
 
   /* selectZone — önce tanımla, sonra useEffect içinde kullan */
   async function selectZone(zone: EFZoneEntry) {
@@ -225,6 +229,20 @@ export default function EfDataPage() {
       .catch(() => { setLoading(false); setDbEmpty(true); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    setHourlyLoading(true);
+    api.ef.hourly(selected.zoneId, hourlyStart, hourlyEnd)
+      .then(r => setHourlyData(r.data.map(d => ({
+        hour: new Date(d.hour).toISOString().slice(5, 13).replace("T", " "),
+        ciDirect: d.ciDirect,
+        cfePct: d.cfePct,
+      }))))
+      .catch(() => setHourlyData([]))
+      .finally(() => setHourlyLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, hourlyStart, hourlyEnd]);
 
   /* Zone listesi filtrelemesi */
   const filtered = zones.filter((z) =>
@@ -450,6 +468,46 @@ export default function EfDataPage() {
                     </ResponsiveContainer>
                   </div>
                 )}
+
+                {/* Saatlik Zaman Serisi */}
+                <div style={s.card}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div style={s.cardH}>Saatlik Emisyon Yoğunluğu</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input type="date" value={hourlyStart} min="2024-01-01" max="2024-12-25"
+                        onChange={e => setHourlyStart(e.target.value)}
+                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12 }} />
+                      <span style={{ fontSize: 12, color: "#5c7a72" }}>→</span>
+                      <input type="date" value={hourlyEnd} min="2024-01-07" max="2024-12-31"
+                        onChange={e => setHourlyEnd(e.target.value)}
+                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12 }} />
+                    </div>
+                  </div>
+                  {hourlyLoading ? (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>
+                  ) : hourlyData.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "#5c7a72", fontSize: 13 }}>Veri bulunamadı</div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={hourlyData} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
+                          <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "#5c7a72" }}
+                            interval={Math.floor(hourlyData.length / 8)} />
+                          <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit=" g" width={52} />
+                          <Tooltip
+                            formatter={(v: unknown) => [`${Number(v).toFixed(1)} gCO₂/kWh`, "CI Direkt"] as [string, string]}
+                            contentStyle={{ borderRadius: 8, border: "1px solid #d4ece4", fontSize: 12 }}
+                          />
+                          <Line dataKey="ciDirect" name="CI Direkt" stroke="#ef4444" strokeWidth={1.5} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 8 }}>
+                        {hourlyData.length} saatlik veri noktası
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 {/* API Erişimi */}
                 <div style={s.card}>

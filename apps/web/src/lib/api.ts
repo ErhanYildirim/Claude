@@ -176,9 +176,10 @@ export const api = {
   },
 
   tenant: {
-    get:       () => request<{ tenant: TenantProfile }>("GET", "/tenant"),
-    update:    (body: Partial<TenantProfileUpdate>) => request<{ tenant: TenantProfile }>("PATCH", "/tenant", body),
-    timezones: () => fetch("/api/v1/tenant/timezones").then(r => r.json() as Promise<{ timezones: string[] }>),
+    get:          () => request<{ tenant: TenantProfile }>("GET", "/tenant"),
+    update:       (body: Partial<TenantProfileUpdate>) => request<{ tenant: TenantProfile }>("PATCH", "/tenant", body),
+    timezones:    () => fetch("/api/v1/tenant/timezones").then(r => r.json() as Promise<{ timezones: string[] }>),
+    subscription: () => request<TenantSubscription>("GET", "/tenant/subscription"),
   },
 
   shareLinks: {
@@ -317,6 +318,11 @@ export interface TenantProfile {
   createdAt: string;
 }
 export type TenantProfileUpdate = { name?: string; logoUrl?: string | null; brandColor?: string | null; timezone?: string };
+export interface TenantSubscription {
+  plan: string; planName: string; planExpires: string | null;
+  limits: { seats: number; installs: number };
+  usage:  { seats: number; installs: number };
+}
 
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }
 export interface UpdatePeriodBody {

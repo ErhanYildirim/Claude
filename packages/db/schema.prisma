@@ -16,6 +16,10 @@ model Tenant {
   logoUrl       String?              @map("logo_url")
   brandColor    String?              @map("brand_color")
   timezone      String               @default("Europe/Istanbul") @map("timezone")
+  plan          String               @default("free") @map("plan")
+  planSeats     Int                  @default(3) @map("plan_seats")
+  planInstalls  Int                  @default(5) @map("plan_installs")
+  planExpires   DateTime?            @map("plan_expires")
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
 

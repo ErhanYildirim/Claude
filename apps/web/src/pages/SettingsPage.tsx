@@ -801,19 +801,145 @@ function PermissionsTab() {
   );
 }
 
+// ── Abonelik Sekmesi ─────────────────────────────────────────────────────────
+import type { TenantSubscription } from "../lib/api.js";
+
+function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
+  const pct = Math.min((used / limit) * 100, 100);
+  const color = pct >= 90 ? "#ef4444" : pct >= 70 ? "#d97706" : "#00b87a";
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13,
+                    color: "#0a1f1a", marginBottom: 6 }}>
+        <span style={{ fontWeight: 600 }}>{label}</span>
+        <span style={{ color: "#5c7a72" }}>{used} / {limit}</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 99, background: "#eef7f3", overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color,
+                      borderRadius: 99, transition: "width .4s" }} />
+      </div>
+    </div>
+  );
+}
+
+const PLAN_FEATURES: Record<string, string[]> = {
+  free:       ["5 tesis", "3 kullanıcı", "Temel GEC hesaplama", "7 günlük EF verisi"],
+  starter:    ["20 tesis", "10 kullanıcı", "Tam GEC + CFE", "1 yıllık EF verisi", "CSV export"],
+  pro:        ["Sınırsız tesis", "50 kullanıcı", "Tüm özellikler", "XML export", "Webhook", "API erişimi"],
+  enterprise: ["Sınırsız her şey", "Özel SLA", "Öncelikli destek", "SSO", "Denetim desteği"],
+};
+
+function SubscriptionTab() {
+  const [sub, setSub] = useState<TenantSubscription | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.tenant.subscription()
+      .then(setSub)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>;
+  if (!sub) return <div style={{ color: "#DC2626", fontSize: 13 }}>Abonelik bilgisi yüklenemedi.</div>;
+
+  const planColor = sub.plan === "free" ? "#5c7a72" : sub.plan === "enterprise" ? "#7c3aed" : "#00b87a";
+  const features  = PLAN_FEATURES[sub.plan] ?? PLAN_FEATURES.free;
+
+  return (
+    <div>
+      {/* Mevcut plan */}
+      <div style={s.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase",
+                          letterSpacing: ".08em", marginBottom: 4 }}>Aktif Plan</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: planColor }}>{sub.planName}</div>
+            {sub.planExpires && (
+              <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 4 }}>
+                Bitiş: {new Date(sub.planExpires).toLocaleDateString("tr-TR")}
+              </div>
+            )}
+            {!sub.planExpires && sub.plan !== "free" && (
+              <div style={{ fontSize: 12, color: "#00b87a", marginTop: 4 }}>Süresiz</div>
+            )}
+          </div>
+          <div style={{ background: planColor + "18", border: `1px solid ${planColor}40`,
+                        borderRadius: 10, padding: "12px 16px", minWidth: 140 }}>
+            <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 6, fontWeight: 600 }}>Plan Kapsamı</div>
+            {features.map((f, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#0a1f1a", marginBottom: 3 }}>
+                <span style={{ color: planColor, marginRight: 5 }}>✓</span>{f}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Kullanım */}
+      <div style={s.card}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Kullanım Limitleri</div>
+        <UsageBar used={sub.usage.seats}    limit={sub.limits.seats}    label="Kullanıcılar" />
+        <UsageBar used={sub.usage.installs} limit={sub.limits.installs} label="Tesisler" />
+      </div>
+
+      {/* Plan yükseltme */}
+      {sub.plan !== "enterprise" && (
+        <div style={{ ...s.card, background: "linear-gradient(135deg,#e6f9f2,#f4fbf8)",
+                      border: "1px solid #a7f3d0" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Planınızı Yükseltin</div>
+          <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14, lineHeight: 1.6 }}>
+            Daha fazla tesis, kullanıcı ve gelişmiş özellikler için plan yükseltin.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+            {(["starter", "pro", "enterprise"] as const)
+              .filter(p => p !== sub.plan)
+              .map(plan => {
+                const fc = PLAN_FEATURES[plan] ?? [];
+                const pc = plan === "enterprise" ? "#7c3aed" : "#00b87a";
+                const prices: Record<string, string> = { starter: "€99/ay", pro: "€299/ay", enterprise: "Özel fiyat" };
+                return (
+                  <div key={plan} style={{ border: "1px solid #d4ece4", borderRadius: 8,
+                                            padding: "14px", background: "#fff" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: pc, marginBottom: 4,
+                                   textTransform: "capitalize" }}>
+                      {PLAN_FEATURES[plan] ? plan.charAt(0).toUpperCase() + plan.slice(1) : plan}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#0a1f1a", marginBottom: 8 }}>
+                      {prices[plan]}
+                    </div>
+                    {fc.slice(0, 3).map((f, i) => (
+                      <div key={i} style={{ fontSize: 11, color: "#5c7a72", marginBottom: 2 }}>
+                        <span style={{ color: pc, marginRight: 4 }}>✓</span>{f}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+          </div>
+          <div style={{ fontSize: 12, color: "#5c7a72" }}>
+            Plan değişikliği için: <a href="mailto:sales@voltfox.io" style={{ color: "#00b87a" }}>sales@voltfox.io</a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
-type Tab = "team" | "company" | "permissions" | "apikeys" | "webhooks" | "audit";
+type Tab = "team" | "company" | "subscription" | "permissions" | "apikeys" | "webhooks" | "audit";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "team",        label: "Ekip" },
-    { id: "company",     label: "Şirket" },
-    { id: "permissions", label: "İzinler" },
-    { id: "apikeys",     label: "API Anahtarları" },
-    { id: "webhooks",    label: "Webhook'lar" },
-    { id: "audit",       label: "Audit Trail" },
+    { id: "team",         label: "Ekip" },
+    { id: "company",      label: "Şirket" },
+    { id: "subscription", label: "Abonelik" },
+    { id: "permissions",  label: "İzinler" },
+    { id: "apikeys",      label: "API Anahtarları" },
+    { id: "webhooks",     label: "Webhook'lar" },
+    { id: "audit",        label: "Audit Trail" },
   ];
 
   return (
@@ -835,12 +961,13 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {tab === "team"        && <TeamTab />}
-        {tab === "company"     && <TenantTab />}
-        {tab === "permissions" && <PermissionsTab />}
-        {tab === "apikeys"     && <ApiKeysTab />}
-        {tab === "webhooks"    && <WebhooksTab />}
-        {tab === "audit"       && <AuditTrailTab />}
+        {tab === "team"         && <TeamTab />}
+        {tab === "company"      && <TenantTab />}
+        {tab === "subscription" && <SubscriptionTab />}
+        {tab === "permissions"  && <PermissionsTab />}
+        {tab === "apikeys"      && <ApiKeysTab />}
+        {tab === "webhooks"     && <WebhooksTab />}
+        {tab === "audit"        && <AuditTrailTab />}
       </div>
     </>
   );

@@ -71,4 +71,37 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
   app.get("/tenant/timezones", { config: { public: true } }, async (_req, reply) => {
     return reply.send({ timezones: COMMON_TIMEZONES });
   });
+
+  // GET /tenant/subscription — plan + kullanım özeti
+  app.get("/tenant/subscription", async (request, reply) => {
+    const tenant = await prisma.tenant.findUnique({
+      where:  { id: request.tenantId },
+      select: {
+        plan: true, planSeats: true, planInstalls: true, planExpires: true,
+        _count: { select: { members: true, installations: true } },
+      },
+    });
+    if (!tenant) return reply.status(404).send({ error: "TENANT_NOT_FOUND" });
+
+    const PLAN_NAMES: Record<string, string> = {
+      free:       "Free",
+      starter:    "Starter",
+      pro:        "Professional",
+      enterprise: "Enterprise",
+    };
+
+    return reply.send({
+      plan:         tenant.plan,
+      planName:     PLAN_NAMES[tenant.plan] ?? tenant.plan,
+      planExpires:  tenant.planExpires?.toISOString() ?? null,
+      limits: {
+        seats:    tenant.planSeats,
+        installs: tenant.planInstalls,
+      },
+      usage: {
+        seats:    tenant._count.members,
+        installs: tenant._count.installations,
+      },
+    });
+  });
 };

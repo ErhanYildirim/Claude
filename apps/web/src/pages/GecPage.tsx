@@ -1,10 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Cell,
 } from "recharts";
 import { api } from "../lib/api.js";
-import type { GecResult, GecMonthlyPoint } from "../lib/api.js";
+import type { GecResult, GecMonthlyPoint, EFZoneEntry } from "../lib/api.js";
 
 /* ── Styles ──────────────────────────────────────────────────────────────── */
 const s: Record<string, React.CSSProperties> = {
@@ -64,11 +64,17 @@ function UploadView({
 }: {
   onResult: (r: GecResult) => void;
 }) {
-  const [file, setFile]     = useState<File | null>(null);
-  const [drag, setDrag]     = useState(false);
+  const [file, setFile]       = useState<File | null>(null);
+  const [drag, setDrag]       = useState(false);
   const [loading, setLoading] = useState(false);
-  const [err, setErr]       = useState("");
-  const inputRef            = useRef<HTMLInputElement>(null);
+  const [err, setErr]         = useState("");
+  const [zoneId, setZoneId]   = useState("TR");
+  const [zones, setZones]     = useState<EFZoneEntry[]>([]);
+  const inputRef              = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.ef.zones().then(r => setZones(r.zones)).catch(() => {});
+  }, []);
 
   function pick(f: File) {
     if (!f.name.endsWith(".csv")) { setErr("Yalnızca CSV dosyası kabul edilir."); return; }
@@ -81,7 +87,7 @@ function UploadView({
     setLoading(true);
     setErr("");
     try {
-      const result = await api.gec.calculate(file);
+      const result = await api.gec.calculate(file, zoneId);
       onResult(result);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Hesaplama hatası oluştu.");
@@ -90,8 +96,35 @@ function UploadView({
     }
   }
 
+  const selectedZone = zones.find(z => z.zoneId === zoneId);
+
   return (
     <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      {/* Zone seçici */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 6 }}>
+          EF Zone (Emisyon Faktörü Bölgesi)
+        </div>
+        <select
+          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #d4ece4",
+                   fontSize: 14, background: "#fff", cursor: "pointer", color: "#0a1f1a" }}
+          value={zoneId}
+          onChange={e => setZoneId(e.target.value)}
+        >
+          {zones.length === 0 && <option value="TR">TR — Türkiye (yükleniyor…)</option>}
+          {zones.map(z => (
+            <option key={z.zoneId} value={z.zoneId}>
+              {z.zoneId} — {z.zoneName || z.country}
+            </option>
+          ))}
+        </select>
+        {selectedZone && (
+          <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4 }}>
+            {selectedZone.rowCount.toLocaleString()} saatlik kayıt · 2024
+          </div>
+        )}
+      </div>
+
       <div
         style={{ ...s.dzone, ...(drag ? s.dzA : {}) }}
         onDragOver={e => { e.preventDefault(); setDrag(true); }}
@@ -127,7 +160,7 @@ function UploadView({
         <code style={{ color: "#94A3B8" }}>2024-01-01T01:00:00Z,423.0</code><br />
         <br />
         <strong>Alternatif başlıklar:</strong> <code>timestamp</code>, <code>consumption_kwh</code> da kabul edilir.<br />
-        Saat dilimi: UTC · Granülerlik: saat başı · EF zone: TR (2024)
+        Saat dilimi: UTC · Granülerlik: saat başı · Seçilen zone: <strong>{zoneId}</strong> (2024)
       </div>
 
       {err && <div style={s.err}>{err}</div>}

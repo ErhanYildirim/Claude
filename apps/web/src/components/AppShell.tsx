@@ -74,15 +74,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const sidebarStyle: React.CSSProperties = {
     position: "fixed",
-    top: 0,
+    top: mobile ? TOPBAR_H : 0,
     left: 0,
     width: SIDEBAR_W,
-    height: "100vh",
+    height: mobile ? `calc(100vh - ${TOPBAR_H}px)` : "100vh",
     background: sidebarBg,
     display: "flex",
     flexDirection: "column",
     overflowY: "auto",
-    zIndex: 200,
+    zIndex: 180,
     transform: mobile && !sideOpen ? `translateX(-${SIDEBAR_W}px)` : "translateX(0)",
     transition: "transform .22s cubic-bezier(.4,0,.2,1)",
     boxShadow: isDark ? "none" : "2px 0 12px rgba(0,0,0,.12)",
@@ -111,11 +111,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Mobile backdrop — below TopBar (z:200), above sidebar (z:180) */}
       {mobile && sideOpen && (
         <div
           onClick={() => setSideOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 190, backdropFilter: "blur(2px)" }}
+          style={{
+            position: "fixed",
+            top: TOPBAR_H,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,.5)",
+            zIndex: 170,
+            backdropFilter: "blur(2px)",
+          }}
         />
       )}
 
@@ -131,7 +140,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <div style={{
           padding: "18px 16px 14px",
           borderBottom: "1px solid rgba(255,255,255,.06)",
-          marginTop: mobile ? 0 : TOPBAR_H,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{

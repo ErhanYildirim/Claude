@@ -80,7 +80,7 @@ export default function TopBar({ onMenuToggle, mobile }: TopBarProps) {
     alignItems: "center",
     padding: "0 20px",
     gap: 12,
-    zIndex: 150,
+    zIndex: 200,
     boxShadow: isDark ? "none" : "0 1px 3px rgba(10,31,26,.06)",
   };
 

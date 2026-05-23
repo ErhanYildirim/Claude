@@ -2,7 +2,10 @@ import { createHash, randomBytes } from "crypto";
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { prisma } from "@voltfox/db";
 import { requireRole } from "../plugins/rbac.js";
-import { checkRateLimit, logApiRequest } from "../lib/api-request-logger.js";
+import {
+  checkRateLimit, logApiRequest,
+  isBruteForced, getBanRemainingMs, recordAuthFailure, recordAuthSuccess,
+} from "../lib/api-request-logger.js";
 
 const VALID_SCOPES = ["ef:read", "calculation:read", "calculation:write", "report:read"] as const;
 
@@ -122,9 +125,11 @@ export const apiKeysRoutes: FastifyPluginAsync = async (app) => {
 };
 
 export interface ApiKeyVerifyResult {
-  tenantId:       string;
-  keyId:          string;
+  tenantId:        string;
+  keyId:           string;
   rateLimitPerMin: number | null;
+  expiresSoon:     boolean;
+  expiresAt:       Date | null;
 }
 
 export interface ApiKeyVerifyError {
@@ -138,6 +143,14 @@ export async function verifyApiKey(
   requiredScope: string,
   request?: FastifyRequest,
 ): Promise<ApiKeyVerifyResult | ApiKeyVerifyError> {
+  const ip = request?.ip ?? "unknown";
+
+  // Brute-force ban kontrolü (IP bazlı)
+  if (isBruteForced(ip)) {
+    const retryAfterMs = getBanRemainingMs(ip);
+    return { error: "RATE_LIMIT", retryAfterMs };
+  }
+
   const hash = hashKey(rawKey);
 
   const key = await prisma.apiKey.findUnique({
@@ -145,15 +158,30 @@ export async function verifyApiKey(
     select: { id: true, tenantId: true, scopes: true, revokedAt: true, expiresAt: true, rateLimitPerMin: true },
   });
 
-  if (!key)            return { error: "NOT_FOUND" };
-  if (key.revokedAt)   return { error: "REVOKED" };
-  if (key.expiresAt && key.expiresAt < new Date()) return { error: "EXPIRED" };
-  if (!key.scopes.includes(requiredScope))          return { error: "SCOPE" };
+  if (!key) {
+    recordAuthFailure(ip);
+    return { error: "NOT_FOUND" };
+  }
+  if (key.revokedAt) {
+    recordAuthFailure(ip);
+    return { error: "REVOKED" };
+  }
+  if (key.expiresAt && key.expiresAt < new Date()) {
+    recordAuthFailure(ip);
+    return { error: "EXPIRED" };
+  }
+  if (!key.scopes.includes(requiredScope)) {
+    recordAuthFailure(ip);
+    return { error: "SCOPE" };
+  }
 
   // Per-key rate limit kontrolü
   if (!checkRateLimit(key.id, key.rateLimitPerMin)) {
     return { error: "RATE_LIMIT", retryAfterMs: 60_000 };
   }
+
+  // Başarılı auth — brute-force sayacını sıfırla
+  recordAuthSuccess(ip);
 
   // lastUsedAt güncelle (fire-and-forget)
   prisma.apiKey.update({
@@ -161,10 +189,16 @@ export async function verifyApiKey(
     data:  { lastUsedAt: new Date() },
   }).catch(() => {});
 
+  // Key 7 gün içinde dolacaksa işaretle
+  const expiresInMs = key.expiresAt ? key.expiresAt.getTime() - Date.now() : null;
+  const expiresSoon = expiresInMs !== null && expiresInMs < 7 * 24 * 60 * 60 * 1000;
+
   return {
     tenantId:        key.tenantId,
     keyId:           key.id,
     rateLimitPerMin: key.rateLimitPerMin,
+    expiresSoon,
+    expiresAt:       key.expiresAt ?? null,
   };
 }
 
@@ -217,6 +251,12 @@ export async function requireApiKey(
     ipAddress:  request.ip,
     userAgent:  request.headers["user-agent"]?.slice(0, 255),
   });
+
+  // Key 7 gün içinde dolacaksa header ekle
+  if (result.expiresSoon && result.expiresAt) {
+    reply.header("Voltfox-Key-Expires-Soon", "true");
+    reply.header("Voltfox-Key-Expires-At", result.expiresAt.toISOString());
+  }
 
   return { tenantId: result.tenantId, keyId: result.keyId };
 }

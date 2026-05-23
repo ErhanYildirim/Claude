@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "@voltfox/db";
+import { logSecurityEvent } from "../lib/security-logger.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -35,6 +36,13 @@ const tenantPlugin: FastifyPluginAsync = async (app) => {
       const { data: { user }, error } = await app.supabase.auth.getUser(token);
 
       if (error || !user) {
+        logSecurityEvent({
+          event:     "AUTH_FAILURE",
+          ipAddress: request.ip,
+          url:       request.url,
+          method:    request.method,
+          details:   { reason: error?.message ?? "user_not_found" },
+        });
         return reply.status(401).send({ error: "UNAUTHORIZED", message: "Geçersiz oturum." });
       }
 
@@ -42,6 +50,14 @@ const tenantPlugin: FastifyPluginAsync = async (app) => {
         user.app_metadata?.["tenant_id"] ?? user.user_metadata?.["tenant_id"];
 
       if (!tenantId || !UUID_RE.test(tenantId)) {
+        logSecurityEvent({
+          event:    "TENANT_VIOLATION",
+          userId:   user.id,
+          ipAddress: request.ip,
+          url:      request.url,
+          method:   request.method,
+          details:  { reason: "no_tenant_assigned" },
+        });
         return reply.status(403).send({ error: "NO_TENANT", message: "Kullanıcıya tenant atanmamış." });
       }
 

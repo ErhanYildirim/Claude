@@ -123,7 +123,7 @@ function AppRouter() {
 
         {/* Authenticated routes — wrapped in AppShell + Suspense */}
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Navigate to="/gec" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/gec"                                               element={<GecPage />} />
           <Route path="/dashboard"                                         element={<DashboardPage />} />
           <Route path="/cbam"                                              element={<CbamPage />} />
@@ -145,7 +145,7 @@ function AppRouter() {
           <Route path="/installations/:id"                                 element={<InstallationDetailPage />} />
           <Route path="/installations/:installationId/periods/:periodId"   element={<PeriodDetailPage />} />
           <Route path="/installations/:installationId/products/:productId" element={<CbamProductPage />} />
-          <Route path="*"                                                  element={<Navigate to="/gec" replace />} />
+          <Route path="*"                                                  element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

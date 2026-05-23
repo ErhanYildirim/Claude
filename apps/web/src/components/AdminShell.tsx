@@ -26,7 +26,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   }
 
   if (!isSuperAdmin) {
-    return <Navigate to="/gec" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

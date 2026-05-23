@@ -537,7 +537,7 @@ export const gecRoutes: FastifyPluginAsync = async (app) => {
             });
 
             cfeResult = {
-              cfeScore:            Math.round(cfeCalc.cfeScore * 1000) / 10,
+              cfeScore:            Math.round(cfeCalc.cfeScore * 10) / 10,
               totalConsumptionKwh: Math.round(cfeCalc.totalConsumptionKwh),
               totalProductionKwh:  Math.round(cfeCalc.totalProductionKwh),
               totalMatchedKwh:     Math.round(cfeCalc.totalMatchedKwh),

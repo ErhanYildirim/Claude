@@ -64,7 +64,12 @@ function parsePeriodRow(raw: PeriodRow, rowNum: number): { period?: ParsedPeriod
   const importCountry    = req("import_country", raw.import_country);
   const cnCode           = req("cn_code",      raw.cn_code);
   const scope1Quality    = raw.scope1_quality?.trim() || "measured";
-  const electricitySource = raw.electricity_source?.trim() || "grid";
+  const VALID_EL_SOURCES = ["smart_meter", "erp", "invoice", "manual"];
+  const rawElSource = raw.electricity_source?.trim();
+  if (rawElSource && !VALID_EL_SOURCES.includes(rawElSource)) {
+    errors.push({ row: rowNum, field: "electricity_source", error: `Geçersiz kaynak: "${rawElSource}". Geçerli değerler: ${VALID_EL_SOURCES.join(", ")}` });
+  }
+  const electricitySource = VALID_EL_SOURCES.includes(rawElSource ?? "") ? rawElSource! : "manual";
 
   const reportYear        = num("report_year",       raw.report_year,       2020);
   const prodVolumeTonne   = num("prod_volume_tonne", raw.prod_volume_tonne, 0);

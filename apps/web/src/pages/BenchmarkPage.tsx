@@ -150,7 +150,7 @@ export default function BenchmarkPage() {
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}>
                         {row.seeVoltfox != null ? row.seeVoltfox.toFixed(4) : "—"}
-                        <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>tCO₂/MWh</span>
+                        <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>{row.benchmark.unit}</span>
                       </div>
                       {vsMedian != null && (
                         <div style={{ fontSize: 12, color: vsMedian >= 0 ? "#059669" : "#ef4444", marginTop: 2 }}>

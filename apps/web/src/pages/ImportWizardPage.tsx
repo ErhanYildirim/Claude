@@ -44,8 +44,8 @@ interface ImportResult {
 
 const CSV_TEMPLATE = [
   "period_name,start_date,end_date,report_year,import_country,cn_code,prod_volume_tonne,scope1_direct_tco2,scope1_quality,electricity_kwh,electricity_source,baseline_ef,renewable_ef,matching_rate_pct,carbon_price_eur",
-  "Q1-2024,2024-01-01,2024-03-31,2024,DE,7208,5000,125.5,measured,500000,grid,0.4800,0.1500,0,",
-  "Q2-2024,2024-04-01,2024-06-30,2024,DE,7208,5200,130.0,measured,520000,grid,0.4800,0.1500,0,",
+  "Q1-2024,2024-01-01,2024-03-31,2024,DE,7208,5000,125.5,measured,500000,manual,0.4800,0.1500,0,",
+  "Q2-2024,2024-04-01,2024-06-30,2024,DE,7208,5200,130.0,measured,520000,manual,0.4800,0.1500,0,",
 ].join("\n");
 
 type Step = 1 | 2 | 3;

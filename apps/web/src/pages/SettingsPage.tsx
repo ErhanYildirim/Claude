@@ -173,7 +173,7 @@ function TeamTab() {
 }
 
 // ── API Anahtarları Sekmesi ───────────────────────────────────────────────────
-const ALL_SCOPES = ["emissions:read", "emissions:write", "cfe:read", "cfe:write", "report:read"];
+const ALL_SCOPES = ["ef:read", "calculation:read", "calculation:write", "report:read"];
 
 function ApiKeysTab() {
   const [keys, setKeys]     = useState<ApiKeyList["keys"]>([]);
@@ -294,15 +294,15 @@ function ApiKeysTab() {
 
 // ── Webhook Sekmesi ───────────────────────────────────────────────────────────
 const WEBHOOK_EVENTS = [
-  "emission.calculated",
-  "period.created",
-  "cfe.updated",
-  "share_link.created",
+  "ef.updated",
+  "calculation.completed",
+  "cfe.completed",
+  "report.generated",
 ];
 
 function WebhooksTab() {
   const [hooks, setHooks]           = useState<WebhookList["webhooks"]>([]);
-  const [form, setForm]             = useState({ url: "", events: ["emission.calculated"] });
+  const [form, setForm]             = useState({ url: "", events: ["calculation.completed"] });
   const [newHook, setNewHook]       = useState<NewWebhook | null>(null);
   const [deliveries, setDeliveries] = useState<{ id: string; list: DeliveryList["deliveries"] } | null>(null);
   const [saving, setSaving]         = useState(false);
@@ -317,7 +317,7 @@ function WebhooksTab() {
     try {
       const res = await api.webhooks.create({ url: form.url.trim(), events: form.events });
       setNewHook(res);
-      setForm({ url: "", events: ["emission.calculated"] });
+      setForm({ url: "", events: ["calculation.completed"] });
       const r = await api.webhooks.list();
       setHooks(r.webhooks);
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Hata"); }

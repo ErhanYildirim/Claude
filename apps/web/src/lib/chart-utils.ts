@@ -7,11 +7,13 @@ export const CHART_COLORS = {
 export const SECTOR_COLORS: Record<string, string> = {
   steel: "#6366F1", aluminium: "#0D9488", cement: "#D97706",
   fertilizer: "#059669", electricity: "#00b87a",
+  hydrogen: "#2563EB", chemicals: "#9333EA",
 };
 
 export const SECTOR_LABELS: Record<string, string> = {
   steel: "Çelik", aluminium: "Alüminyum", cement: "Çimento",
   fertilizer: "Gübre", electricity: "Elektrik",
+  hydrogen: "Hidrojen", chemicals: "Kimyasallar",
 };
 
 export function fmt(n: number, decimals = 2) {

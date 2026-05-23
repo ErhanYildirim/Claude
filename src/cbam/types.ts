@@ -5,7 +5,7 @@
 //   Scope 1 (yakıt + proses emisyonları) → müşterinin kendi hesabı, Voltfox passthrough alır
 //   Scope 2 (dolaylı emisyonlar) → Voltfox değeri: saatlik yenilenebilir eşleştirmeyle EF düşürme
 
-export type Sector = "steel" | "aluminium" | "cement" | "fertilizer" | "electricity";
+export type Sector = "steel" | "aluminium" | "cement" | "fertilizer" | "electricity" | "hydrogen" | "chemicals";
 
 export type EFSource =
   | "voltfox_gec_hourly"   // Granular Emission Calculation — saatlik granüler

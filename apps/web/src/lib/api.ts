@@ -438,7 +438,7 @@ export interface EFListResult { dataVersion: string; countries: Array<{ iso2: st
 export interface EFZoneEntry { zoneId: string; zoneName: string; country: string; rowCount: number; }
 export interface EFZoneList { count: number; zones: EFZoneEntry[]; }
 export interface EFZoneSummary {
-  zoneId: string; zoneName: string; country: string; year: number; granularity: string;
+  zoneId: string; zoneName: string; country: string; granularity: string;
   ciDirect: { avg: number; min: number; max: number };
   cfePct: { avg: number }; rePct: { avg: number };
   rowCount: number; unit: string;

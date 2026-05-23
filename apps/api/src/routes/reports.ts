@@ -90,14 +90,18 @@ export const reportsRoutes: FastifyPluginAsync = async (app) => {
         reductionPct: emission.reductionPct,
       },
 
-      cbamDefaultComparison: emission.defaultSee !== null ? {
-        defaultSee:      emission.defaultSee,
-        actualSee:       emission.seeVoltfox,
-        improvementTco2PerTonne: emission.defaultSee - emission.seeVoltfox,
-        improvementPct:  ((emission.defaultSee - emission.seeVoltfox) / emission.defaultSee * 100),
-        carbonPriceEur:  period.carbonPriceEur ?? null,
-        annualSavingsEur: emission.savingsVsDefaultEur ?? null,
-      } : null,
+      cbamDefaultComparison: emission.defaultSee !== null ? (() => {
+        const actualSee = emission.seeVoltfox ?? emission.seeBaseline;
+        const imp = emission.defaultSee - actualSee;
+        return {
+          defaultSee:      emission.defaultSee,
+          actualSee,
+          improvementTco2PerTonne: imp,
+          improvementPct:  (imp / emission.defaultSee) * 100,
+          carbonPriceEur:  period.carbonPriceEur ?? null,
+          annualSavingsEur: emission.savingsVsDefaultEur ?? null,
+        };
+      })() : null,
 
       dataLineage: {
         calcEngineVersion: emission.calcEngineVersion,

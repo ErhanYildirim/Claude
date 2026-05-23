@@ -129,7 +129,7 @@ export const cfeRoutes: FastifyPluginAsync = async (app) => {
       tenantId:   request.tenantId,
       eventType:  "cfeDone",
       title:      `CFE eşleştirme tamamlandı: ${period.periodName}`,
-      body:       `${period.installation.facilityName} · CFE Skoru %${(result.cfeScore * 100).toFixed(1)}`,
+      body:       `${period.installation.facilityName} · CFE Skoru %${result.cfeScore.toFixed(1)}`,
       resource:   "CFEMatchingResult",
       resourceId: stored.id,
       emailFactory: (_uid, _email) => emailCfeDone({

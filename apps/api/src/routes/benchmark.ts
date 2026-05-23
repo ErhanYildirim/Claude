@@ -1,15 +1,15 @@
 import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "@voltfox/db";
 
-// CBAM sektör referans SEE değerleri (tCO₂/MWh) — Ek IV literatür ortalamaları
+// CBAM sektör referans SEE değerleri (tCO₂e/t) — Ek IV literatür ortalamaları
 const SECTOR_BENCHMARKS: Record<string, { p25: number; median: number; p75: number; best: number; unit: string }> = {
-  steel:       { p25: 0.280, median: 0.380, p75: 0.520, best: 0.110, unit: "tCO₂/MWh" },
-  aluminium:   { p25: 0.320, median: 0.450, p75: 0.620, best: 0.090, unit: "tCO₂/MWh" },
-  cement:      { p25: 0.350, median: 0.480, p75: 0.650, best: 0.150, unit: "tCO₂/MWh" },
-  fertilizer:  { p25: 0.200, median: 0.310, p75: 0.440, best: 0.080, unit: "tCO₂/MWh" },
-  electricity: { p25: 0.150, median: 0.280, p75: 0.420, best: 0.020, unit: "tCO₂/MWh" },
-  chemicals:   { p25: 0.260, median: 0.370, p75: 0.500, best: 0.100, unit: "tCO₂/MWh" },
-  hydrogen:    { p25: 0.190, median: 0.320, p75: 0.480, best: 0.025, unit: "tCO₂/MWh" },
+  steel:       { p25: 0.280, median: 0.380, p75: 0.520, best: 0.110, unit: "tCO₂e/t" },
+  aluminium:   { p25: 0.320, median: 0.450, p75: 0.620, best: 0.090, unit: "tCO₂e/t" },
+  cement:      { p25: 0.350, median: 0.480, p75: 0.650, best: 0.150, unit: "tCO₂e/t" },
+  fertilizer:  { p25: 0.200, median: 0.310, p75: 0.440, best: 0.080, unit: "tCO₂e/t" },
+  electricity: { p25: 0.150, median: 0.280, p75: 0.420, best: 0.020, unit: "tCO₂e/t" },
+  chemicals:   { p25: 0.260, median: 0.370, p75: 0.500, best: 0.100, unit: "tCO₂e/t" },
+  hydrogen:    { p25: 0.190, median: 0.320, p75: 0.480, best: 0.025, unit: "tCO₂e/t" },
 };
 
 export const benchmarkRoutes: FastifyPluginAsync = async (app) => {

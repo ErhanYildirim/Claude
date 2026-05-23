@@ -67,14 +67,14 @@ export const onboardingRoutes: FastifyPluginAsync = async (app) => {
     const { companyName, timezone } = request.body as { companyName: string; timezone?: string };
     const slug = await uniqueSlug(slugify(companyName));
 
-    const [tenant] = await prisma.$transaction([
-      prisma.tenant.create({
+    const tenant = await prisma.$transaction(async (tx) => {
+      const t = await tx.tenant.create({
         data: { name: companyName, slug, ...(timezone ? { timezone } : {}) },
-      }),
-    ]);
-
-    await prisma.tenantMember.create({
-      data: { tenantId: tenant.id, userId: user.id, role: "owner" },
+      });
+      await tx.tenantMember.create({
+        data: { tenantId: t.id, userId: user.id, role: "owner" },
+      });
+      return t;
     });
 
     await prisma.auditLog.create({

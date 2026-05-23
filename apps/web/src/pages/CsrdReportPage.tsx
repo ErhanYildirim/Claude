@@ -49,7 +49,7 @@ const E1_FIELDS: E1Field[] = [
   { id: "scope1_tco2", section: "E1-6", ref: "ESRS E1-6 §44(a)", type: "computed", question: "Scope 1 emisyonları (tCO₂e)", computed: (d) => d.scope1Tco2 != null ? d.scope1Tco2.toFixed(1) : "—" },
   { id: "scope2_lb_tco2", section: "E1-6", ref: "ESRS E1-6 §44(b)", type: "computed", question: "Scope 2 emisyonları — location-based (tCO₂e)", computed: (d) => d.scope2Tco2 != null ? d.scope2Tco2.toFixed(1) : "—" },
   { id: "scope2_mb_tco2", section: "E1-6", ref: "ESRS E1-6 §44(c)", type: "number", question: "Scope 2 emisyonları — market-based (tCO₂e)", hint: "EAC/I-REC sonrası net Scope 2" },
-  { id: "see_value", section: "E1-6", ref: "ESRS E1-6 AR 46", type: "computed", question: "Spesifik Dolaylı Emisyon (SEE) (tCO₂/MWh)", computed: (d) => d.seeVoltfox != null ? d.seeVoltfox.toFixed(4) : "—" },
+  { id: "see_value", section: "E1-6", ref: "ESRS E1-6 AR 46", type: "computed", question: "Spesifik Dolaylı Emisyon (SEE) (tCO₂e/t)", computed: (d) => d.seeVoltfox != null ? d.seeVoltfox.toFixed(4) : "—" },
   { id: "ef_methodology", section: "E1-6", ref: "ESRS E1-6 §49(a)", type: "text", question: "Emisyon faktörü metodolojisi", hint: "Saatlik lokasyon bazlı EF (ESRS E1 uyumlu)" },
 
   // E1-7 Karbon Giderme

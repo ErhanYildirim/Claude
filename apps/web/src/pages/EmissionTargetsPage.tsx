@@ -16,13 +16,13 @@ interface Progress {
 }
 
 const METRIC_LABEL: Record<string, string> = {
-  see_voltfox:   "SEE Voltfox (tCO₂/MWh)",
+  see_voltfox:   "SEE Voltfox (tCO₂e/t)",
   scope2_tco2:   "Scope 2 (tCO₂)",
   reduction_pct: "Azaltım Hedefi (%)",
 };
 
 const METRIC_UNIT: Record<string, string> = {
-  see_voltfox:   "tCO₂/MWh",
+  see_voltfox:   "tCO₂e/t",
   scope2_tco2:   "tCO₂",
   reduction_pct: "%",
 };

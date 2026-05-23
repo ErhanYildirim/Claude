@@ -103,7 +103,6 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
       zoneId:       z.zone_id,
       zoneName:     z.zone_name,
       country:      z.country,
-      year:         2024,
       granularity:  "hourly",
       ciDirect:     { avg: Number(z.avg_ci_direct), min: Number(z.min_ci_direct), max: Number(z.max_ci_direct) },
       cfePct:       { avg: Number(z.avg_cfe_pct) },
@@ -118,8 +117,9 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
     const { zoneId } = request.params as { zoneId: string };
     const { start, end } = request.query as { start?: string; end?: string };
 
-    const startTs = start ? new Date(start) : new Date("2024-01-01T00:00:00Z");
-    const endTs   = end   ? new Date(end)   : new Date("2024-12-31T23:59:59Z");
+    const curYear = new Date().getFullYear();
+    const startTs = start ? new Date(start) : new Date(`${curYear}-01-01T00:00:00Z`);
+    const endTs   = end   ? new Date(end)   : new Date(`${curYear}-12-31T23:59:59Z`);
 
     if (isNaN(startTs.getTime()) || isNaN(endTs.getTime())) {
       return reply.status(400).send({ error: "INVALID_DATE", message: "start/end must be ISO8601" });
@@ -212,7 +212,7 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
   app.get("/ef/zones/:zoneId/monthly", { config: { public: true } }, async (request, reply) => {
     const { zoneId } = request.params as { zoneId: string };
     const { year } = request.query as { year?: string };
-    const y = parseInt(year ?? "2024", 10);
+    const y = parseInt(year ?? String(new Date().getFullYear()), 10);
 
     const rows = await prisma.$queryRaw(Prisma.sql`
       SELECT

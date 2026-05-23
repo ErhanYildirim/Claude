@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import type { FastifyPluginAsync } from "fastify";
 import { prisma } from "@voltfox/db";
 import { requireRole } from "../plugins/rbac.js";
@@ -14,9 +14,10 @@ const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAYS_MS    = [60_000, 300_000, 900_000]; // 1m, 5m, 15m
 
 function generateSecret(): { raw: string; hash: string } {
-  const raw  = randomBytes(32).toString("hex");
-  const hash = createHash("sha256").update(raw).digest("hex");
-  return { raw, hash };
+  const raw = randomBytes(32).toString("hex");
+  // Store the raw secret directly — HMAC signing uses this value,
+  // and clients verify with the same key they receive at creation time.
+  return { raw, hash: raw };
 }
 
 export function signPayload(secret: string, body: string): string {
@@ -166,7 +167,11 @@ export const webhooksRoutes: FastifyPluginAsync = async (app) => {
         type: "object",
         properties: {
           active: { type: "boolean" },
-          events: { type: "array", items: { type: "string" } },
+          events: {
+            type: "array",
+            minItems: 1,
+            items: { type: "string", enum: VALID_EVENTS as unknown as string[] },
+          },
           url:    { type: "string", format: "uri" },
         },
       },

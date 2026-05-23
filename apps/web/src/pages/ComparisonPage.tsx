@@ -218,7 +218,7 @@ export default function ComparisonPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
             <div style={{ background: "#fff", borderRadius: 10, padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
               <BarChart
-                label="Voltfox SEE (tCO₂/MWh)"
+                label="Voltfox SEE (tCO₂e/t)"
                 data={rows.map((r, i) => ({
                   name:  `${r.facilityName} / ${r.periodName}`,
                   value: r.seeVoltfox,
@@ -249,7 +249,7 @@ export default function ComparisonPage() {
               <div>
                 <span style={{ fontWeight: 700, color: "#065f46" }}>{best.facilityName} / {best.periodName}</span>
                 <span style={{ color: "#047857", fontSize: 14 }}> en düşük SEE değerine sahip: </span>
-                <span style={{ fontWeight: 700, color: "#065f46" }}>{best.seeVoltfox.toFixed(4)} tCO₂/MWh</span>
+                <span style={{ fontWeight: 700, color: "#065f46" }}>{best.seeVoltfox.toFixed(4)} tCO₂e/t</span>
               </div>
             </div>
           )}

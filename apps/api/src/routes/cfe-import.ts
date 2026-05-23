@@ -1,4 +1,3 @@
-import { createReadStream } from "fs";
 import { parse } from "csv-parse";
 import type { FastifyPluginAsync } from "fastify";
 import multipart from "@fastify/multipart";

@@ -27,11 +27,11 @@ export function calculateSEE(period: ReportingPeriod): SEEResult {
 
   // Scope 1: yakıt breakdown verilmişse hesapla, yoksa müşteri toplamını kullan
   let scope1Tco2 = period.scope1DirectTco2;
+  let scope1BreakdownResult: ReturnType<typeof calculateScope1FromFuelBreakdown> | null = null;
   if (period.fuelBreakdown && period.fuelBreakdown.length > 0) {
-    const s1 = calculateScope1FromFuelBreakdown(period.fuelBreakdown, CALC_ENGINE_VERSION, now);
-    scope1Tco2 = s1.totalTco2;
-    warnings.push(...s1.warnings);
-    // audit trail entries are merged below
+    scope1BreakdownResult = calculateScope1FromFuelBreakdown(period.fuelBreakdown, CALC_ENGINE_VERSION, now);
+    scope1Tco2 = scope1BreakdownResult.totalTco2;
+    warnings.push(...scope1BreakdownResult.warnings);
   }
 
   const scope2 = calculateScope2(period.purchasedElectricity, now);
@@ -73,8 +73,8 @@ export function calculateSEE(period: ReportingPeriod): SEEResult {
   }
 
   // Scope 1 audit trail: fuel breakdown varsa breakdown satırları, yoksa passthrough
-  const scope1AuditEntries = period.fuelBreakdown && period.fuelBreakdown.length > 0
-    ? calculateScope1FromFuelBreakdown(period.fuelBreakdown, CALC_ENGINE_VERSION, now).auditTrail
+  const scope1AuditEntries = scope1BreakdownResult !== null
+    ? scope1BreakdownResult.auditTrail
     : [{
         field: "scope1.direct_tco2",
         source: "user_input" as const,

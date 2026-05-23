@@ -94,7 +94,7 @@ export function emailCfeDone(params: {
     `<p><strong>${params.facilityName}</strong> tesisi için <strong>${params.periodName}</strong> dönemi CFE eşleştirmesi tamamlandı.</p>
     <div class="kpi">
       <div class="kpi-label">CFE Skoru</div>
-      <div class="kpi-value">%${(params.cfeScore * 100).toFixed(1)}</div>
+      <div class="kpi-value">%${params.cfeScore.toFixed(1)}</div>
     </div>
     <br><a class="btn" href="${params.appUrl}/installations/${params.installationId}/periods/${params.periodId}">CFE Detayına Git</a>`,
   );

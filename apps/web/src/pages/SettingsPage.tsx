@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { MemberList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile } from "../lib/api.js";
+import type { MemberList, MemberItem, PendingInviteList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
@@ -48,19 +48,40 @@ const ROLE_LABELS_FULL: Record<string, string> = {
 };
 
 // ── Ekip Sekmesi ─────────────────────────────────────────────────────────────
-function TeamTab() {
-  const [members, setMembers] = useState<MemberList["members"]>([]);
-  const [myRole, setMyRole]   = useState<string>("viewer");
-  const [email, setEmail]     = useState("");
-  const [role, setRole]       = useState("analyst");
-  const [saving, setSaving]   = useState(false);
-  const [err, setErr]         = useState("");
-  const [ok, setOk]           = useState("");
+function MemberAvatar({ member }: { member: MemberItem }) {
+  const label = member.displayName ?? member.email ?? member.userId;
+  const initials = label.slice(0, 2).toUpperCase();
+  const colors = ["#00b87a", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6"];
+  const color  = colors[label.charCodeAt(0) % colors.length];
+  return (
+    <div style={{
+      width: 34, height: 34, borderRadius: "50%", background: color,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 12, fontWeight: 800, color: "#fff", flexShrink: 0,
+    }}>{initials}</div>
+  );
+}
 
-  useEffect(() => {
-    api.members.me().then(r => setMyRole(r.role)).catch(() => {});
-    api.members.list().then(r => setMembers(r.members)).catch(() => {});
-  }, []);
+function TeamTab() {
+  const [members,  setMembers]  = useState<MemberItem[]>([]);
+  const [invites,  setInvites]  = useState<PendingInviteList["invites"]>([]);
+  const [myRole,   setMyRole]   = useState<string>("viewer");
+  const [email,    setEmail]    = useState("");
+  const [role,     setRole]     = useState("analyst");
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState("");
+  const [ok,       setOk]       = useState("");
+  const [loading,  setLoading]  = useState(true);
+
+  function loadAll() {
+    return Promise.all([
+      api.members.me().then(r => setMyRole(r.role)).catch(() => {}),
+      api.members.list().then(r => setMembers(r.members)).catch(() => {}),
+      api.members.invites.list().then(r => setInvites(r.invites)).catch(() => {}),
+    ]);
+  }
+
+  useEffect(() => { loadAll().finally(() => setLoading(false)); }, []);
 
   const canManage = ["owner", "admin"].includes(myRole);
 
@@ -72,50 +93,77 @@ function TeamTab() {
       const res = await api.members.invite({ email: email.trim(), role });
       setOk(res.message);
       setEmail("");
-      const r = await api.members.list();
-      setMembers(r.members);
-    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Hata"); }
+      await loadAll();
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Davet gönderilemedi."); }
     setSaving(false);
   }
 
-  async function changeRole(memberId: string, newRole: string) {
+  async function changeRole(userId: string, newRole: string) {
     try {
-      await api.members.update(memberId, newRole);
-      setMembers(prev => prev.map(m => m.userId === memberId ? { ...m, role: newRole } : m));
+      await api.members.update(userId, newRole);
+      setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: newRole } : m));
     } catch (e: unknown) { alert(e instanceof Error ? e.message : "Hata"); }
   }
 
-  async function remove(memberId: string) {
+  async function remove(userId: string) {
     if (!confirm("Bu üyeyi çıkarmak istediğinizden emin misiniz?")) return;
     try {
-      await api.members.remove(memberId);
-      setMembers(prev => prev.filter(m => m.userId !== memberId));
+      await api.members.remove(userId);
+      setMembers(prev => prev.filter(m => m.userId !== userId));
     } catch (e: unknown) { alert(e instanceof Error ? e.message : "Hata"); }
+  }
+
+  async function cancelInvite(id: string, email: string) {
+    if (!confirm(`"${email}" davetini iptal etmek istiyor musunuz?`)) return;
+    try {
+      await api.members.invites.cancel(id);
+      setInvites(prev => prev.filter(i => i.id !== id));
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : "Hata"); }
+  }
+
+  function timeLeft(expiresAt: string): string {
+    const h = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 3600000);
+    if (h < 1) return "< 1 saat";
+    if (h < 24) return `${h} saat`;
+    return `${Math.floor(h / 24)} gün`;
   }
 
   return (
     <div>
+      {/* Aktif üyeler */}
       <div style={s.card}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Ekip Üyeleri</div>
-        {members.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz üye yok.</div>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Ekip Üyeleri</div>
+          <span style={{ fontSize: 12, color: "#5c7a72" }}>{members.length} üye</span>
+        </div>
+        {loading && <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>}
+        {!loading && members.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz üye yok.</div>}
         {members.map((m, i) => {
           const rc = ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer;
+          const isLast = i === members.length - 1;
           return (
-            <div key={m.id} style={{ ...s.row, ...(i === members.length - 1 ? { borderBottom: "none" } : {}) }}>
-              <div>
-                <div style={{ fontSize: 13, color: "#1a3530", fontFamily: "monospace" }}>
-                  {m.userId.slice(0, 8)}…
+            <div key={m.id} style={{ ...s.row, ...(isLast ? { borderBottom: "none" } : {}), gap: 12 }}>
+              <MemberAvatar member={m} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {m.displayName ?? m.email ?? m.userId.slice(0, 8) + "…"}
                 </div>
-                <div style={{ fontSize: 11, color: "#5c7a72" }}>
-                  {new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde eklendi
+                {m.email && (
+                  <div style={{ fontSize: 11, color: "#5c7a72", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
+                )}
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+                  {new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde katıldı
                 </div>
               </div>
-              <div style={s.rowR}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <span style={{ ...s.badge, ...rc }}>{m.role}</span>
                 {canManage && (
                   <>
-                    <select style={{ padding: "4px 8px", borderRadius: 5, border: "1px solid #D1D5DB", fontSize: 12 }}
-                      value={m.role} onChange={e => changeRole(m.userId, e.target.value)}>
+                    <select
+                      style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #dce8e3", fontSize: 12, background: "#fff" }}
+                      value={m.role}
+                      onChange={e => changeRole(m.userId, e.target.value)}
+                    >
                       <option value="viewer">viewer</option>
                       <option value="analyst">analyst</option>
                       <option value="admin">admin</option>
@@ -132,23 +180,57 @@ function TeamTab() {
         })}
       </div>
 
+      {/* Bekleyen davetler */}
+      {invites.length > 0 && (
+        <div style={s.card}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+            Bekleyen Davetler
+            <span style={{ marginLeft: 8, background: "#fef3c7", color: "#92400e", borderRadius: 4, fontSize: 11, padding: "1px 6px", fontWeight: 600 }}>
+              {invites.length}
+            </span>
+          </div>
+          {invites.map((inv, i) => {
+            const rc = ROLE_COLORS[inv.role] ?? ROLE_COLORS.viewer;
+            return (
+              <div key={inv.id} style={{ ...s.row, ...(i === invites.length - 1 ? { borderBottom: "none" } : {}) }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b" }}>{inv.email}</div>
+                  <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 1 }}>
+                    <span style={{ ...s.badge, ...rc, marginRight: 6 }}>{inv.role}</span>
+                    · {timeLeft(inv.expiresAt)} kaldı · {new Date(inv.createdAt).toLocaleDateString("tr-TR")} gönderildi
+                  </div>
+                </div>
+                {canManage && (
+                  <button style={{ ...s.btnSm, ...s.btnR }} onClick={() => cancelInvite(inv.id, inv.email)}>
+                    İptal
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Davet formu */}
       {canManage && (
         <div style={s.card}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Üye Davet Et</div>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Üye Davet Et</div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 14 }}>
+            Platformda kayıtlı değilse 48 saatlik davet bağlantısı gönderilir. Kayıtlıysa direkt eklenir.
+          </div>
           {err && <div style={s.err}>{err}</div>}
-          {ok  && <div style={s.ok}>{ok}</div>}
+          {ok  && (
+            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#065f46", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              ✅ {ok}
+            </div>
+          )}
           <form onSubmit={invite}>
             <div style={s.row2}>
               <div>
                 <label style={s.label}>E-posta Adresi</label>
-                <input
-                  style={s.input}
-                  type="email"
-                  value={email}
+                <input style={s.input} type="email" value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="kullanici@sirket.com"
-                  required
-                />
+                  placeholder="kullanici@sirket.com" required />
               </div>
               <div>
                 <label style={s.label}>Rol</label>
@@ -159,11 +241,8 @@ function TeamTab() {
                 </select>
               </div>
             </div>
-            <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 10 }}>
-              Platformda kayıtlı değilse davet e-postası gönderilir. Kayıtlıysa direkt eklenir.
-            </div>
-            <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "8px 18px", fontSize: 13 }} disabled={saving}>
-              {saving ? "Gönderiliyor..." : "Davet Et"}
+            <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "9px 22px", fontSize: 13 }} disabled={saving}>
+              {saving ? "Gönderiliyor…" : "Davet Gönder"}
             </button>
           </form>
         </div>
@@ -173,14 +252,88 @@ function TeamTab() {
 }
 
 // ── API Anahtarları Sekmesi ───────────────────────────────────────────────────
-const ALL_SCOPES = ["ef:read", "calculation:read", "calculation:write", "report:read"];
+const ALL_SCOPES: { id: string; label: string; desc: string }[] = [
+  { id: "ef:read",              label: "EF Okuma",          desc: "Emisyon faktörü verilerini oku (saatlik EF, ülke/şebeke)" },
+  { id: "calculation:read",     label: "Hesap Okuma",       desc: "Hesaplama sonuçlarını ve raporları oku" },
+  { id: "calculation:write",    label: "Hesap Yazma",       desc: "Yeni hesaplama başlat, veri yükle" },
+  { id: "report:read",          label: "Rapor Okuma",       desc: "CBAM, GHG ve CFE raporlarını indir" },
+];
+
+const EXPIRY_PRESETS: { label: string; days: number | null }[] = [
+  { label: "30 gün",  days: 30 },
+  { label: "90 gün",  days: 90 },
+  { label: "1 yıl",   days: 365 },
+  { label: "Süresiz", days: null },
+];
+
+function daysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function NewKeyBanner({ keyData, onClose }: { keyData: NewApiKey; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    navigator.clipboard.writeText(keyData.key).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
+
+  return (
+    <div style={{
+      background: "#ecfdf5", border: "2px solid #34d399", borderRadius: 12,
+      padding: "20px 22px", marginBottom: 20,
+    }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+        <span style={{ fontSize: 22 }}>🔑</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#065F46" }}>
+            API anahtarı oluşturuldu!
+          </div>
+          <div style={{ fontSize: 13, color: "#047857", marginTop: 2 }}>
+            Bu anahtar <strong>yalnızca bir kez</strong> gösterilir. Güvenli bir yere kopyalayın.
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        background: "#fff", border: "1px solid #6ee7b7", borderRadius: 8,
+        padding: "10px 14px", fontFamily: "monospace", fontSize: 13,
+        wordBreak: "break-all", color: "#064e3b", letterSpacing: ".02em",
+        marginBottom: 12,
+      }}>
+        {keyData.key}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+        <button
+          onClick={copy}
+          style={{
+            ...s.btnSm, padding: "7px 16px", fontSize: 13,
+            background: copied ? "#065F46" : "#00b87a", color: "#fff",
+            transition: "background .2s",
+          }}
+        >
+          {copied ? "✓ Kopyalandı!" : "Kopyala"}
+        </button>
+        <button onClick={onClose} style={{ ...s.btnSm, ...s.btnSec, padding: "7px 14px", fontSize: 13 }}>
+          Kapat
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ApiKeysTab() {
-  const [keys, setKeys]     = useState<ApiKeyList["keys"]>([]);
-  const [form, setForm]     = useState({ name: "", scopes: ["emissions:read"], expiresAt: "" });
-  const [newKey, setNewKey] = useState<NewApiKey | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [err, setErr]       = useState("");
+  const [keys, setKeys]         = useState<ApiKeyList["keys"]>([]);
+  const [form, setForm]         = useState({ name: "", scopes: ["ef:read"], expiryPreset: 90 as number | null });
+  const [newKey, setNewKey]     = useState<NewApiKey | null>(null);
+  const [saving, setSaving]     = useState(false);
+  const [err, setErr]           = useState("");
+  const [showCurl, setShowCurl] = useState(false);
 
   useEffect(() => { api.apiKeys.list().then(r => setKeys(r.keys)).catch(() => {}); }, []);
 
@@ -189,13 +342,14 @@ function ApiKeysTab() {
     if (!form.name.trim() || form.scopes.length === 0) return;
     setErr(""); setSaving(true);
     try {
+      const expiresAt = form.expiryPreset !== null ? daysFromNow(form.expiryPreset) : undefined;
       const res = await api.apiKeys.create({
         name: form.name.trim(),
         scopes: form.scopes,
-        expiresAt: form.expiresAt || undefined,
+        expiresAt,
       });
       setNewKey(res);
-      setForm({ name: "", scopes: ["emissions:read"], expiresAt: "" });
+      setForm({ name: "", scopes: ["ef:read"], expiryPreset: 90 });
       const r = await api.apiKeys.list();
       setKeys(r.keys);
     } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Hata"); }
@@ -213,80 +367,167 @@ function ApiKeysTab() {
   function toggleScope(scope: string) {
     setForm(f => ({
       ...f,
-      scopes: f.scopes.includes(scope) ? f.scopes.filter(s => s !== scope) : [...f.scopes, scope],
+      scopes: f.scopes.includes(scope) ? f.scopes.filter(sc => sc !== scope) : [...f.scopes, scope],
     }));
   }
 
+  const exampleKey = keys[0]?.prefix ? `${keys[0].prefix}${"x".repeat(28)}` : "vf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+
   return (
     <div>
-      {newKey && (
-        <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: "#065F46", marginBottom: 8 }}>Anahtar oluşturuldu — yalnızca bir kez gösterilir!</div>
-          <div style={s.mono}>{newKey.key}</div>
-          <button style={{ ...s.btnSm, ...s.btnG, marginTop: 10 }}
-            onClick={() => { navigator.clipboard.writeText(newKey.key); }}>
-            Kopyala
-          </button>
-          <button style={{ ...s.btnSm, ...s.btnSec, marginTop: 10, marginLeft: 8 }}
-            onClick={() => setNewKey(null)}>
-            Kapat
-          </button>
-        </div>
-      )}
+      {newKey && <NewKeyBanner keyData={newKey} onClose={() => setNewKey(null)} />}
 
+      {/* Existing keys */}
       <div style={s.card}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Mevcut Anahtarlar</div>
-        {keys.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz API anahtarı yok.</div>}
-        {keys.map((k, i) => (
-          <div key={k.id} style={{ ...s.row, ...(i === keys.length - 1 ? { borderBottom: "none" } : {}) }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{k.name}</div>
-              <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
-                {k.prefix}·····
-                {k.expiresAt && ` · ${new Date(k.expiresAt).toLocaleDateString("tr-TR")} tarihinde sona erer`}
-                {k.lastUsedAt && ` · Son kullanım: ${new Date(k.lastUsedAt).toLocaleDateString("tr-TR")}`}
-              </div>
-              <div style={{ marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
-                {k.scopes.map(sc => (
-                  <span key={sc} style={{ ...s.badge, background: "#e6f9f2", color: "#009966" }}>{sc}</span>
-                ))}
-              </div>
-            </div>
-            <button style={{ ...s.btnSm, ...s.btnR }} onClick={() => revoke(k.id, k.name)}>İptal Et</button>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Mevcut API Anahtarları</div>
+        {keys.length === 0 ? (
+          <div style={{ color: "#5c7a72", fontSize: 13, padding: "8px 0" }}>
+            Henüz API anahtarı yok. Aşağıdan yeni bir anahtar oluşturun.
           </div>
-        ))}
+        ) : keys.map((k, i) => {
+          const expired = k.expiresAt ? new Date(k.expiresAt) < new Date() : false;
+          return (
+            <div key={k.id} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+              padding: "14px 0", gap: 12,
+              borderBottom: i < keys.length - 1 ? "1px solid #eef7f3" : "none",
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#0a1f1a" }}>{k.name}</span>
+                  {expired && (
+                    <span style={{ ...s.badge, background: "#FEE2E2", color: "#DC2626" }}>Süresi doldu</span>
+                  )}
+                </div>
+                <div style={{ fontFamily: "monospace", fontSize: 12, color: "#5c7a72", marginTop: 3 }}>
+                  {k.prefix}{"·".repeat(24)}
+                </div>
+                <div style={{ fontSize: 12, color: "#7a9990", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" as const }}>
+                  <span>Oluşturuldu: {new Date(k.createdAt).toLocaleDateString("tr-TR")}</span>
+                  {k.expiresAt && (
+                    <span style={{ color: expired ? "#DC2626" : undefined }}>
+                      Son kullanım: {new Date(k.expiresAt).toLocaleDateString("tr-TR")}
+                    </span>
+                  )}
+                  {k.lastUsedAt && (
+                    <span>Son istek: {new Date(k.lastUsedAt).toLocaleDateString("tr-TR")}</span>
+                  )}
+                </div>
+                <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                  {k.scopes.map(sc => (
+                    <span key={sc} style={{ ...s.badge, background: "#e6f9f2", color: "#009966", fontSize: 10.5 }}>{sc}</span>
+                  ))}
+                </div>
+              </div>
+              <button style={{ ...s.btnSm, ...s.btnR, flexShrink: 0 }} onClick={() => revoke(k.id, k.name)}>
+                İptal
+              </button>
+            </div>
+          );
+        })}
       </div>
 
+      {/* Create new key */}
       <div style={s.card}>
-        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Yeni API Anahtarı</div>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Yeni API Anahtarı Oluştur</div>
         {err && <div style={s.err}>{err}</div>}
         <form onSubmit={create}>
-          <div style={s.row2}>
-            <div>
-              <label style={s.label}>Anahtar Adı *</label>
-              <input style={s.input} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="Örn: ERP entegrasyonu" required />
-            </div>
-            <div>
-              <label style={s.label}>Son Kullanma Tarihi</label>
-              <input style={s.input} type="date" value={form.expiresAt}
-                onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))}
-                min={new Date().toISOString().slice(0, 10)} />
-            </div>
+          <label style={s.label}>Anahtar Adı *</label>
+          <input
+            style={s.input}
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="Örn: ERP entegrasyonu, CI/CD pipeline"
+            required
+          />
+
+          <label style={s.label}>Son Kullanma Tarihi</label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" as const }}>
+            {EXPIRY_PRESETS.map(p => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, expiryPreset: p.days }))}
+                style={{
+                  ...s.btnSm,
+                  padding: "6px 14px",
+                  fontSize: 13,
+                  background: form.expiryPreset === p.days ? "#009966" : "#eef7f3",
+                  color: form.expiryPreset === p.days ? "#fff" : "#1a3530",
+                  border: `1px solid ${form.expiryPreset === p.days ? "#009966" : "#d4ece4"}`,
+                  transition: "all .15s",
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
+          {form.expiryPreset !== null && (
+            <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 14, marginTop: -8 }}>
+              Sona erme: {new Date(daysFromNow(form.expiryPreset)).toLocaleDateString("tr-TR")}
+            </div>
+          )}
+
           <label style={s.label}>Kapsamlar *</label>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginBottom: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginBottom: 18 }}>
             {ALL_SCOPES.map(sc => (
-              <label key={sc} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, cursor: "pointer" }}>
-                <input type="checkbox" checked={form.scopes.includes(sc)} onChange={() => toggleScope(sc)} />
-                {sc}
+              <label key={sc.id} style={{
+                display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+                padding: "10px 12px", borderRadius: 8,
+                background: form.scopes.includes(sc.id) ? "#f0fdf8" : "#fafafa",
+                border: `1px solid ${form.scopes.includes(sc.id) ? "#86efca" : "#e5efea"}`,
+                transition: "all .15s",
+              }}>
+                <input
+                  type="checkbox"
+                  checked={form.scopes.includes(sc.id)}
+                  onChange={() => toggleScope(sc.id)}
+                  style={{ marginTop: 2, flexShrink: 0, accentColor: "#00b87a" }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0a1f1a" }}>{sc.id}</div>
+                  <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 1 }}>{sc.desc}</div>
+                </div>
               </label>
             ))}
           </div>
-          <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "8px 18px", fontSize: 13 }} disabled={saving || form.scopes.length === 0}>
-            {saving ? "Oluşturuluyor..." : "Oluştur"}
+
+          <button
+            type="submit"
+            style={{ ...s.btnSm, ...s.btnP, padding: "9px 22px", fontSize: 13 }}
+            disabled={saving || form.scopes.length === 0}
+          >
+            {saving ? "Oluşturuluyor..." : "Anahtar Oluştur"}
           </button>
         </form>
+      </div>
+
+      {/* curl usage guide */}
+      <div style={{ ...s.card, padding: "14px 20px" }}>
+        <button
+          onClick={() => setShowCurl(v => !v)}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, width: "100%",
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            fontSize: 14, fontWeight: 700, color: "#0a1f1a", textAlign: "left" as const,
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#5c7a72" }}>{showCurl ? "▾" : "▸"}</span>
+          API Kullanım Rehberi
+        </button>
+        {showCurl && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 13, color: "#374151", marginBottom: 10 }}>
+              Voltfox API'sine tüm isteklerde <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 4 }}>Authorization</code> header'ı ekleyin:
+            </div>
+            <div style={{ ...s.mono, padding: "12px 14px", fontSize: 12, lineHeight: 1.7 }}>
+              {`# Emisyon faktörü verisi çek\ncurl -H "Authorization: Bearer ${exampleKey}" \\\n     https://api.voltfox.io/api/v1/ef?country=TR&grid=EPiAS\n\n# Saatlik hesaplama başlat\ncurl -X POST \\\n     -H "Authorization: Bearer ${exampleKey}" \\\n     -H "Content-Type: application/json" \\\n     -d '{"installationId":"...","periodId":"..."}' \\\n     https://api.voltfox.io/api/v1/calculations`}
+            </div>
+            <div style={{ fontSize: 12, color: "#7a9990", marginTop: 10 }}>
+              Rate limit: 100 istek/dakika · Tüm yanıtlar JSON formatındadır.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

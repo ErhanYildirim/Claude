@@ -1,33 +1,124 @@
-// Email sending — Resend (https://resend.com) veya console fallback
-// Env vars: RESEND_API_KEY, RESEND_FROM_EMAIL (ör. "Voltfox <no-reply@voltfox.io>")
+/**
+ * Email sending — öncelik sırası:
+ *   1. SMTP (DB'deki SmtpConfig kaydı, enabled=true)
+ *   2. Resend API (RESEND_API_KEY env var)
+ *   3. Console log (geliştirme/fallback)
+ */
+import nodemailer from "nodemailer";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { prisma } from "@voltfox/db";
 
-const FROM    = process.env.RESEND_FROM_EMAIL ?? "Voltfox <no-reply@voltfox.io>";
-const API_KEY = process.env.RESEND_API_KEY;
+// ── Şifreleme (AES-256-GCM) ────────��──────────────���───────────────────────────
+// SMTP_ENCRYPTION_KEY env var: 32 byte hex (64 karakter)
+function getEncKey(): Buffer | null {
+  const raw = process.env.SMTP_ENCRYPTION_KEY;
+  if (!raw || raw.length < 64) return null;
+  return Buffer.from(raw.slice(0, 64), "hex");
+}
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  if (!API_KEY) {
-    // Dev/test: e-posta göndermeden logla
-    console.log(`[Email] TO=${to} SUBJECT="${subject}" (RESEND_API_KEY ayarlanmamış, gerçek e-posta gönderilmedi)`);
-    return;
+export function encryptPassword(plain: string): string {
+  const key = getEncKey();
+  if (!key) return plain; // key yoksa plain sakla (dev)
+  const iv  = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const enc  = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const tag  = cipher.getAuthTag();
+  return `enc:${iv.toString("hex")}:${tag.toString("hex")}:${enc.toString("hex")}`;
+}
+
+export function decryptPassword(stored: string): string {
+  if (!stored.startsWith("enc:")) return stored; // plain veya dev
+  const key = getEncKey();
+  if (!key) return stored; // decrypt edilemiyor — plain döndür (hata durumu)
+  const [, ivHex, tagHex, encHex] = stored.split(":");
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivHex, "hex"));
+  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+  return decipher.update(Buffer.from(encHex, "hex")).toString("utf8") + decipher.final("utf8");
+}
+
+// ── SMTP transporter cache ────────────────────────────────────────────────────
+let _transporterCache: { transporter: nodemailer.Transporter; hash: string } | null = null;
+
+function configHash(cfg: { host: string; port: number; secure: boolean; username?: string | null }): string {
+  return `${cfg.host}:${cfg.port}:${cfg.secure}:${cfg.username ?? ""}`;
+}
+
+async function getSmtpTransporter(): Promise<{ transporter: nodemailer.Transporter; fromEmail: string; fromName: string } | null> {
+  const cfg = await prisma.smtpConfig.findUnique({ where: { id: "default" } });
+  if (!cfg || !cfg.enabled) return null;
+
+  const hash = configHash(cfg);
+  if (!_transporterCache || _transporterCache.hash !== hash) {
+    const password = cfg.passwordEnc ? decryptPassword(cfg.passwordEnc) : undefined;
+    const transporter = nodemailer.createTransport({
+      host:   cfg.host,
+      port:   cfg.port,
+      secure: cfg.secure,
+      auth:   cfg.username ? { user: cfg.username, pass: password } : undefined,
+      tls:    { rejectUnauthorized: process.env.NODE_ENV === "production" },
+    });
+    _transporterCache = { transporter, hash };
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method:  "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
-  });
+  return {
+    transporter: _transporterCache.transporter,
+    fromEmail:   cfg.fromEmail,
+    fromName:    cfg.fromName,
+  };
+}
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => "unknown");
-    console.error(`[Email] Resend hatası (${res.status}): ${err}`);
+/** SMTP bağlantısını test et. Hata mesajı döner, null = başarılı. */
+export async function testSmtpConnection(): Promise<string | null> {
+  try {
+    const smtp = await getSmtpTransporter();
+    if (!smtp) return "SMTP yapılandırması bulunamadı veya devre dışı.";
+    await smtp.transporter.verify();
+    return null;
+  } catch (err) {
+    return (err as Error).message;
   }
 }
 
-// ── HTML templates ─────────────────────────────────────────────────────────────
+// ── Ana gönderim fonksiyonu ─────────────────���────────────────────────────��────
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  // 1. SMTP (DB config)
+  try {
+    const smtp = await getSmtpTransporter();
+    if (smtp) {
+      await smtp.transporter.sendMail({
+        from:    `"${smtp.fromName}" <${smtp.fromEmail}>`,
+        to,
+        subject,
+        html,
+      });
+      return;
+    }
+  } catch (err) {
+    console.error(`[Email/SMTP] Gönderim hatası: ${(err as Error).message}`);
+    // SMTP başarısız → Resend'e fallback
+  }
 
+  // 2. Resend API
+  const apiKey = process.env.RESEND_API_KEY;
+  const from   = process.env.RESEND_FROM_EMAIL ?? "Voltfox <no-reply@voltfox.io>";
+  if (apiKey) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      body:    JSON.stringify({ from, to, subject, html }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => "unknown");
+      console.error(`[Email/Resend] Hata (${res.status}): ${err}`);
+    }
+    return;
+  }
+
+  // 3. Fallback — sadece logla
+  console.log(`[Email] TO=${to} SUBJECT="${subject}" (Email servisi yapılandırılmamış)`);
+}
+
+// ── HTML templates ──────────────────────────────────��──────────────────────────
 function baseTemplate(title: string, body: string): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
@@ -55,13 +146,8 @@ function baseTemplate(title: string, body: string): string {
 }
 
 export function emailCalculationDone(params: {
-  facilityName: string;
-  periodName:   string;
-  seeVoltfox:   number;
-  reductionPct: number;
-  appUrl:       string;
-  installationId: string;
-  periodId:     string;
+  facilityName: string; periodName: string; seeVoltfox: number;
+  reductionPct: number; appUrl: string; installationId: string; periodId: string;
 }): { subject: string; html: string } {
   const subject = `SEE Hesaplama Tamamlandı — ${params.periodName}`;
   const html = baseTemplate(
@@ -81,12 +167,8 @@ export function emailCalculationDone(params: {
 }
 
 export function emailCfeDone(params: {
-  facilityName: string;
-  periodName:   string;
-  cfeScore:     number;
-  appUrl:       string;
-  installationId: string;
-  periodId:     string;
+  facilityName: string; periodName: string; cfeScore: number;
+  appUrl: string; installationId: string; periodId: string;
 }): { subject: string; html: string } {
   const subject = `24/7 CFE Matching Tamamlandı — ${params.periodName}`;
   const html = baseTemplate(
@@ -102,12 +184,8 @@ export function emailCfeDone(params: {
 }
 
 export function emailMemberInvited(params: {
-  tenantName: string;
-  invitedBy:  string;
-  role:       string;
-  inviteUrl:  string;
-  appUrl:     string;
-  expiresAt:  string;
+  tenantName: string; invitedBy: string; role: string;
+  inviteUrl: string; appUrl: string; expiresAt: string;
 }): { subject: string; html: string } {
   const roleLabel: Record<string, string> = {
     owner: "Owner", admin: "Admin", analyst: "Analyst", viewer: "Viewer",
@@ -116,7 +194,7 @@ export function emailMemberInvited(params: {
   const html = baseTemplate(
     `${params.tenantName} sizi Voltfox'a davet ediyor`,
     `<p><strong>${params.invitedBy}</strong> sizi <strong>${params.tenantName}</strong> organizasyonuna <strong>${roleLabel[params.role] ?? params.role}</strong> rolüyle davet etti.</p>
-    <p>Daveti kabul etmek ve hesabınızı oluşturmak için aşağıdaki butona tıklayın:</p>
+    <p>Daveti kabul etmek için aşağıdaki butona tıklayın:</p>
     <a class="btn" href="${params.appUrl}${params.inviteUrl}">Daveti Kabul Et</a>
     <p style="font-size:12px;color:#5c7a72;margin-top:16px">Bu davet <strong>${new Date(params.expiresAt).toLocaleDateString("tr-TR")}</strong> tarihine kadar geçerlidir.</p>`,
   );

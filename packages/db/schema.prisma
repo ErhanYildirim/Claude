@@ -494,3 +494,20 @@ model HourlyConsumption {
   @@index([hour])
   @@map("hourly_consumptions")
 }
+
+// ── SmtpConfig (Sistem geneli tek kayıt — singleton id="default") ─────────────
+model SmtpConfig {
+  id          String  @id @default("default")
+  host        String
+  port        Int     @default(587)
+  secure      Boolean @default(false) // true = TLS (465), false = STARTTLS (587)
+  username    String?
+  passwordEnc String? @map("password_enc") // AES-256-GCM şifreli (veya plain — env key gerekir)
+  fromEmail   String  @map("from_email")
+  fromName    String  @default("Voltfox") @map("from_name")
+  enabled     Boolean @default(true)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedBy   String?  @map("updated_by") @db.Uuid
+
+  @@map("smtp_config")
+}

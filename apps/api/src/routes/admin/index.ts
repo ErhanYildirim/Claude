@@ -8,6 +8,7 @@ import { adminAnnouncementsRoutes } from "./announcements.js";
 import { adminWebhooksRoutes }      from "./webhooks.js";
 import { adminEntsoeRoutes }        from "./entso-e.js";
 import { adminApiMonitoringRoutes } from "./api-monitoring.js";
+import { adminSmtpRoutes }         from "./smtp.js";
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   // Tüm admin rotaları için super-admin kontrolü
@@ -23,4 +24,5 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
   await app.register(adminWebhooksRoutes);
   await app.register(adminEntsoeRoutes);
   await app.register(adminApiMonitoringRoutes);
+  await app.register(adminSmtpRoutes);
 };

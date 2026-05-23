@@ -322,6 +322,13 @@ export const api = {
       retry: (id: string) => request<{ message: string }>("POST", `/admin/webhooks/deliveries/${id}/retry`),
       stats: () => request<AdminWebhookStats>("GET", "/admin/webhooks/stats"),
     },
+    smtp: {
+      get:    () => request<{ config: AdminSmtpConfig | null }>("GET", "/admin/smtp"),
+      save:   (body: AdminSmtpSaveBody) => request<{ config: AdminSmtpConfig; message: string }>("PUT", "/admin/smtp", body),
+      test:   (to: string) => request<{ success: boolean; message?: string; error?: string }>("POST", "/admin/smtp/test", { to }),
+      delete: () => request<void>("DELETE", "/admin/smtp"),
+    },
+
     entso_e: {
       zones:       () => request<{ zones: EntsoeZone[]; count: number }>("GET", "/admin/entso-e/zones"),
       import:      (body: EntsoeImportBody) => request<{ message: string; zoneCode: string }>("POST", "/admin/entso-e/import", body),
@@ -596,6 +603,18 @@ export interface AdminWebhookStats { total: number; success: number; failed: num
 export interface EntsoeZone { code: string; eicCode: string; name: string; country: string; }
 export interface EntsoeImportBody { token: string; zoneCode: string; startDate: string; endDate: string; }
 export interface EntsoeImportLog { id: string; year: number; zoneId: string | null; rowsAdded: number; status: string; message: string | null; startedAt: string; endedAt: string; createdAt: string; }
+
+export interface AdminSmtpConfig {
+  host: string; port: number; secure: boolean;
+  username: string; hasPassword: boolean;
+  fromEmail: string; fromName: string;
+  enabled: boolean; updatedAt: string; updatedBy?: string | null;
+}
+export interface AdminSmtpSaveBody {
+  host: string; port: number; secure?: boolean;
+  username?: string; password?: string;
+  fromEmail: string; fromName?: string; enabled?: boolean;
+}
 
 export interface AdminApiKey {
   id: string; name: string; prefix: string; scopes: string[];

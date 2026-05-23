@@ -4,8 +4,8 @@ import { prisma } from "@voltfox/db";
 
 export const adminEntsoeRoutes: FastifyPluginAsync = async (app) => {
 
-  // GET /admin/entso-e/zones — desteklenen ENTSO-E zone listesi
-  app.get("/admin/entso-e/zones", async (_request, reply) => {
+  // GET /entso-e/zones — desteklenen ENTSO-E zone listesi
+  app.get("/entso-e/zones", async (_request, reply) => {
     return reply.send({
       zones: ENTSO_ZONES.map(z => ({
         code:    z.code,
@@ -17,9 +17,9 @@ export const adminEntsoeRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // POST /admin/entso-e/import — ENTSO-E zone import tetikle
+  // POST /entso-e/import — ENTSO-E zone import tetikle
   // Body: { token: string; zoneCode: string; startDate: string; endDate: string }
-  app.post("/admin/entso-e/import", async (request, reply) => {
+  app.post("/entso-e/import", async (request, reply) => {
     const { token, zoneCode, startDate, endDate } = request.body as {
       token?: string; zoneCode?: string; startDate?: string; endDate?: string;
     };
@@ -52,8 +52,8 @@ export const adminEntsoeRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // GET /admin/entso-e/import-logs — son 20 ENTSO-E import logu
-  app.get("/admin/entso-e/import-logs", async (_request, reply) => {
+  // GET /entso-e/import-logs — son 20 ENTSO-E import logu
+  app.get("/entso-e/import-logs", async (_request, reply) => {
     const logs = await prisma.efImportLog.findMany({
       where:   { zoneId: { not: null } },
       orderBy: { createdAt: "desc" },

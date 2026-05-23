@@ -3,8 +3,8 @@ import { prisma } from "@voltfox/db";
 
 export const adminAnnouncementsRoutes: FastifyPluginAsync = async (app) => {
 
-  // POST /admin/announcements — tüm kullanıcılara veya belirli tenant'a bildirim gönder
-  app.post("/admin/announcements", {
+  // POST /announcements — tüm kullanıcılara veya belirli tenant'a bildirim gönder
+  app.post("/announcements", {
     schema: {
       body: {
         type: "object",
@@ -55,8 +55,8 @@ export const adminAnnouncementsRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send({ created, message: `${created} kullanıcıya bildirim gönderildi.` });
   });
 
-  // GET /admin/announcements — son 50 duyuru
-  app.get("/admin/announcements", async (_request, reply) => {
+  // GET /announcements — son 50 duyuru
+  app.get("/announcements", async (_request, reply) => {
     const items = await prisma.notification.findMany({
       where:   { type: "ANNOUNCEMENT" },
       orderBy: { createdAt: "desc" },

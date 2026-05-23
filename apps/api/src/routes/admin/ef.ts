@@ -7,8 +7,8 @@ type CountRow  = { cnt: bigint };
 
 export const adminEfRoutes: FastifyPluginAsync = async (app) => {
 
-  // GET /admin/ef/zones — tüm EF zone'larını listele (raw SQL, emission_factors tablosundan)
-  app.get("/admin/ef/zones", async (request, reply) => {
+  // GET /ef/zones — tüm EF zone'larını listele (raw SQL, emission_factors tablosundan)
+  app.get("/ef/zones", async (request, reply) => {
     const { search } = request.query as { search?: string };
 
     const zones = await prisma.$queryRaw<ZoneRow[]>(
@@ -41,8 +41,8 @@ export const adminEfRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // GET /admin/ef/zones/:zoneCode/latest — zone'un son 24 saatlik EF verisi
-  app.get("/admin/ef/zones/:zoneCode/latest", async (request, reply) => {
+  // GET /ef/zones/:zoneCode/latest — zone'un son 24 saatlik EF verisi
+  app.get("/ef/zones/:zoneCode/latest", async (request, reply) => {
     const { zoneCode } = request.params as { zoneCode: string };
 
     const records = await prisma.$queryRaw<{
@@ -66,8 +66,8 @@ export const adminEfRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // GET /admin/ef/import-logs — son EF import logları
-  app.get("/admin/ef/import-logs", async (_request, reply) => {
+  // GET /ef/import-logs — son EF import logları
+  app.get("/ef/import-logs", async (_request, reply) => {
     const logs = await prisma.efImportLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -75,16 +75,16 @@ export const adminEfRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ logs });
   });
 
-  // POST /admin/ef/import — manuel EF import tetikle
-  app.post("/admin/ef/import", async (_request, reply) => {
+  // POST /ef/import — manuel EF import tetikle
+  app.post("/ef/import", async (_request, reply) => {
     reply.send({ message: "EF import başlatıldı (arka planda çalışıyor)." });
     runEfImport().catch(err => {
       app.log.error({ err }, "[Admin EF Import] Hata");
     });
   });
 
-  // DELETE /admin/ef/zones/:zoneCode — zone'a ait tüm EF kayıtlarını sil
-  app.delete("/admin/ef/zones/:zoneCode", async (request, reply) => {
+  // DELETE /ef/zones/:zoneCode — zone'a ait tüm EF kayıtlarını sil
+  app.delete("/ef/zones/:zoneCode", async (request, reply) => {
     const { zoneCode } = request.params as { zoneCode: string };
 
     const [{ cnt }] = await prisma.$queryRaw<CountRow[]>(Prisma.sql`

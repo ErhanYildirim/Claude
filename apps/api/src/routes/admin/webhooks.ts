@@ -4,8 +4,8 @@ import { dispatchWebhookEvent } from "../webhooks.js";
 
 export const adminWebhooksRoutes: FastifyPluginAsync = async (app) => {
 
-  // GET /admin/webhooks/deliveries — tüm webhook teslimatlarını listele
-  app.get("/admin/webhooks/deliveries", async (request, reply) => {
+  // GET /webhooks/deliveries — tüm webhook teslimatlarını listele
+  app.get("/webhooks/deliveries", async (request, reply) => {
     const { status, limit = "50", offset = "0" } = request.query as {
       status?: string; limit?: string; offset?: string;
     };
@@ -42,8 +42,8 @@ export const adminWebhooksRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // POST /admin/webhooks/deliveries/:id/retry — webhook'u yeniden gönder
-  app.post("/admin/webhooks/deliveries/:id/retry", async (request, reply) => {
+  // POST /webhooks/deliveries/:id/retry — webhook'u yeniden gönder
+  app.post("/webhooks/deliveries/:id/retry", async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const delivery = await prisma.webhookDelivery.findUnique({
@@ -67,8 +67,8 @@ export const adminWebhooksRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ message: "Yeniden gönderim başlatıldı.", deliveryId: id });
   });
 
-  // GET /admin/webhooks/stats — webhook delivery istatistikleri
-  app.get("/admin/webhooks/stats", async (_request, reply) => {
+  // GET /webhooks/stats — webhook delivery istatistikleri
+  app.get("/webhooks/stats", async (_request, reply) => {
     const [total, success, failed, pending] = await Promise.all([
       prisma.webhookDelivery.count(),
       prisma.webhookDelivery.count({ where: { status: "success" } }),

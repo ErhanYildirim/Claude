@@ -3,8 +3,8 @@ import { prisma } from "@voltfox/db";
 
 export const adminTenantsRoutes: FastifyPluginAsync = async (app) => {
 
-  // GET /admin/tenants — tüm tenant'ları listele
-  app.get("/admin/tenants", async (request, reply) => {
+  // GET /tenants — tüm tenant'ları listele
+  app.get("/tenants", async (request, reply) => {
     const { search, limit = "50", offset = "0" } = request.query as {
       search?: string; limit?: string; offset?: string;
     };
@@ -32,8 +32,8 @@ export const adminTenantsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ tenants, total });
   });
 
-  // GET /admin/tenants/:id — tenant detayı
-  app.get("/admin/tenants/:id", async (request, reply) => {
+  // GET /tenants/:id — tenant detayı
+  app.get("/tenants/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const tenant = await prisma.tenant.findUnique({
@@ -49,8 +49,8 @@ export const adminTenantsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(tenant);
   });
 
-  // PATCH /admin/tenants/:id — plan veya durum güncelle
-  app.patch("/admin/tenants/:id", async (request, reply) => {
+  // PATCH /tenants/:id — plan veya durum güncelle
+  app.patch("/tenants/:id", async (request, reply) => {
     const { id }   = request.params as { id: string };
     const body     = request.body as { plan?: string; disabled?: boolean; name?: string };
 
@@ -69,8 +69,8 @@ export const adminTenantsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(updated);
   });
 
-  // DELETE /admin/tenants/:id — tenant'ı sil (dikkatli!)
-  app.delete("/admin/tenants/:id", async (request, reply) => {
+  // DELETE /tenants/:id — tenant'ı sil (dikkatli!)
+  app.delete("/tenants/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const tenant = await prisma.tenant.findUnique({ where: { id } });

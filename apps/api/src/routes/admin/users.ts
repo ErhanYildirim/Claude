@@ -3,8 +3,8 @@ import { prisma } from "@voltfox/db";
 
 export const adminUsersRoutes: FastifyPluginAsync = async (app) => {
 
-  // GET /admin/users — Supabase'deki tüm kullanıcılar
-  app.get("/admin/users", async (request, reply) => {
+  // GET /users — Supabase'deki tüm kullanıcılar
+  app.get("/users", async (request, reply) => {
     const { search, page = "1" } = request.query as { search?: string; page?: string };
 
     const perPage = 50;
@@ -34,8 +34,8 @@ export const adminUsersRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // POST /admin/users/:id/ban — kullanıcıyı yasakla
-  app.post("/admin/users/:id/ban", async (request, reply) => {
+  // POST /users/:id/ban — kullanıcıyı yasakla
+  app.post("/users/:id/ban", async (request, reply) => {
     const { id }    = request.params as { id: string };
     const { hours } = request.body as { hours?: number };
     const banDuration = `${hours ?? 24}h`;
@@ -48,8 +48,8 @@ export const adminUsersRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ banned: true, banDuration });
   });
 
-  // POST /admin/users/:id/unban — yasağı kaldır
-  app.post("/admin/users/:id/unban", async (request, reply) => {
+  // POST /users/:id/unban — yasağı kaldır
+  app.post("/users/:id/unban", async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const { error } = await app.supabase.auth.admin.updateUserById(id, {
@@ -60,8 +60,8 @@ export const adminUsersRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ banned: false });
   });
 
-  // POST /admin/users/:id/confirm-email — e-postayı doğrulanmış say
-  app.post("/admin/users/:id/confirm-email", async (request, reply) => {
+  // POST /users/:id/confirm-email — e-postayı doğrulanmış say
+  app.post("/users/:id/confirm-email", async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const { error } = await app.supabase.auth.admin.updateUserById(id, {
@@ -72,8 +72,8 @@ export const adminUsersRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ emailConfirmed: true });
   });
 
-  // DELETE /admin/users/:id — kullanıcıyı kalıcı sil
-  app.delete("/admin/users/:id", async (request, reply) => {
+  // DELETE /users/:id — kullanıcıyı kalıcı sil
+  app.delete("/users/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
 
     // Önce tenant üyeliklerini temizle
@@ -84,8 +84,8 @@ export const adminUsersRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(204).send();
   });
 
-  // PATCH /admin/users/:id/super-admin — super-admin flag'i güncelle
-  app.patch("/admin/users/:id/super-admin", async (request, reply) => {
+  // PATCH /users/:id/super-admin — super-admin flag'i güncelle
+  app.patch("/users/:id/super-admin", async (request, reply) => {
     const { id }         = request.params as { id: string };
     const { superAdmin } = request.body as { superAdmin: boolean };
 

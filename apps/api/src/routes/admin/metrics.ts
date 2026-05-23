@@ -4,7 +4,7 @@ import { prisma } from "@voltfox/db";
 export const adminMetricsRoutes: FastifyPluginAsync = async (app) => {
 
   // GET /admin/metrics — platform geneli KPI özeti
-  app.get("/admin/metrics", async (_request, reply) => {
+  app.get("/metrics", async (_request, reply) => {
     const now   = new Date();
     const day30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 

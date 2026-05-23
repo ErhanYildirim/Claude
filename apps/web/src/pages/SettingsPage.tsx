@@ -1,36 +1,32 @@
 import { useState, useEffect, Fragment } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import type { MemberList, MemberItem, PendingInviteList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
-  nav:    { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
-  back:   { color: "rgba(255,255,255,.8)", textDecoration: "none", fontSize: 13 },
-  brand:  { fontWeight: 700, fontSize: 18, color: "#fff" },
   page:   { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
-  h1:     { fontSize: 22, fontWeight: 700, marginBottom: 4 },
-  sub:    { color: "#5c7a72", fontSize: 14, marginBottom: 24 },
-  tabs:   { display: "flex", gap: 0, borderBottom: "1px solid #d4ece4", marginBottom: 28 },
-  tab:    { padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: "#5c7a72", borderBottom: "2px solid transparent", marginBottom: -1 },
-  tabA:   { color: "#00b87a", borderBottom: "2px solid #00b87a" },
-  card:   { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
-  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 5 },
-  input:  { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 13, outline: "none", marginBottom: 12, boxSizing: "border-box" as const },
-  select: { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 13, background: "#fff", marginBottom: 12, boxSizing: "border-box" as const },
-  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #eef7f3" },
-  rowL:   { fontSize: 14 },
+  h1:     { fontSize: 22, fontWeight: 700, marginBottom: 4, color: "var(--text)" },
+  sub:    { color: "var(--text-muted)", fontSize: 14, marginBottom: 24 },
+  tabs:   { display: "flex", gap: 0, borderBottom: "1px solid var(--border)", marginBottom: 28, overflowX: "auto" as const },
+  tab:    { padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: "var(--text-muted)", borderBottom: "2px solid transparent", marginBottom: -1, whiteSpace: "nowrap" as const },
+  tabA:   { color: "var(--accent)", borderBottom: "2px solid var(--accent)" },
+  card:   { background: "var(--bg-card)", borderRadius: 10, border: "1px solid var(--border)", padding: "20px", marginBottom: 16 },
+  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 5 },
+  input:  { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid var(--border)", fontSize: 13, outline: "none", marginBottom: 12, boxSizing: "border-box" as const, background: "var(--bg-card)", color: "var(--text)" },
+  select: { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid var(--border)", fontSize: 13, background: "var(--bg-card)", color: "var(--text)", marginBottom: 12, boxSizing: "border-box" as const },
+  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border-light)" },
+  rowL:   { fontSize: 14, color: "var(--text)" },
   rowR:   { display: "flex", gap: 8, alignItems: "center" },
   badge:  { display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 },
   btnSm:  { padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-  btnP:   { background: "#00b87a", color: "#fff" },
+  btnP:   { background: "var(--accent)", color: "#fff" },
   btnR:   { background: "#FEE2E2", color: "#DC2626" },
   btnG:   { background: "#D1FAE5", color: "#065F46" },
-  btnSec: { background: "#eef7f3", color: "#1a3530" },
+  btnSec: { background: "var(--accent-bg)", color: "var(--text)" },
   err:    { color: "#DC2626", fontSize: 13, marginBottom: 12 },
   ok:     { color: "#059669", fontSize: 13, marginBottom: 12 },
   row2:   { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  mono:   { fontFamily: "monospace", background: "#eef7f3", padding: "6px 10px", borderRadius: 5, fontSize: 12, wordBreak: "break-all" as const },
-  section:{ fontSize: 13, fontWeight: 600, color: "#5c7a72", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  mono:   { fontFamily: "monospace", background: "var(--accent-bg)", padding: "6px 10px", borderRadius: 5, fontSize: 12, wordBreak: "break-all" as const, color: "var(--text)" },
+  section:{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: ".05em" },
 };
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
@@ -1334,33 +1330,27 @@ export default function SettingsPage() {
   ];
 
   return (
-    <>
-      <nav style={s.nav}>
-        <Link to="/cbam" style={s.back}>← Tesisler</Link>
-        <span style={s.brand}>Ayarlar</span>
-      </nav>
-      <div style={s.page}>
-        <div style={s.h1}>Ayarlar</div>
-        <div style={s.sub}>Ekip üyeleri, API anahtarları ve webhook entegrasyonları</div>
+    <div style={s.page}>
+      <div style={s.h1}>Ayarlar</div>
+      <div style={s.sub}>Ekip üyeleri, API anahtarları ve webhook entegrasyonları</div>
 
-        <div style={s.tabs}>
-          {tabs.map(t => (
-            <button key={t.id} style={{ ...s.tab, ...(tab === t.id ? s.tabA : {}) }}
-              onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "team"         && <TeamTab />}
-        {tab === "company"      && <TenantTab />}
-        {tab === "subscription" && <SubscriptionTab />}
-        {tab === "permissions"  && <PermissionsTab />}
-        {tab === "apikeys"      && <ApiKeysTab />}
-        {tab === "webhooks"      && <WebhooksTab />}
-        {tab === "notifications" && <NotificationsTab />}
-        {tab === "audit"         && <AuditTrailTab />}
+      <div style={s.tabs}>
+        {tabs.map(t => (
+          <button key={t.id} style={{ ...s.tab, ...(tab === t.id ? s.tabA : {}) }}
+            onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
       </div>
-    </>
+
+      {tab === "team"         && <TeamTab />}
+      {tab === "company"      && <TenantTab />}
+      {tab === "subscription" && <SubscriptionTab />}
+      {tab === "permissions"  && <PermissionsTab />}
+      {tab === "apikeys"      && <ApiKeysTab />}
+      {tab === "webhooks"      && <WebhooksTab />}
+      {tab === "notifications" && <NotificationsTab />}
+      {tab === "audit"         && <AuditTrailTab />}
+    </div>
   );
 }

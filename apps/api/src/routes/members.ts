@@ -18,7 +18,50 @@ export const membersRoutes: FastifyPluginAsync = async (app) => {
       select:  { id: true, userId: true, role: true, createdAt: true },
     });
 
-    return reply.send({ members });
+    // Supabase'den email + display_name bilgisi çek
+    const enriched = await Promise.all(
+      members.map(async (m) => {
+        try {
+          const { data } = await app.supabase.auth.admin.getUserById(m.userId);
+          return {
+            ...m,
+            email:       data.user?.email ?? null,
+            displayName: (data.user?.user_metadata?.display_name as string | undefined) ?? null,
+          };
+        } catch {
+          return { ...m, email: null, displayName: null };
+        }
+      }),
+    );
+
+    return reply.send({ members: enriched });
+  });
+
+  // GET /members/invites — bekleyen davetleri listele (admin+)
+  app.get("/members/invites", async (request, reply) => {
+    if (!await requireRole(request, reply, "admin")) return;
+
+    const invites = await prisma.memberInvite.findMany({
+      where:   { tenantId: request.tenantId, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+      select:  { id: true, email: true, role: true, expiresAt: true, createdAt: true, token: true },
+    });
+
+    return reply.send({ invites });
+  });
+
+  // DELETE /members/invites/:id — daveti iptal et (admin+)
+  app.delete("/members/invites/:id", async (request, reply) => {
+    if (!await requireRole(request, reply, "admin")) return;
+
+    const { id } = request.params as { id: string };
+    const invite = await prisma.memberInvite.findFirst({
+      where: { id, tenantId: request.tenantId },
+    });
+    if (!invite) return reply.status(404).send({ error: "NOT_FOUND" });
+
+    await prisma.memberInvite.delete({ where: { id } });
+    return reply.status(204).send();
   });
 
   // POST /members/invite — email ile davet et (admin+)

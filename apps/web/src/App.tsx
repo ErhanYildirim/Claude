@@ -40,6 +40,7 @@ const AdminUsersPage       = lazy(() => import("./pages/admin/AdminUsersPage.js"
 const AdminEfDataPage      = lazy(() => import("./pages/admin/AdminEfDataPage.js"));
 const AdminAnnouncementsPage = lazy(() => import("./pages/admin/AdminAnnouncementsPage.js"));
 const AdminWebhooksPage    = lazy(() => import("./pages/admin/AdminWebhooksPage.js"));
+const AdminApiPage         = lazy(() => import("./pages/admin/AdminApiPage.js"));
 
 function AppLayout() {
   return (
@@ -119,6 +120,7 @@ function AppRouter() {
           <Route path="/admin/ef-data"          element={<AdminEfDataPage />} />
           <Route path="/admin/announcements"    element={<AdminAnnouncementsPage />} />
           <Route path="/admin/webhooks"         element={<AdminWebhooksPage />} />
+          <Route path="/admin/api"              element={<AdminApiPage />} />
         </Route>
 
         {/* Authenticated routes — wrapped in AppShell + Suspense */}

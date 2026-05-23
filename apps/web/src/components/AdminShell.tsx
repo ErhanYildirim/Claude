@@ -12,6 +12,7 @@ const ADMIN_NAV: AdminNavItem[] = [
   { icon: "📡", label: "EF Verisi",    path: "/admin/ef-data" },
   { icon: "📢", label: "Duyurular",    path: "/admin/announcements" },
   { icon: "🔗", label: "Webhook Log",  path: "/admin/webhooks" },
+  { icon: "⚡", label: "API İzleme",   path: "/admin/api" },
 ];
 
 const PAGE_NAMES: Record<string, string> = {
@@ -21,6 +22,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/admin/ef-data":       "EF Verisi",
   "/admin/announcements": "Duyurular",
   "/admin/webhooks":      "Webhook Log",
+  "/admin/api":           "API İzleme",
 };
 
 const SQL_CMD = `UPDATE auth.users

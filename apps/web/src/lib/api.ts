@@ -93,15 +93,19 @@ export const api = {
   },
 
   members: {
-    me:   () => request<MemberMe>("GET", "/members/me"),
-    list: () => request<MemberList>("GET", "/members"),
-    add:  (body: { userId: string; role: string }) => request("POST", "/members", body),
+    me:     () => request<MemberMe>("GET", "/members/me"),
+    list:   () => request<MemberList>("GET", "/members"),
+    add:    (body: { userId: string; role: string }) => request("POST", "/members", body),
     invite: (body: { email: string; role: string }) =>
-      request<{ member: unknown; invited: boolean; message: string }>("POST", "/members/invite", body),
+      request<{ member: unknown; invited: boolean; inviteToken?: string; message: string }>("POST", "/members/invite", body),
     update: (userId: string, role: string) => request("PATCH", `/members/${userId}`, { role }),
     remove: (userId: string) => request<void>("DELETE", `/members/${userId}`),
     exportDataUrl: () => `${BASE}/members/me/export`,
     leave: () => request<void>("DELETE", "/members/me"),
+    invites: {
+      list:   () => request<PendingInviteList>("GET", "/members/invites"),
+      cancel: (id: string) => request<void>("DELETE", `/members/invites/${id}`),
+    },
   },
 
   apiKeys: {
@@ -323,6 +327,37 @@ export const api = {
       import:      (body: EntsoeImportBody) => request<{ message: string; zoneCode: string }>("POST", "/admin/entso-e/import", body),
       importLogs:  () => request<{ logs: EntsoeImportLog[] }>("GET", "/admin/entso-e/import-logs"),
     },
+
+    apiMonitoring: {
+      stats:       () => request<AdminApiStats>("GET", "/admin/stats"),
+      keys:        (params?: { search?: string; tenantId?: string; limit?: number; offset?: number }) => {
+        const q = new URLSearchParams();
+        if (params?.search)   q.set("search",   params.search);
+        if (params?.tenantId) q.set("tenantId", params.tenantId);
+        if (params?.limit)    q.set("limit",    String(params.limit));
+        if (params?.offset)   q.set("offset",   String(params.offset));
+        const qs = q.toString();
+        return request<AdminApiKeyList>("GET", `/admin/api-keys${qs ? "?" + qs : ""}`);
+      },
+      keyDetail:   (id: string) => request<AdminApiKeyDetail>("GET", `/admin/api-keys/${id}`),
+      setRateLimit:(id: string, rateLimitPerMin: number | null) =>
+        request<{ key: AdminApiKey; effectiveLimit: number }>("PATCH", `/admin/api-keys/${id}/rate-limit`, { rateLimitPerMin }),
+      revokeKey:   (id: string) => request<void>("DELETE", `/admin/api-keys/${id}`),
+      requests:    (params?: { apiKeyId?: string; tenantId?: string; endpoint?: string; method?: string; status?: string; from?: string; to?: string; limit?: number; offset?: number }) => {
+        const q = new URLSearchParams();
+        if (params?.apiKeyId)  q.set("apiKeyId",  params.apiKeyId);
+        if (params?.tenantId)  q.set("tenantId",  params.tenantId);
+        if (params?.endpoint)  q.set("endpoint",  params.endpoint);
+        if (params?.method)    q.set("method",    params.method);
+        if (params?.status)    q.set("status",    params.status);
+        if (params?.from)      q.set("from",      params.from);
+        if (params?.to)        q.set("to",        params.to);
+        if (params?.limit)     q.set("limit",     String(params.limit));
+        if (params?.offset)    q.set("offset",    String(params.offset));
+        const qs = q.toString();
+        return request<AdminApiRequestList>("GET", `/admin/requests${qs ? "?" + qs : ""}`);
+      },
+    },
   },
 
   shareLinks: {
@@ -388,7 +423,10 @@ export interface MonthlyBreakdown { month: string; consumptionKwh: number; produ
 
 export interface DefaultResult { cnCode: string; country: string; totalDefault: number; directDefault: number | null; indirectDefault: number | null; dataVersion: string; }
 export interface MemberMe { role: string; }
-export interface MemberList { members: Array<{ id: string; userId: string; role: string; createdAt: string }>; }
+export interface MemberItem { id: string; userId: string; role: string; createdAt: string; email: string | null; displayName: string | null; }
+export interface MemberList { members: MemberItem[]; }
+export interface PendingInvite { id: string; email: string; role: string; expiresAt: string; createdAt: string; token: string; }
+export interface PendingInviteList { invites: PendingInvite[]; }
 export interface ApiKeyList { keys: Array<{ id: string; name: string; prefix: string; scopes: string[]; expiresAt: string | null; lastUsedAt: string | null; createdAt: string }>; }
 export interface NewApiKey { id: string; name: string; prefix: string; scopes: string[]; key: string; createdAt: string; }
 export interface WebhookList { webhooks: Array<{ id: string; url: string; events: string[]; active: boolean; createdAt: string; _count: { deliveries: number } }>; }
@@ -558,6 +596,41 @@ export interface AdminWebhookStats { total: number; success: number; failed: num
 export interface EntsoeZone { code: string; eicCode: string; name: string; country: string; }
 export interface EntsoeImportBody { token: string; zoneCode: string; startDate: string; endDate: string; }
 export interface EntsoeImportLog { id: string; year: number; zoneId: string | null; rowsAdded: number; status: string; message: string | null; startedAt: string; endedAt: string; createdAt: string; }
+
+export interface AdminApiKey {
+  id: string; name: string; prefix: string; scopes: string[];
+  expiresAt: string | null; lastUsedAt: string | null; revokedAt: string | null;
+  createdAt: string; rateLimitPerMin: number | null; createdBy: string | null;
+  tenant: { id: string; name: string; slug: string; plan: string };
+  requests24h: number; errors24h: number;
+  currentUsage: number; effectiveLimit: number;
+}
+export interface AdminApiKeyList { keys: AdminApiKey[]; total: number; }
+
+export interface AdminApiKeyDetail extends Omit<AdminApiKey, "tenant"> {
+  tenant: { id: string; name: string; slug: string };
+  stats: {
+    total24h: number; errors24h: number; errorRate24h: string;
+    topEndpoints: { endpoint: string; method: string; count: number }[];
+    hourlyActivity: { hour: string; count: number; errors: number }[];
+  };
+}
+
+export interface AdminApiRequest {
+  id: string; apiKeyId: string; tenantId: string;
+  method: string; endpoint: string; statusCode: number;
+  durationMs: number; ipAddress: string | null; userAgent: string | null;
+  createdAt: string;
+  apiKey: { name: string; prefix: string; tenant: { name: string } };
+}
+export interface AdminApiRequestList { logs: AdminApiRequest[]; total: number; }
+
+export interface AdminApiStats {
+  requests: { total24h: number; errors24h: number; errorRate: string; perMinute1h: number };
+  keys: { active: number; total: number };
+  hourlyBreakdown: { hour: string; count: number; errors: number }[];
+  topTenants: { tenantId: string; tenantName: string; requests: number }[];
+}
 
 export interface GecColMap {
   hour?:        string;

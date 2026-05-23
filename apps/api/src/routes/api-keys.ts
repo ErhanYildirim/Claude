@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "crypto";
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import { prisma } from "@voltfox/db";
 import { requireRole } from "../plugins/rbac.js";
+import { checkRateLimit, logApiRequest } from "../lib/api-request-logger.js";
 
 const VALID_SCOPES = ["ef:read", "calculation:read", "calculation:write", "report:read"] as const;
 
@@ -120,21 +121,39 @@ export const apiKeysRoutes: FastifyPluginAsync = async (app) => {
   });
 };
 
+export interface ApiKeyVerifyResult {
+  tenantId:       string;
+  keyId:          string;
+  rateLimitPerMin: number | null;
+}
+
+export interface ApiKeyVerifyError {
+  error: "NOT_FOUND" | "REVOKED" | "EXPIRED" | "SCOPE" | "RATE_LIMIT";
+  retryAfterMs?: number;
+}
+
 // Harici middleware: API key doğrulama (Data Service endpoint'leri için)
 export async function verifyApiKey(
   rawKey: string,
   requiredScope: string,
-): Promise<{ tenantId: string; keyId: string } | null> {
+  request?: FastifyRequest,
+): Promise<ApiKeyVerifyResult | ApiKeyVerifyError> {
   const hash = hashKey(rawKey);
 
   const key = await prisma.apiKey.findUnique({
-    where: { keyHash: hash },
+    where:  { keyHash: hash },
+    select: { id: true, tenantId: true, scopes: true, revokedAt: true, expiresAt: true, rateLimitPerMin: true },
   });
 
-  if (!key) return null;
-  if (key.revokedAt) return null;
-  if (key.expiresAt && key.expiresAt < new Date()) return null;
-  if (!key.scopes.includes(requiredScope)) return null;
+  if (!key)            return { error: "NOT_FOUND" };
+  if (key.revokedAt)   return { error: "REVOKED" };
+  if (key.expiresAt && key.expiresAt < new Date()) return { error: "EXPIRED" };
+  if (!key.scopes.includes(requiredScope))          return { error: "SCOPE" };
+
+  // Per-key rate limit kontrolü
+  if (!checkRateLimit(key.id, key.rateLimitPerMin)) {
+    return { error: "RATE_LIMIT", retryAfterMs: 60_000 };
+  }
 
   // lastUsedAt güncelle (fire-and-forget)
   prisma.apiKey.update({
@@ -142,5 +161,62 @@ export async function verifyApiKey(
     data:  { lastUsedAt: new Date() },
   }).catch(() => {});
 
-  return { tenantId: key.tenantId, keyId: key.id };
+  return {
+    tenantId:        key.tenantId,
+    keyId:           key.id,
+    rateLimitPerMin: key.rateLimitPerMin,
+  };
+}
+
+/**
+ * Fastify route handler için kullanılacak yardımcı:
+ * Authorization: Bearer vf_... header'ını doğrular,
+ * hata varsa reply'a 401/429 gönderir ve false döndürür.
+ * Başarılıysa request logging tetikler ve true döndürür.
+ */
+export async function requireApiKey(
+  request: FastifyRequest,
+  reply: import("fastify").FastifyReply,
+  requiredScope: string,
+): Promise<{ tenantId: string; keyId: string } | null> {
+  const startMs = Date.now();
+  const auth = request.headers.authorization ?? "";
+  if (!auth.startsWith("Bearer vf_")) {
+    reply.status(401).send({ error: "UNAUTHORIZED", message: "API anahtarı gerekli. Bearer vf_... formatında gönderin." });
+    return null;
+  }
+
+  const raw    = auth.slice(7);
+  const result = await verifyApiKey(raw, requiredScope, request);
+
+  if ("error" in result) {
+    const msgs: Record<string, [number, string]> = {
+      NOT_FOUND:  [401, "API anahtarı bulunamadı."],
+      REVOKED:    [401, "API anahtarı iptal edilmiş."],
+      EXPIRED:    [401, "API anahtarının süresi dolmuş."],
+      SCOPE:      [403, `Bu işlem için '${requiredScope}' kapsamı gerekli.`],
+      RATE_LIMIT: [429, "Hız limiti aşıldı. Lütfen bekleyin."],
+    };
+    const [status, message] = msgs[result.error] ?? [401, "Yetkisiz erişim."];
+    if (result.error === "RATE_LIMIT" && result.retryAfterMs) {
+      reply.header("Retry-After", Math.ceil(result.retryAfterMs / 1000).toString());
+    }
+    reply.status(status).send({ error: result.error, message });
+    return null;
+  }
+
+  // Request log (fire-and-forget) — URL'den sadece path ve ilk 2 segment al
+  const endpoint = request.url.split("?")[0].replace(/\/[0-9a-f-]{36}/gi, "/:id");
+  logApiRequest({
+    apiKeyId:   result.keyId,
+    tenantId:   result.tenantId,
+    method:     request.method,
+    endpoint,
+    statusCode: 200, // optimistic; gerçek kod hook'ta güncellenebilir
+    durationMs: Date.now() - startMs,
+    ipAddress:  request.ip,
+    userAgent:  request.headers["user-agent"]?.slice(0, 255),
+  });
+
+  return { tenantId: result.tenantId, keyId: result.keyId };
 }

@@ -25,6 +25,7 @@ model Tenant {
   updatedAt     DateTime             @updatedAt @map("updated_at")
 
   installations           Installation[]
+  cbamFacilities          CbamFacility[]
   shareLinks              ShareLink[]
   auditLogs               AuditLog[]
   members                 TenantMember[]
@@ -71,7 +72,6 @@ model Installation {
 
   periods         ReportingPeriod[]
   emissionTargets EmissionTarget[]
-  cbamProducts    CbamProduct[]
 
   @@index([tenantId])
   @@map("installations")
@@ -390,12 +390,41 @@ model CarbonPrice {
   @@map("carbon_prices")
 }
 
-// ── CbamProduct (Tesis altındaki CBAM ürün tanımı) ───────────────────────────
+// ── CbamFacility (CBAM için izole tesis kaydı) ────────────────────────────────
+model CbamFacility {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  facilityName         String   @map("facility_name")
+  operator             String   @default("")
+  facilityCountry      String   @map("facility_country")
+  sector               String   @default("steel")   // cement|steel|aluminium|fertilizer|electricity|hydrogen|other
+  facilityRef          String?  @map("facility_ref")
+  unLoCode             String?  @map("un_lo_code")            // UN/LOCODE (CBAM teknik dosya zorunlu)
+  cbamInstallationId   String?  @map("cbam_installation_id")  // CBAM portal tesis ID'si
+
+  // Opsiyonel köprü — GEC/CFE tesisiyle bağlantı
+  linkedInstallationId String?  @map("linked_installation_id") @db.Uuid
+
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt      @map("updated_at")
+
+  products             CbamProduct[]
+
+  @@index([tenantId])
+  @@map("cbam_facilities")
+}
+
+// ── CbamProduct (CBAM tesisi altındaki ürün tanımı) ──────────────────────────
 model CbamProduct {
-  id                   String       @id @default(uuid()) @db.Uuid
-  tenantId             String       @map("tenant_id") @db.Uuid
-  installationId       String       @map("installation_id") @db.Uuid
-  installation         Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid()) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  cbamFacilityId String       @map("cbam_facility_id") @db.Uuid
+  facility       CbamFacility @relation(fields: [cbamFacilityId], references: [id], onDelete: Cascade)
+
+  // Legacy soft-link (no FK constraint): veri geçişi izlenebilirliği için tutulur
+  installationId String?      @map("installation_id") @db.Uuid
 
   productName          String  @map("product_name")
   cnCode               String? @map("cn_code")           // CBAM CN kodu: 7206, 7601, 2523, vb.
@@ -412,7 +441,7 @@ model CbamProduct {
 
   productPeriods CbamProductPeriod[]
 
-  @@index([installationId])
+  @@index([cbamFacilityId])
   @@index([tenantId])
   @@map("cbam_products")
 }

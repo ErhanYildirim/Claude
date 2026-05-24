@@ -11,18 +11,18 @@ import {
 
 export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
 
-  // ── GET /installations/:installationId/products ──────────────────────────
-  app.get("/installations/:installationId/products", async (request, reply) => {
+  // ── GET /cbam/facilities/:facilityId/products ─────────────────────────────
+  app.get("/cbam/facilities/:facilityId/products", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
-    const { installationId } = request.params as { installationId: string };
+    const { facilityId } = request.params as { facilityId: string };
 
-    const installation = await prisma.installation.findFirst({
-      where: { id: installationId, tenantId: request.tenantId },
+    const facility = await prisma.cbamFacility.findFirst({
+      where: { id: facilityId, tenantId: request.tenantId },
     });
-    if (!installation) return reply.status(404).send({ error: "NOT_FOUND" });
+    if (!facility) return reply.status(404).send({ error: "NOT_FOUND" });
 
     const products = await prisma.cbamProduct.findMany({
-      where:   { installationId, tenantId: request.tenantId },
+      where:   { cbamFacilityId: facilityId, tenantId: request.tenantId },
       orderBy: { createdAt: "asc" },
       include: {
         productPeriods: { orderBy: { reportYear: "desc" } },
@@ -32,28 +32,28 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ products });
   });
 
-  // ── POST /installations/:installationId/products ──────────────────────────
-  app.post("/installations/:installationId/products", async (request, reply) => {
+  // ── POST /cbam/facilities/:facilityId/products ────────────────────────────
+  app.post("/cbam/facilities/:facilityId/products", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "analyst")) return;
 
-    const { installationId } = request.params as { installationId: string };
+    const { facilityId } = request.params as { facilityId: string };
     const body = request.body as {
-      productName: string;
-      cnCode?: string;
-      description?: string;
-      unit?: string;
-      isCbamScope?: boolean;
+      productName:           string;
+      cnCode?:               string;
+      description?:          string;
+      unit?:                 string;
+      isCbamScope?:          boolean;
       energyAllocationMode?: string;
     };
 
     if (!body.productName?.trim())
       return reply.status(400).send({ error: "MISSING_NAME", message: "productName gerekli." });
 
-    const installation = await prisma.installation.findFirst({
-      where: { id: installationId, tenantId: request.tenantId },
+    const facility = await prisma.cbamFacility.findFirst({
+      where: { id: facilityId, tenantId: request.tenantId },
     });
-    if (!installation) return reply.status(404).send({ error: "NOT_FOUND" });
+    if (!facility) return reply.status(404).send({ error: "NOT_FOUND" });
 
     const allocationMode = body.energyAllocationMode ?? "facility";
     if (!["facility", "band"].includes(allocationMode))
@@ -62,7 +62,7 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     const product = await prisma.cbamProduct.create({
       data: {
         tenantId:             request.tenantId,
-        installationId,
+        cbamFacilityId:       facilityId,
         productName:          body.productName.trim(),
         cnCode:               body.cnCode?.trim() || null,
         description:          body.description?.trim() || null,
@@ -75,12 +75,12 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send({ product });
   });
 
-  // ── PATCH /installations/:installationId/products/:productId ─────────────
-  app.patch("/installations/:installationId/products/:productId", async (request, reply) => {
+  // ── PATCH /cbam/facilities/:facilityId/products/:productId ───────────────
+  app.patch("/cbam/facilities/:facilityId/products/:productId", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "analyst")) return;
 
-    const { productId } = request.params as { installationId: string; productId: string };
+    const { productId } = request.params as { facilityId: string; productId: string };
     const body = request.body as Partial<{
       productName: string; cnCode: string; description: string;
       unit: string; isCbamScope: boolean; energyAllocationMode: string;
@@ -109,12 +109,12 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ product: updated });
   });
 
-  // ── DELETE /installations/:installationId/products/:productId ────────────
-  app.delete("/installations/:installationId/products/:productId", async (request, reply) => {
+  // ── DELETE /cbam/facilities/:facilityId/products/:productId ──────────────
+  app.delete("/cbam/facilities/:facilityId/products/:productId", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "admin")) return;
 
-    const { productId } = request.params as { installationId: string; productId: string };
+    const { productId } = request.params as { facilityId: string; productId: string };
 
     const product = await prisma.cbamProduct.findFirst({
       where: { id: productId, tenantId: request.tenantId },
@@ -125,13 +125,14 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(204).send();
   });
 
-  // ── GET /installations/:installationId/products/:productId/periods ────────
-  app.get("/installations/:installationId/products/:productId/periods", async (request, reply) => {
+  // ── GET /cbam/facilities/:facilityId/products/:productId/periods ──────────
+  app.get("/cbam/facilities/:facilityId/products/:productId/periods", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
-    const { productId } = request.params as { installationId: string; productId: string };
+    const { productId } = request.params as { facilityId: string; productId: string };
 
     const product = await prisma.cbamProduct.findFirst({
-      where: { id: productId, tenantId: request.tenantId },
+      where:   { id: productId, tenantId: request.tenantId },
+      include: { facility: { select: { facilityCountry: true, linkedInstallationId: true, facilityName: true } } },
     });
     if (!product) return reply.status(404).send({ error: "NOT_FOUND" });
 
@@ -143,61 +144,56 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ product, periods });
   });
 
-  // ── POST /installations/:installationId/products/:productId/periods ───────
-  app.post("/installations/:installationId/products/:productId/periods", async (request, reply) => {
+  // ── POST /cbam/facilities/:facilityId/products/:productId/periods ─────────
+  app.post("/cbam/facilities/:facilityId/products/:productId/periods", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "analyst")) return;
 
-    const { productId } = request.params as { installationId: string; productId: string };
+    const { productId } = request.params as { facilityId: string; productId: string };
     const body = request.body as {
-      reportYear:           number;
-      periodName:           string;
-      startDate:            string;
-      endDate:              string;
+      reportYear:            number;
+      periodName:            string;
+      startDate:             string;
+      endDate:               string;
       productionVolumeTonne: number;
-      scope1DirectTco2?:    number;
-      scope1AuditNote?:     string;
-      bandElectricityKwh?:  number;
-      bandRenewableKwh?:    number;
-      facilityTotalKwh?:    number;
+      scope1DirectTco2?:     number;
+      scope1AuditNote?:      string;
+      bandElectricityKwh?:   number;
+      bandRenewableKwh?:     number;
+      facilityTotalKwh?:     number;
       facilityRenewableKwh?: number;
-      productShareKwh?:     number;
-      renewableSource?:     string;
-      cbamDefaultEf?:       number;
-      countryGridEf?:       number;
+      productShareKwh?:      number;
+      renewableSource?:      string;
+      cbamDefaultEf?:        number;
+      countryGridEf?:        number;
     };
 
     if (!body.periodName || !body.reportYear || !body.productionVolumeTonne)
       return reply.status(400).send({ error: "MISSING_FIELDS" });
 
     const product = await prisma.cbamProduct.findFirst({
-      where: { id: productId, tenantId: request.tenantId },
+      where:   { id: productId, tenantId: request.tenantId },
+      include: { facility: { select: { facilityCountry: true } } },
     });
     if (!product) return reply.status(404).send({ error: "NOT_FOUND" });
 
-    // Auto-fill renewableSourceEf from RENEWABLE_SOURCE_EF map
     const renewableSourceEf = body.renewableSource
       ? (RENEWABLE_SOURCE_EF[body.renewableSource] ?? null)
       : null;
 
-    // Auto-fill cbamDefaultEf from CBAM_COUNTRY_EF if not provided
-    // (needs installation country — fetch it)
-    const installation = await prisma.installation.findUnique({
-      where: { id: product.installationId },
-      select: { facilityCountry: true },
-    });
+    // Auto-fill cbamDefaultEf from CBAM_COUNTRY_EF using the CBAM facility country
     const autoCbamEf = body.cbamDefaultEf != null
       ? body.cbamDefaultEf
-      : (installation ? (CBAM_COUNTRY_EF[installation.facilityCountry] ?? null) : null);
+      : (CBAM_COUNTRY_EF[product.facility.facilityCountry] ?? null);
 
     // Auto-fill countryGridEf from ENTSO-E data if not provided
     let autoGridEf: number | null = body.countryGridEf ?? null;
-    if (autoGridEf == null && installation) {
+    if (autoGridEf == null) {
       const gridRows = await prisma.$queryRaw<{ avg_ef: string | null }[]>(
         Prisma.sql`
           SELECT ROUND(AVG(ci_lifecycle)::numeric, 4) AS avg_ef
           FROM emission_factors
-          WHERE country = ${installation.facilityCountry}
+          WHERE country = ${product.facility.facilityCountry}
             AND granularity = 'hourly'
             AND EXTRACT(YEAR FROM hour) = ${body.reportYear}
         `
@@ -210,41 +206,43 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
       where: { cbamProductId: productId, reportYear: body.reportYear },
     });
     if (existing)
-      return reply.status(409).send({ error: "DUPLICATE_YEAR",
-        message: `${body.reportYear} yılı için dönem zaten mevcut.` });
+      return reply.status(409).send({
+        error:   "DUPLICATE_YEAR",
+        message: `${body.reportYear} yılı için dönem zaten mevcut.`,
+      });
 
     const period = await prisma.cbamProductPeriod.create({
       data: {
-        cbamProductId:        productId,
-        reportYear:           body.reportYear,
-        periodName:           body.periodName,
-        startDate:            new Date(body.startDate),
-        endDate:              new Date(body.endDate),
+        cbamProductId:         productId,
+        reportYear:            body.reportYear,
+        periodName:            body.periodName,
+        startDate:             new Date(body.startDate),
+        endDate:               new Date(body.endDate),
         productionVolumeTonne: body.productionVolumeTonne,
-        scope1DirectTco2:     body.scope1DirectTco2 ?? 0,
-        scope1AuditNote:      body.scope1AuditNote  ?? null,
-        bandElectricityKwh:   body.bandElectricityKwh  ?? null,
-        bandRenewableKwh:     body.bandRenewableKwh    ?? null,
-        facilityTotalKwh:     body.facilityTotalKwh    ?? null,
-        facilityRenewableKwh: body.facilityRenewableKwh ?? null,
-        productShareKwh:      body.productShareKwh     ?? null,
-        renewableSource:      body.renewableSource     ?? null,
-        renewableSourceEf:    renewableSourceEf,
-        cbamDefaultEf:        autoCbamEf,
-        countryGridEf:        autoGridEf,
+        scope1DirectTco2:      body.scope1DirectTco2  ?? 0,
+        scope1AuditNote:       body.scope1AuditNote   ?? null,
+        bandElectricityKwh:    body.bandElectricityKwh  ?? null,
+        bandRenewableKwh:      body.bandRenewableKwh    ?? null,
+        facilityTotalKwh:      body.facilityTotalKwh    ?? null,
+        facilityRenewableKwh:  body.facilityRenewableKwh ?? null,
+        productShareKwh:       body.productShareKwh     ?? null,
+        renewableSource:       body.renewableSource     ?? null,
+        renewableSourceEf:     renewableSourceEf,
+        cbamDefaultEf:         autoCbamEf,
+        countryGridEf:         autoGridEf,
       },
     });
 
     return reply.status(201).send({ period });
   });
 
-  // ── PATCH /installations/:installationId/products/:productId/periods/:periodId
-  app.patch("/installations/:installationId/products/:productId/periods/:periodId", async (request, reply) => {
+  // ── PATCH /cbam/facilities/:facilityId/products/:productId/periods/:periodId
+  app.patch("/cbam/facilities/:facilityId/products/:productId/periods/:periodId", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "analyst")) return;
 
     const { productId, periodId } = request.params as {
-      installationId: string; productId: string; periodId: string;
+      facilityId: string; productId: string; periodId: string;
     };
     const body = request.body as Record<string, unknown>;
 
@@ -258,7 +256,6 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     });
     if (!period) return reply.status(404).send({ error: "NOT_FOUND" });
 
-    // If renewableSource changed, auto-update renewableSourceEf
     const newSource = body.renewableSource as string | undefined;
     const renewableSourceEf = newSource != null
       ? (RENEWABLE_SOURCE_EF[newSource] ?? null)
@@ -267,24 +264,23 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     const updated = await prisma.cbamProductPeriod.update({
       where: { id: periodId },
       data: {
-        ...(body.periodName            != null && { periodName: body.periodName as string }),
-        ...(body.startDate             != null && { startDate: new Date(body.startDate as string) }),
-        ...(body.endDate               != null && { endDate:   new Date(body.endDate   as string) }),
+        ...(body.periodName            != null && { periodName:            body.periodName as string }),
+        ...(body.startDate             != null && { startDate:             new Date(body.startDate as string) }),
+        ...(body.endDate               != null && { endDate:               new Date(body.endDate   as string) }),
         ...(body.productionVolumeTonne != null && { productionVolumeTonne: body.productionVolumeTonne as number }),
-        ...(body.scope1DirectTco2      != null && { scope1DirectTco2: body.scope1DirectTco2 as number }),
-        ...(body.scope1AuditNote       != null && { scope1AuditNote:  body.scope1AuditNote  as string }),
-        ...(body.bandElectricityKwh    != null && { bandElectricityKwh:  body.bandElectricityKwh  as number }),
-        ...(body.bandRenewableKwh      != null && { bandRenewableKwh:    body.bandRenewableKwh    as number }),
-        ...(body.facilityTotalKwh      != null && { facilityTotalKwh:    body.facilityTotalKwh    as number }),
-        ...(body.facilityRenewableKwh  != null && { facilityRenewableKwh: body.facilityRenewableKwh as number }),
-        ...(body.productShareKwh       != null && { productShareKwh:     body.productShareKwh     as number }),
+        ...(body.scope1DirectTco2      != null && { scope1DirectTco2:      body.scope1DirectTco2 as number }),
+        ...(body.scope1AuditNote       != null && { scope1AuditNote:       body.scope1AuditNote  as string }),
+        ...(body.bandElectricityKwh    != null && { bandElectricityKwh:    body.bandElectricityKwh    as number }),
+        ...(body.bandRenewableKwh      != null && { bandRenewableKwh:      body.bandRenewableKwh      as number }),
+        ...(body.facilityTotalKwh      != null && { facilityTotalKwh:      body.facilityTotalKwh      as number }),
+        ...(body.facilityRenewableKwh  != null && { facilityRenewableKwh:  body.facilityRenewableKwh  as number }),
+        ...(body.productShareKwh       != null && { productShareKwh:       body.productShareKwh       as number }),
         ...(newSource != null && {
           renewableSource:   newSource,
           renewableSourceEf: renewableSourceEf,
         }),
-        ...(body.cbamDefaultEf  != null && { cbamDefaultEf: body.cbamDefaultEf  as number }),
-        ...(body.countryGridEf  != null && { countryGridEf: body.countryGridEf  as number }),
-        // Hesaplama sonuçlarını sıfırla (veri değişti)
+        ...(body.cbamDefaultEf != null && { cbamDefaultEf: body.cbamDefaultEf as number }),
+        ...(body.countryGridEf != null && { countryGridEf: body.countryGridEf as number }),
         calculatedAt: null,
       },
     });
@@ -292,13 +288,13 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ period: updated });
   });
 
-  // ── POST /installations/:installationId/products/:productId/periods/:periodId/calculate
-  app.post("/installations/:installationId/products/:productId/periods/:periodId/calculate", async (request, reply) => {
+  // ── POST /cbam/facilities/:facilityId/products/:productId/periods/:periodId/calculate
+  app.post("/cbam/facilities/:facilityId/products/:productId/periods/:periodId/calculate", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "analyst")) return;
 
     const { productId, periodId } = request.params as {
-      installationId: string; productId: string; periodId: string;
+      facilityId: string; productId: string; periodId: string;
     };
 
     const product = await prisma.cbamProduct.findFirst({
@@ -328,7 +324,7 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
 
     const updated = await prisma.cbamProductPeriod.update({
       where: { id: periodId },
-      data:  {
+      data: {
         allocatedElecKwh:      result.allocatedElecKwh,
         allocatedRenewKwh:     result.allocatedRenewKwh,
         matchedKwh:            result.matchedKwh,
@@ -352,31 +348,34 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
         action:     "CALCULATE",
         resource:   "CbamProductPeriod",
         resourceId: periodId,
-        payload:    { see: result.see, effectiveEf: result.effectiveEf, unmatchedEfSource: result.unmatchedEfSource },
+        payload:    {
+          see:               result.see,
+          effectiveEf:       result.effectiveEf,
+          unmatchedEfSource: result.unmatchedEfSource,
+        },
       },
     }).catch(() => {});
 
-    // Fire webhook for calculation.completed event
     dispatchWebhookEvent(request.tenantId, "calculation.completed", {
-      type:        "cbam_product_period",
+      type:              "cbam_product_period",
       periodId,
-      productId:   period.cbamProductId,
-      see:         result.see,
-      effectiveEf: result.effectiveEf,
+      productId:         period.cbamProductId,
+      see:               result.see,
+      effectiveEf:       result.effectiveEf,
       unmatchedEfSource: result.unmatchedEfSource,
-      calculatedAt: new Date().toISOString(),
+      calculatedAt:      new Date().toISOString(),
     }).catch(() => {});
 
     return reply.send({ period: updated, result });
   });
 
-  // ── DELETE /installations/:installationId/products/:productId/periods/:periodId
-  app.delete("/installations/:installationId/products/:productId/periods/:periodId", async (request, reply) => {
+  // ── DELETE /cbam/facilities/:facilityId/products/:productId/periods/:periodId
+  app.delete("/cbam/facilities/:facilityId/products/:productId/periods/:periodId", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     if (!await requireRole(request, reply, "analyst")) return;
 
     const { productId, periodId } = request.params as {
-      installationId: string; productId: string; periodId: string;
+      facilityId: string; productId: string; periodId: string;
     };
 
     const product = await prisma.cbamProduct.findFirst({
@@ -410,7 +409,7 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({
       renewableSources: Object.entries(RENEWABLE_SOURCE_EF).map(([key, ef]) => ({
         key,
-        label: RENEWABLE_SOURCE_LABELS[key] ?? key,
+        label:     RENEWABLE_SOURCE_LABELS[key] ?? key,
         efTco2Mwh: ef,
       })),
       cbamCountryEf: Object.entries(CBAM_COUNTRY_EF).map(([country, ef]) => ({
@@ -420,7 +419,7 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // ── GET /cbam/grid-ef?country=TR&year=2024 — ENTSO-E'den yıllık ortalama EF
+  // ── GET /cbam/grid-ef?country=TR&year=2024 ────────────────────────────────
   app.get("/cbam/grid-ef", async (request, reply) => {
     if (!request.tenantId) return reply.status(401).send({ error: "UNAUTHORIZED" });
     const { country, year } = request.query as { country?: string; year?: string };
@@ -440,15 +439,14 @@ export const cbamProductRoutes: FastifyPluginAsync = async (app) => {
     );
 
     const avgGco2kWh = result[0]?.avg_ef != null ? parseFloat(result[0].avg_ef) : null;
-    // ci_lifecycle gCO₂eq/kWh → tCO₂/MWh (* 0.001)
-    const efTco2Mwh = avgGco2kWh != null ? Math.round(avgGco2kWh * 0.001 * 10000) / 10000 : null;
+    const efTco2Mwh  = avgGco2kWh != null ? Math.round(avgGco2kWh * 0.001 * 10000) / 10000 : null;
 
     return reply.send({
       country,
-      year: yr,
+      year:    yr,
       efTco2Mwh,
       hasData: efTco2Mwh != null,
-      source: efTco2Mwh != null ? "ENTSO-E A75 (IPCC AR6 medyan)" : null,
+      source:  efTco2Mwh != null ? "ENTSO-E A75 (IPCC AR6 medyan)" : null,
     });
   });
 };

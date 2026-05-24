@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
-import type { CbamProduct, CbamProductPeriod, RenewableSource, CbamCountryEf, Period } from "../lib/api.js";
+import type { CbamProduct, CbamProductPeriod, RenewableSource, CbamCountryEf, Period, InstallationDetail } from "../lib/api.js";
 
 const S: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 980, margin: "0 auto", padding: "32px 28px" },
@@ -65,7 +65,7 @@ const EMPTY_PERIOD = {
 };
 
 export default function CbamProductPage() {
-  const { installationId, productId } = useParams<{ installationId: string; productId: string }>();
+  const { facilityId, productId } = useParams<{ facilityId: string; productId: string }>();
   const [product,         setProduct]         = useState<CbamProduct | null>(null);
   const [periods,         setPeriods]         = useState<CbamProductPeriod[]>([]);
   const [renewSources,    setRenewSources]    = useState<RenewableSource[]>([]);
@@ -86,31 +86,36 @@ export default function CbamProductPage() {
   const [gecFilling,      setGecFilling]      = useState(false);
 
   const load = useCallback(() => {
-    if (!installationId || !productId) return;
+    if (!facilityId || !productId) return;
     Promise.all([
-      api.cbamProducts.periods.list(installationId, productId),
+      api.cbamProducts.periods.list(facilityId, productId),
       api.cbamProducts.reference(),
     ]).then(([r, ref]) => {
       setProduct(r.product);
       setPeriods(r.periods);
       setRenewSources(ref.renewableSources);
       setCountryEfs(ref.cbamCountryEf);
-      // Load facility country + Annex IV default SEE
-      api.installations.get(r.product.installationId)
-        .then(inst => {
-          const country = inst.facilityCountry ?? "";
-          setFacilityCountry(country);
-          setGecPeriods(inst.periods ?? []);
-          const cn = r.product.cnCode;
-          if (cn && country) {
-            api.defaults.lookup(country, cn)
-              .then(d => setAnnexIvDefault({ total: d.totalDefault, direct: d.directDefault, indirect: d.indirectDefault }))
-              .catch(() => {});
-          }
-        })
-        .catch(() => {});
+
+      // Use facility country from embedded facility data
+      const country = r.product.facility?.facilityCountry ?? "";
+      setFacilityCountry(country);
+
+      const cn = r.product.cnCode;
+      if (cn && country) {
+        api.defaults.lookup(country, cn)
+          .then(d => setAnnexIvDefault({ total: d.totalDefault, direct: d.directDefault, indirect: d.indirectDefault }))
+          .catch(() => {});
+      }
+
+      // Optionally load GEC periods via linked installation
+      const linkedInstId = r.product.facility?.linkedInstallationId;
+      if (linkedInstId) {
+        api.installations.get(linkedInstId)
+          .then((inst: InstallationDetail) => setGecPeriods(inst.periods ?? []))
+          .catch(() => {});
+      }
     }).finally(() => setLoading(false));
-  }, [installationId, productId]);
+  }, [facilityId, productId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -153,27 +158,29 @@ export default function CbamProductPage() {
     setGridEfLoad(false);
   }
 
-  async function autoFillFromGecPeriod(periodId: string) {
-    if (!installationId) return;
-    const p = gecPeriods.find(gp => gp.id === periodId);
+  async function autoFillFromGecPeriod(gecPeriodId: string) {
+    const p = gecPeriods.find(gp => gp.id === gecPeriodId);
     if (!p) return;
+    const linkedInstId = product?.facility?.linkedInstallationId;
     setGecFilling(true);
-    setF("periodName",   p.periodName);
-    setF("startDate",    p.startDate.slice(0, 10));
-    setF("endDate",      p.endDate.slice(0, 10));
-    setF("reportYear",   String(p.reportYear));
+    setF("periodName",       p.periodName);
+    setF("startDate",        p.startDate.slice(0, 10));
+    setF("endDate",          p.endDate.slice(0, 10));
+    setF("reportYear",       String(p.reportYear));
     setF("facilityTotalKwh", String(p.electricityKwh));
-    try {
-      const cfe = await api.cfe.get(installationId, periodId);
-      setF("facilityRenewableKwh", String(Math.round(cfe.totalMatchedKwh)));
-    } catch {
-      // CFE verisi yok, yenilenebilir alanı boş bırak
+    if (linkedInstId) {
+      try {
+        const cfe = await api.cfe.get(linkedInstId, gecPeriodId);
+        setF("facilityRenewableKwh", String(Math.round(cfe.totalMatchedKwh)));
+      } catch {
+        // CFE verisi yok, yenilenebilir alanı boş bırak
+      }
     }
     setGecFilling(false);
   }
 
   async function savePeriod() {
-    if (!installationId || !productId) return;
+    if (!facilityId || !productId) return;
     setSaving(true); setError("");
     try {
       const body: Record<string, unknown> = {
@@ -198,9 +205,9 @@ export default function CbamProductPage() {
       if (form.countryGridEf) body.countryGridEf  = Number(form.countryGridEf);
 
       if (editingPeriodId) {
-        await api.cbamProducts.periods.update(installationId, productId, editingPeriodId, body);
+        await api.cbamProducts.periods.update(facilityId, productId, editingPeriodId, body);
       } else {
-        await api.cbamProducts.periods.create(installationId, productId, body);
+        await api.cbamProducts.periods.create(facilityId, productId, body);
       }
       setShowForm(false);
       setEditingPeriodId(null);
@@ -214,10 +221,10 @@ export default function CbamProductPage() {
   }
 
   async function calculate(periodId: string) {
-    if (!installationId || !productId) return;
+    if (!facilityId || !productId) return;
     setCalcId(periodId); setCalcLoading(true);
     try {
-      const r = await api.cbamProducts.periods.calculate(installationId, productId, periodId);
+      const r = await api.cbamProducts.periods.calculate(facilityId, productId, periodId);
       setPeriods(prev => prev.map(p => p.id === periodId ? r.period : p));
       setSelectedPeriod(r.period);
     } catch (e: unknown) {
@@ -228,10 +235,10 @@ export default function CbamProductPage() {
   }
 
   async function deletePeriod(periodId: string, periodName: string) {
-    if (!installationId || !productId) return;
+    if (!facilityId || !productId) return;
     if (!confirm(`"${periodName}" dönemini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) return;
     try {
-      await api.cbamProducts.periods.delete(installationId, productId, periodId);
+      await api.cbamProducts.periods.delete(facilityId, productId, periodId);
       setPeriods(prev => prev.filter(p => p.id !== periodId));
     } catch (e: unknown) {
       alert((e as Error)?.message ?? "Silme hatası");
@@ -245,7 +252,7 @@ export default function CbamProductPage() {
 
   return (
     <div style={S.page}>
-      <Link to={`/installations/${installationId}`} style={S.back}>← Tesise Dön</Link>
+      <Link to={`/cbam/facilities/${facilityId}`} style={S.back}>← Tesise Dön</Link>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>

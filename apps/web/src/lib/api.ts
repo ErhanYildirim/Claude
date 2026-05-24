@@ -238,28 +238,38 @@ export const api = {
     sectors: () => request<{ benchmarks: Record<string, BenchmarkRef> }>("GET", "/benchmark/sectors"),
   },
 
+  cbamFacilities: {
+    list:   () => request<{ facilities: CbamFacility[] }>("GET", "/cbam/facilities"),
+    get:    (id: string) => request<{ facility: CbamFacility }>("GET", `/cbam/facilities/${id}`),
+    create: (body: CreateCbamFacilityBody) =>
+      request<{ facility: CbamFacility }>("POST", "/cbam/facilities", body),
+    update: (id: string, body: Partial<CreateCbamFacilityBody>) =>
+      request<{ facility: CbamFacility }>("PATCH", `/cbam/facilities/${id}`, body),
+    delete: (id: string) => request<void>("DELETE", `/cbam/facilities/${id}`),
+  },
+
   cbamProducts: {
-    list:   (installationId: string) =>
-      request<{ products: CbamProduct[] }>("GET", `/installations/${installationId}/products`),
-    create: (installationId: string, body: Partial<CbamProduct>) =>
-      request<{ product: CbamProduct }>("POST", `/installations/${installationId}/products`, body),
-    update: (installationId: string, productId: string, body: Partial<CbamProduct>) =>
-      request<{ product: CbamProduct }>("PATCH", `/installations/${installationId}/products/${productId}`, body),
-    delete: (installationId: string, productId: string) =>
-      request<void>("DELETE", `/installations/${installationId}/products/${productId}`),
+    list:   (facilityId: string) =>
+      request<{ products: CbamProduct[] }>("GET", `/cbam/facilities/${facilityId}/products`),
+    create: (facilityId: string, body: Partial<CbamProduct>) =>
+      request<{ product: CbamProduct }>("POST", `/cbam/facilities/${facilityId}/products`, body),
+    update: (facilityId: string, productId: string, body: Partial<CbamProduct>) =>
+      request<{ product: CbamProduct }>("PATCH", `/cbam/facilities/${facilityId}/products/${productId}`, body),
+    delete: (facilityId: string, productId: string) =>
+      request<void>("DELETE", `/cbam/facilities/${facilityId}/products/${productId}`),
 
     periods: {
-      list:      (instId: string, productId: string) =>
-        request<{ product: CbamProduct; periods: CbamProductPeriod[] }>("GET", `/installations/${instId}/products/${productId}/periods`),
-      create:    (instId: string, productId: string, body: Record<string, unknown>) =>
-        request<{ period: CbamProductPeriod }>("POST", `/installations/${instId}/products/${productId}/periods`, body),
-      update:    (instId: string, productId: string, periodId: string, body: Record<string, unknown>) =>
-        request<{ period: CbamProductPeriod }>("PATCH", `/installations/${instId}/products/${productId}/periods/${periodId}`, body),
-      calculate: (instId: string, productId: string, periodId: string) =>
+      list:      (facilityId: string, productId: string) =>
+        request<{ product: CbamProduct; periods: CbamProductPeriod[] }>("GET", `/cbam/facilities/${facilityId}/products/${productId}/periods`),
+      create:    (facilityId: string, productId: string, body: Record<string, unknown>) =>
+        request<{ period: CbamProductPeriod }>("POST", `/cbam/facilities/${facilityId}/products/${productId}/periods`, body),
+      update:    (facilityId: string, productId: string, periodId: string, body: Record<string, unknown>) =>
+        request<{ period: CbamProductPeriod }>("PATCH", `/cbam/facilities/${facilityId}/products/${productId}/periods/${periodId}`, body),
+      calculate: (facilityId: string, productId: string, periodId: string) =>
         request<{ period: CbamProductPeriod; result: Record<string, unknown> }>(
-          "POST", `/installations/${instId}/products/${productId}/periods/${periodId}/calculate`),
-      delete: (instId: string, productId: string, periodId: string) =>
-        request<void>("DELETE", `/installations/${instId}/products/${productId}/periods/${periodId}`),
+          "POST", `/cbam/facilities/${facilityId}/products/${productId}/periods/${periodId}/calculate`),
+      delete: (facilityId: string, productId: string, periodId: string) =>
+        request<void>("DELETE", `/cbam/facilities/${facilityId}/products/${productId}/periods/${periodId}`),
     },
 
     reference: () => request<CbamReference>("GET", "/cbam/reference"),
@@ -531,13 +541,36 @@ export interface EmissionTargetProgress extends EmissionTargetEntry {
   facilityName:   string;
 }
 
-// ── CBAM Product types ────────────────────────────────────────────────────────
+// ── CBAM Facility + Product types ─────────────────────────────────────────────
+export interface CbamFacility {
+  id: string; tenantId: string;
+  facilityName: string; operator: string; facilityCountry: string;
+  sector: string; facilityRef: string | null;
+  unLoCode: string | null; cbamInstallationId: string | null;
+  linkedInstallationId: string | null;
+  createdAt: string; updatedAt: string;
+  products: CbamProduct[];
+}
+
+export interface CreateCbamFacilityBody {
+  facilityName:          string;
+  operator?:             string;
+  facilityCountry:       string;
+  sector?:               string;
+  facilityRef?:          string;
+  unLoCode?:             string;
+  cbamInstallationId?:   string;
+  linkedInstallationId?: string;
+}
+
 export interface CbamProduct {
-  id: string; tenantId: string; installationId: string;
+  id: string; tenantId: string; cbamFacilityId: string;
+  installationId: string | null;
   productName: string; cnCode: string | null; description: string | null;
   unit: string; isCbamScope: boolean; energyAllocationMode: "facility" | "band";
   createdAt: string; updatedAt: string;
   productPeriods: CbamProductPeriod[];
+  facility?: { facilityCountry: string; linkedInstallationId: string | null; facilityName: string };
 }
 
 export interface CbamProductPeriod {

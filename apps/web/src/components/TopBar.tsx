@@ -30,7 +30,8 @@ const PAGE_TITLES: Record<string, string> = {
 function getPageTitle(pathname: string): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   if (pathname.startsWith("/installations/") && pathname.includes("/periods/")) return "Dönem Detayı";
-  if (pathname.startsWith("/installations/") && pathname.includes("/products/")) return "Ürün Detayı";
+  if (pathname.startsWith("/cbam/facilities/") && pathname.includes("/products/")) return "CBAM Ürün Detayı";
+  if (pathname.startsWith("/cbam/facilities/")) return "CBAM Tesis Detayı";
   if (pathname.startsWith("/installations/")) return "Tesis Detayı";
   if (pathname.startsWith("/admin")) return "Admin Panel";
   return "Voltfox";

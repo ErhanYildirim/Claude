@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../lib/api.js";
 import type {
   Installation, InstallationDetail, Period, EmbeddedEmission, CFEResult,
-  CbamProduct, CbamProductPeriod, DefaultResult,
+  CbamFacility, CbamProduct, CbamProductPeriod, DefaultResult,
 } from "../lib/api.js";
 import { fmt, fmtEur } from "../lib/chart-utils.js";
 
@@ -200,25 +200,24 @@ interface ProductWithPeriod {
   annexIvDef: DefaultResult | null;
 }
 
-function ProductReport({ installations }: { installations: Installation[] }) {
-  const [selectedInstId, setSelectedInstId] = useState("");
-  const [selectedYear,   setSelectedYear]   = useState<number>(new Date().getFullYear() - 1);
-  const [rows,           setRows]           = useState<ProductWithPeriod[]>([]);
-  const [loading,        setLoading]        = useState(false);
-  const [instDetail,     setInstDetail]     = useState<Installation | null>(null);
-  const [batchCalc,      setBatchCalc]      = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
+function ProductReport({ facilities }: { facilities: CbamFacility[] }) {
+  const [selectedFacilityId, setSelectedFacilityId] = useState("");
+  const [selectedYear,       setSelectedYear]        = useState<number>(new Date().getFullYear() - 1);
+  const [rows,               setRows]                = useState<ProductWithPeriod[]>([]);
+  const [loading,            setLoading]             = useState(false);
+  const [facDetail,          setFacDetail]           = useState<CbamFacility | null>(null);
+  const [batchCalc,          setBatchCalc]           = useState<{ running: boolean; done: number; total: number }>({ running: false, done: 0, total: 0 });
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  async function loadRows(instId: string, year: number) {
-    if (!instId) { setRows([]); return; }
-    const inst = installations.find(i => i.id === instId) ?? null;
-    setInstDetail(inst);
+  async function loadRows(facilityId: string, year: number) {
+    if (!facilityId) { setRows([]); return; }
     setLoading(true);
     try {
-      const { products } = await api.cbamProducts.list(instId);
-      const country = inst?.facilityCountry ?? "";
-      const mapped: ProductWithPeriod[] = await Promise.all(products.map(async p => {
+      const { facility } = await api.cbamFacilities.get(facilityId);
+      setFacDetail(facility);
+      const country = facility.facilityCountry ?? "";
+      const mapped: ProductWithPeriod[] = await Promise.all(facility.products.map(async p => {
         const pp = p.productPeriods.find(x => x.reportYear === year) ?? null;
         let annexIvDef: DefaultResult | null = null;
         if (p.cnCode && country) {
@@ -234,9 +233,9 @@ function ProductReport({ installations }: { installations: Installation[] }) {
     }
   }
 
-  useEffect(() => { loadRows(selectedInstId, selectedYear); },
+  useEffect(() => { loadRows(selectedFacilityId, selectedYear); },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedInstId, selectedYear, installations]);
+    [selectedFacilityId, selectedYear]);
 
   async function batchCalculate() {
     const toCalc = rows.filter(r => r.period != null);
@@ -246,7 +245,7 @@ function ProductReport({ installations }: { installations: Installation[] }) {
       const { product: p, period: pp } = toCalc[i];
       if (!pp) continue;
       try {
-        const r = await api.cbamProducts.periods.calculate(selectedInstId, p.id, pp.id);
+        const r = await api.cbamProducts.periods.calculate(selectedFacilityId, p.id, pp.id);
         setRows(prev => prev.map(row =>
           row.product.id === p.id
             ? { ...row, period: r.period }
@@ -269,7 +268,7 @@ function ProductReport({ installations }: { installations: Installation[] }) {
     const payload = {
       regulation: "EU 2023/1773 Annex IV",
       generatedAt: new Date().toISOString(),
-      installation: instDetail?.facilityName,
+      installation: facDetail?.facilityName,
       reportYear: selectedYear,
       products: rows.map(r => ({
         productName:          r.product.productName,
@@ -283,7 +282,7 @@ function ProductReport({ installations }: { installations: Installation[] }) {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = `cbam-technical-file-${selectedInstId}-${selectedYear}.json`; a.click();
+    a.href = url; a.download = `cbam-technical-file-${selectedFacilityId}-${selectedYear}.json`; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -294,7 +293,7 @@ function ProductReport({ installations }: { installations: Installation[] }) {
       `<CBAMTechnicalFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" regulation="EU 2023/1773 Annex IV">`,
       `  <GeneratedAt>${new Date().toISOString()}</GeneratedAt>`,
       `  <ReportYear>${selectedYear}</ReportYear>`,
-      `  <Installation>${esc(instDetail?.facilityName)}</Installation>`,
+      `  <Installation>${esc(facDetail?.facilityName)}</Installation>`,
       `  <Products>`,
     ];
     for (const { product: p, period: pp } of rows) {
@@ -333,7 +332,7 @@ function ProductReport({ installations }: { installations: Installation[] }) {
     const blob = new Blob([lines.join("\n")], { type: "application/xml" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = `cbam-technical-file-${selectedInstId}-${selectedYear}.xml`; a.click();
+    a.href = url; a.download = `cbam-technical-file-${selectedFacilityId}-${selectedYear}.xml`; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -341,10 +340,10 @@ function ProductReport({ installations }: { installations: Installation[] }) {
     <>
       <div style={s.selRow}>
         <div>
-          <div style={s.selL}>Tesis</div>
-          <select style={s.sel} value={selectedInstId} onChange={e => setSelectedInstId(e.target.value)}>
-            <option value="">— Tesis Seçin —</option>
-            {installations.map(i => <option key={i.id} value={i.id}>{i.facilityName}</option>)}
+          <div style={s.selL}>CBAM Tesis</div>
+          <select style={s.sel} value={selectedFacilityId} onChange={e => setSelectedFacilityId(e.target.value)}>
+            <option value="">— CBAM Tesis Seçin —</option>
+            {facilities.map(f => <option key={f.id} value={f.id}>{f.facilityName} ({f.facilityCountry})</option>)}
           </select>
         </div>
         <div>
@@ -378,12 +377,12 @@ function ProductReport({ installations }: { installations: Installation[] }) {
 
       {loading && <div style={{ color: "#5c7a72", fontSize: 14 }}>Yükleniyor...</div>}
 
-      {!selectedInstId && !loading && (
-        <div style={s.noData}>Teknik dosya oluşturmak için bir tesis seçin.</div>
+      {!selectedFacilityId && !loading && (
+        <div style={s.noData}>Teknik dosya oluşturmak için bir CBAM tesisi seçin.</div>
       )}
 
-      {selectedInstId && !loading && rows.length === 0 && (
-        <div style={s.warn}>Bu tesis için henüz CBAM ürünü tanımlanmamış. Tesis detayından ürün ekleyin.</div>
+      {selectedFacilityId && !loading && rows.length === 0 && (
+        <div style={s.warn}>Bu CBAM tesisi için henüz ürün tanımlanmamış. CBAM modülünden ürün ekleyin.</div>
       )}
 
       {rows.length > 0 && !loading && (
@@ -391,7 +390,7 @@ function ProductReport({ installations }: { installations: Installation[] }) {
           {calculated.length > 0 && (
             <div style={s.summary}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#065f46" }}>
-                {selectedYear} Yılı Özet — {instDetail?.facilityName}
+                {selectedYear} Yılı Özet — {facDetail?.facilityName}
               </div>
               <div style={s.sumGrid}>
                 <div style={s.sumKpi}>
@@ -517,11 +516,13 @@ function ProductReport({ installations }: { installations: Installation[] }) {
 
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
 export default function CbamReportPage() {
-  const [tab, setTab]                     = useState<"period" | "product">("product");
+  const [tab,           setTab]           = useState<"period" | "product">("product");
   const [installations, setInstallations] = useState<Installation[]>([]);
+  const [facilities,    setFacilities]    = useState<CbamFacility[]>([]);
 
   useEffect(() => {
     api.installations.list().then(setInstallations).catch(() => {});
+    api.cbamFacilities.list().then(r => setFacilities(r.facilities)).catch(() => {});
   }, []);
 
   return (
@@ -539,7 +540,7 @@ export default function CbamReportPage() {
       </div>
 
       {tab === "product"
-        ? <ProductReport installations={installations} />
+        ? <ProductReport facilities={facilities} />
         : <PeriodReport  installations={installations} />}
     </div>
   );

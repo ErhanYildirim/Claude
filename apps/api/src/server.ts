@@ -79,6 +79,7 @@ import { emissionTargetsRoutes } from "./routes/emission-targets.js";
 import { periodImportRoutes }   from "./routes/period-import.js";
 import { benchmarkRoutes }      from "./routes/benchmark.js";
 import { cbamProductRoutes }    from "./routes/cbam-products.js";
+import { cbamFacilitiesRoutes } from "./routes/cbam-facilities.js";
 import cron from "node-cron";
 
 const MB = 1024 * 1024;
@@ -197,6 +198,7 @@ await app.register(carbonPricesRoutes,    { prefix: v1 });
 await app.register(emissionTargetsRoutes, { prefix: v1 });
 await app.register(periodImportRoutes,    { prefix: v1 });
 await app.register(benchmarkRoutes,       { prefix: v1 });
+await app.register(cbamFacilitiesRoutes,  { prefix: v1 });
 await app.register(cbamProductRoutes,     { prefix: v1 });
 
 // Health check — kamuya açık, detaylı DB + uygulama durumu

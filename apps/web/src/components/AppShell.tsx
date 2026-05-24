@@ -46,13 +46,45 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 function isActive(path: string, pathname: string): boolean {
-  if (path === "/cbam") return pathname === "/cbam" || pathname.startsWith("/installations");
+  if (path === "/cbam") return pathname === "/cbam" || pathname.startsWith("/cbam/");
   if (path === "/gec")  return pathname === "/gec";
   return pathname === path || pathname.startsWith(path + "/");
 }
 
+/* ── Secondary nav definitions ──────────────────────────────────────────── */
+interface SubNavTab { label: string; path: string; exact?: boolean; }
+interface SubNavConfig { prefix: string; tabs: SubNavTab[]; }
+
+const SUBNAVS: SubNavConfig[] = [
+  {
+    prefix: "/cfe",
+    tabs: [
+      { label: "Portföy",     path: "/cfe",              exact: true },
+      { label: "Eşleştirme", path: "/cfe/matching" },
+      { label: "Veri Girişi", path: "/cfe/data-entry" },
+      { label: "Sertifikalar", path: "/cfe/certificates" },
+    ],
+  },
+  {
+    prefix: "/ef-data",
+    tabs: [
+      { label: "Dashboard",     path: "/ef-data",          exact: true },
+      { label: "Zone Tarayıcı", path: "/ef-data/zones" },
+      { label: "Kapsam",        path: "/ef-data/coverage" },
+      { label: "API Docs",      path: "/ef-data/api" },
+    ],
+  },
+];
+
+function isTabActive(tab: SubNavTab, pathname: string) {
+  return tab.exact
+    ? pathname === tab.path
+    : pathname === tab.path || pathname.startsWith(tab.path + "/");
+}
+
 const SIDEBAR_W = 240;
 const TOPBAR_H  = 56;
+const SUBNAV_H  = 44;
 const MOBILE_BP = 768;
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -71,6 +103,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => { setSideOpen(false); }, [location.pathname]);
 
   const sidebarBg = isDark ? "#080f0e" : "#0a1f1a";
+  const subnavConfig = SUBNAVS.find(s =>
+    location.pathname === s.prefix || location.pathname.startsWith(s.prefix + "/")
+  );
+  const hasSubnav = !!subnavConfig;
+  const contentTop = TOPBAR_H + (hasSubnav ? SUBNAV_H : 0);
+
+  const subnavBg     = isDark ? "var(--bg-card,#162820)" : "#ffffff";
+  const subnavBorder = isDark ? "rgba(255,255,255,.07)" : "#e5efea";
 
   const sidebarStyle: React.CSSProperties = {
     position: "fixed",
@@ -111,49 +151,81 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-      {/* Mobile backdrop — below TopBar (z:200), above sidebar (z:180) */}
+      {/* Mobile backdrop */}
       {mobile && sideOpen && (
         <div
           onClick={() => setSideOpen(false)}
           style={{
-            position: "fixed",
-            top: TOPBAR_H,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,.5)",
-            zIndex: 170,
-            backdropFilter: "blur(2px)",
+            position: "fixed", top: TOPBAR_H, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,.5)", zIndex: 170, backdropFilter: "blur(2px)",
           }}
         />
       )}
 
       {/* Top bar */}
-      <TopBar
-        onMenuToggle={() => setSideOpen(v => !v)}
-        mobile={mobile}
-      />
+      <TopBar onMenuToggle={() => setSideOpen(v => !v)} mobile={mobile} />
+
+      {/* Secondary nav bar */}
+      {subnavConfig && (
+        <div style={{
+          position: "fixed",
+          top: TOPBAR_H,
+          left: mobile ? 0 : SIDEBAR_W,
+          right: 0,
+          height: SUBNAV_H,
+          background: subnavBg,
+          borderBottom: `1px solid ${subnavBorder}`,
+          display: "flex",
+          alignItems: "stretch",
+          padding: "0 16px",
+          gap: 2,
+          zIndex: 150,
+          overflowX: "auto",
+          boxShadow: isDark ? "none" : "0 1px 4px rgba(10,31,26,.05)",
+        }}>
+          {subnavConfig.tabs.map(tab => {
+            const active = isTabActive(tab, location.pathname);
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 14px",
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? "#00b87a" : (isDark ? "rgba(255,255,255,.5)" : "#5c7a72"),
+                  textDecoration: "none",
+                  borderBottom: active ? "2px solid #00b87a" : "2px solid transparent",
+                  transition: "color .15s, border-color .15s",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={e => {
+                  if (!active) (e.currentTarget as HTMLElement).style.color = isDark ? "rgba(255,255,255,.8)" : "#0a1f1a";
+                }}
+                onMouseLeave={e => {
+                  if (!active) (e.currentTarget as HTMLElement).style.color = isDark ? "rgba(255,255,255,.5)" : "#5c7a72";
+                }}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {/* Sidebar */}
       <aside style={sidebarStyle}>
         {/* Logo */}
-        <div style={{
-          padding: "18px 16px 14px",
-          borderBottom: "1px solid rgba(255,255,255,.06)",
-        }}>
+        <div style={{ padding: "18px 16px 14px", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
+              width: 30, height: 30, borderRadius: 8,
               background: "linear-gradient(135deg,#00b87a,#009966)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-              fontWeight: 900,
-              color: "#fff",
-              flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 14, fontWeight: 900, color: "#fff", flexShrink: 0,
             }}>V</div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: "#fff", letterSpacing: "-.01em" }}>Voltfox</div>
@@ -167,12 +239,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {NAV_GROUPS.map(group => (
             <div key={group.title}>
               <div style={{
-                fontSize: 10,
-                color: "rgba(255,255,255,.25)",
-                textTransform: "uppercase",
-                letterSpacing: ".09em",
-                padding: "14px 12px 4px",
-                fontWeight: 700,
+                fontSize: 10, color: "rgba(255,255,255,.25)", textTransform: "uppercase",
+                letterSpacing: ".09em", padding: "14px 12px 4px", fontWeight: 700,
               }}>
                 {group.title}
               </div>
@@ -205,14 +273,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        {/* Sidebar bottom — Ayarlar */}
+        {/* Bottom — Ayarlar */}
         <div style={{ padding: "10px 10px 16px", borderTop: "1px solid rgba(255,255,255,.06)" }}>
           <Link
             to="/settings"
-            style={{
-              ...itemBase,
-              ...(isActive("/settings", location.pathname) ? itemActive : {}),
-            }}
+            style={{ ...itemBase, ...(isActive("/settings", location.pathname) ? itemActive : {}) }}
             onMouseEnter={e => {
               if (!isActive("/settings", location.pathname)) {
                 (e.currentTarget as HTMLElement).style.background = "rgba(0,184,122,.1)";
@@ -235,8 +300,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {/* Main content */}
       <main style={{
         marginLeft: mobile ? 0 : SIDEBAR_W,
-        marginTop: TOPBAR_H,
-        minHeight: `calc(100vh - ${TOPBAR_H}px)`,
+        marginTop: contentTop,
+        minHeight: `calc(100vh - ${contentTop}px)`,
         background: "var(--bg, #f4fbf8)",
         color: "var(--text, #0a1f1a)",
         transition: "background .2s, color .2s",

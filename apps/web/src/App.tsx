@@ -15,6 +15,9 @@ const DashboardPage          = lazy(() => import("./pages/DashboardPage.js"));
 const GecPage                = lazy(() => import("./pages/GecPage.js"));
 const CbamPage               = lazy(() => import("./pages/CbamPage.js"));
 const CfePage                = lazy(() => import("./pages/CfePage.js"));
+const CfeMatchingPage        = lazy(() => import("./pages/CfeMatchingPage.js"));
+const CfeDataEntryPage       = lazy(() => import("./pages/CfeDataEntryPage.js"));
+const CfeCertificatesPage    = lazy(() => import("./pages/CfeCertificatesPage.js"));
 const EfDataPage             = lazy(() => import("./pages/EfDataPage.js"));
 const CbamReportPage         = lazy(() => import("./pages/CbamReportPage.js"));
 const CdpReportPage          = lazy(() => import("./pages/CdpReportPage.js"));
@@ -33,6 +36,9 @@ const BenchmarkPage          = lazy(() => import("./pages/BenchmarkPage.js"));
 const CsrdReportPage         = lazy(() => import("./pages/CsrdReportPage.js"));
 const CbamFacilityPage       = lazy(() => import("./pages/CbamFacilityPage.js"));
 const CbamProductPage        = lazy(() => import("./pages/CbamProductPage.js"));
+const EfZonesPage            = lazy(() => import("./pages/EfZonesPage.js"));
+const EfCoveragePage         = lazy(() => import("./pages/EfCoveragePage.js"));
+const EfApiPage              = lazy(() => import("./pages/EfApiPage.js"));
 
 // Admin pages (super-admin only)
 const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
@@ -133,7 +139,13 @@ function AppRouter() {
           <Route path="/dashboard"                                         element={<DashboardPage />} />
           <Route path="/cbam"                                              element={<CbamPage />} />
           <Route path="/cfe"                                               element={<CfePage />} />
+          <Route path="/cfe/matching"                                      element={<CfeMatchingPage />} />
+          <Route path="/cfe/data-entry"                                    element={<CfeDataEntryPage />} />
+          <Route path="/cfe/certificates"                                  element={<CfeCertificatesPage />} />
           <Route path="/ef-data"                                           element={<EfDataPage />} />
+          <Route path="/ef-data/zones"                                     element={<EfZonesPage />} />
+          <Route path="/ef-data/coverage"                                  element={<EfCoveragePage />} />
+          <Route path="/ef-data/api"                                       element={<EfApiPage />} />
           <Route path="/reports/cbam"                                      element={<CbamReportPage />} />
           <Route path="/reports/cdp"                                       element={<CdpReportPage />} />
           <Route path="/reports/iso14064"                                  element={<Iso14064Page />} />

@@ -9,9 +9,7 @@ import GlobalSearch from "./GlobalSearch.js";
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard":        "Dashboard",
   "/gec":              "Granüler Hesaplama",
-  "/cfe":              "24/7 CFE Matching",
   "/cbam":             "CBAM Emissions",
-  "/ef-data":          "EF Veri Servisi",
   "/reports/cbam":     "CBAM Teknik Dosya",
   "/reports/cdp":      "CDP Raporu",
   "/reports/iso14064": "ISO 14064",
@@ -28,6 +26,8 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 function getPageTitle(pathname: string): string {
+  if (pathname.startsWith("/cfe")) return "24/7 CFE Matching";
+  if (pathname.startsWith("/ef-data")) return "EF Veri Servisi";
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   if (pathname.startsWith("/installations/") && pathname.includes("/periods/")) return "Dönem Detayı";
   if (pathname.startsWith("/cbam/facilities/") && pathname.includes("/products/")) return "CBAM Ürün Detayı";

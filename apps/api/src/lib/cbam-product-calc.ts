@@ -11,7 +11,12 @@
  *   - "facility": yenilenebilir üretim tesis geneline aittir; her ürüne tüketim
  *                 payıyla orantılı dağıtılır.
  *   - "band"    : her üretim bandı kendi sayacına sahiptir; doğrudan atanır.
+ *
+ * Scope 1 entegrasyonu: calculateCbamScope1 motoru scope1Inputs üzerinden çağrılır.
+ * Ham scope1DirectTco2 değeri hâlâ kabul edilir (legacy / harici doğrulama durumları).
  */
+
+import { calculateCbamScope1, type Scope1Input } from "./cbam-scope1-calc.js";
 
 // ── Yenilenebilir kaynak EF'leri (tCO₂/MWh) — IPCC AR6 medyan ─────────────
 export const RENEWABLE_SOURCE_EF: Record<string, number> = {
@@ -34,8 +39,15 @@ export const RENEWABLE_SOURCE_LABELS: Record<string, string> = {
   geothermal:    "Jeotermal",
 };
 
-// ── CBAM Annex IV ülke elektrik EF'leri (tCO₂/MWh) — 2021 referans ─────────
-// Kaynak: Komisyon Delegated Regulation 2023/1773, Annex IV Table 2
+// ── CBAM Annex IV ülke elektrik EF'leri (tCO₂/MWh) ─────────────────────────
+// Kaynak: Komisyon Uygulama Tüzüğü (EU) 2023/1773, Ek IV Tablo 2
+// Bu değerler CBAM Dolaylı Emisyon bildirimi için resmi düzenleyici referanstır.
+// 2026 Q2 itibarıyla resmi bir Ek IV güncelleme tüzüğü yayımlanmamıştır; bu değerler günceldir.
+//
+// Not: Cbam_hesaplama/cbam-defaults.json ürün bazlı gömülü emisyon varsayılanlarını
+// (tCO₂/tonne, CN kodu × ülke) içerir ve elektrik EF tablosuyla karşılaştırılamaz.
+// cbam-engine.js GRID_EF_TABLE ulusal TSO 2023 ölçüm verileri içerir ve yalnızca
+// GEC/CFE hesaplamalarında kullanılır; CBAM beyan EF'i bu tablo değildir.
 export const CBAM_COUNTRY_EF: Record<string, number> = {
   TR: 0.4943,  // Türkiye
   DE: 0.3660,  // Almanya
@@ -99,8 +111,9 @@ export interface CbamCalcInput {
   cbamDefaultEf?: number;  // CBAM Annex IV elektrik EF (tCO₂/MWh)
   countryGridEf?: number;  // Ülke yıllık ızgara EF (tCO₂/MWh)
 
-  // Emisyonlar
-  scope1DirectTco2: number;
+  // Emisyonlar — ya scope1DirectTco2 ya da scope1Inputs girilmeli
+  scope1DirectTco2: number;     // doğrudan ham değer (scope1Inputs varsa bu override edilir)
+  scope1Inputs?: Scope1Input;   // varsa calculateCbamScope1 ile hesaplanır; audit trail üretilir
   productionVolumeTonne: number;
 }
 
@@ -133,9 +146,14 @@ export function calculateCbamProductEmission(input: CbamCalcInput): CbamCalcResu
     renewableSourceEf: overrideEf,
     cbamDefaultEf = 0,
     countryGridEf = 0,
-    scope1DirectTco2,
+    scope1Inputs,
     productionVolumeTonne,
   } = input;
+
+  // Scope 1: motor üzerinden hesapla ya da ham değeri kullan
+  const scope1DirectTco2 = scope1Inputs
+    ? calculateCbamScope1(scope1Inputs).directTco2
+    : input.scope1DirectTco2;
 
   // 1. Ürüne atanan elektrik ve yenilenebilir miktarını belirle ───────────────
   let allocatedElecKwh: number;

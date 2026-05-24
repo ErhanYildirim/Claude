@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
-import type { EntsoeZone, EntsoeImportLog } from "../../lib/api.js";
+import type { EntsoeZone, EntsoeImportLog, EFImportStatus } from "../../lib/api.js";
 
 interface EfZone {
   zoneCode:  string;
@@ -10,11 +10,13 @@ interface EfZone {
 }
 
 function badgeStyle(status: string): React.CSSProperties {
-  return {
-    display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 700,
-    background: status === "ok" ? "#d1fae5" : status === "error" ? "#fee2e2" : "#fef3c7",
-    color:      status === "ok" ? "#065f46" : status === "error" ? "#991b1b" : "#92400e",
+  const map: Record<string, { bg: string; color: string }> = {
+    ok:    { bg: "#d1fae5", color: "#065f46" },
+    error: { bg: "#fee2e2", color: "#991b1b" },
+    warn:  { bg: "#fef3c7", color: "#92400e" },
   };
+  const { bg, color } = map[status] ?? map.warn;
+  return { display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 700, background: bg, color };
 }
 
 const S: Record<string, React.CSSProperties> = {
@@ -41,7 +43,7 @@ const S: Record<string, React.CSSProperties> = {
 };
 
 export default function AdminEfDataPage() {
-  const [tab, setTab] = useState<"zones" | "entso-e">("zones");
+  const [tab, setTab] = useState<"zones" | "coverage" | "entso-e">("zones");
 
   // Zone list
   const [zones,     setZones]    = useState<EfZone[]>([]);
@@ -49,6 +51,13 @@ export default function AdminEfDataPage() {
   const [loading,   setLoading]  = useState(true);
   const [importing, setImporting] = useState(false);
   const [zoneMsg,   setZoneMsg]  = useState<string | null>(null);
+
+  // Kapsam Durumu
+  const [importStatus,   setImportStatus]   = useState<EFImportStatus | null>(null);
+  const [coverageZones,  setCoverageZones]  = useState<{ zoneCode: string; country: string; updatedAt: string | null }[]>([]);
+  const [coverageLoading, setCoverageLoading] = useState(false);
+  const [triggeringImport, setTriggeringImport] = useState(false);
+  const [importMsg,      setImportMsg]      = useState<string | null>(null);
 
   // ENTSO-E
   const [entsoZones, setEntsoZones] = useState<EntsoeZone[]>([]);
@@ -79,6 +88,17 @@ export default function AdminEfDataPage() {
     }
   }
 
+  function loadCoverage() {
+    setCoverageLoading(true);
+    Promise.all([
+      api.ef.importStatus().catch((): EFImportStatus | null => null),
+      api.admin.ef.zones("").catch(() => ({ zones: [], count: 0 })),
+    ]).then(([status, zonesRes]) => {
+      if (status) setImportStatus(status);
+      setCoverageZones(zonesRes.zones);
+    }).finally(() => setCoverageLoading(false));
+  }
+
   function loadEntsoData() {
     api.admin.entso_e.zones().then(r => setEntsoZones(r.zones)).catch(() => {});
     setLogsLoading(true);
@@ -86,7 +106,11 @@ export default function AdminEfDataPage() {
   }
 
   useEffect(() => { loadZones(); }, []);
-  useEffect(() => { if (tab === "entso-e") loadEntsoData(); }, [tab]);
+  useEffect(() => {
+    if (tab === "coverage") loadCoverage();
+    if (tab === "entso-e")  loadEntsoData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   async function triggerLegacyImport() {
     setImporting(true); setZoneMsg(null);
@@ -95,6 +119,16 @@ export default function AdminEfDataPage() {
       setZoneMsg("EF import arka planda başlatıldı. Birkaç dakika sürebilir.");
     } catch { setZoneMsg("Import başlatılamadı."); }
     finally { setImporting(false); }
+  }
+
+  async function triggerCoverageImport() {
+    setTriggeringImport(true); setImportMsg(null);
+    try {
+      await api.admin.ef.triggerImport();
+      setImportMsg("Import başlatıldı. Birkaç dakika sonra kapsam güncellenir.");
+      setTimeout(() => loadCoverage(), 5000);
+    } catch { setImportMsg("Import tetiklenemedi."); }
+    finally { setTriggeringImport(false); }
   }
 
   async function triggerEntsoeImport() {
@@ -137,6 +171,7 @@ export default function AdminEfDataPage() {
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 0, borderBottom: "1px solid #e5e7eb" }}>
         <button style={tabStyle("zones")}    onClick={() => setTab("zones")}>Zone Listesi</button>
+        <button style={tabStyle("coverage")} onClick={() => setTab("coverage")}>Kapsam & İzleme</button>
         <button style={tabStyle("entso-e")}  onClick={() => setTab("entso-e")}>ENTSO-E Import</button>
       </div>
 
@@ -202,6 +237,189 @@ export default function AdminEfDataPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Kapsam & İzleme Tab ───────────────────────────────────────── */}
+      {tab === "coverage" && (
+        <div style={{ paddingTop: 20 }}>
+          {coverageLoading && <div style={{ color: "#6b7280", marginBottom: 16 }}>Yükleniyor…</div>}
+
+          {/* Stale zone uyarısı */}
+          {(() => {
+            const staleThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            const staleZones = coverageZones.filter(z =>
+              !z.updatedAt || new Date(z.updatedAt) < staleThreshold
+            );
+            if (staleZones.length === 0) return null;
+            return (
+              <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 8,
+                            padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center",
+                            justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: "#991b1b", fontSize: 14 }}>
+                    ⚠ {staleZones.length} zone'da son 30 günde veri yok
+                  </div>
+                  <div style={{ fontSize: 12, color: "#b91c1c", marginTop: 3 }}>
+                    {staleZones.slice(0, 8).map(z => z.zoneCode).join(", ")}
+                    {staleZones.length > 8 ? ` +${staleZones.length - 8} daha` : ""}
+                  </div>
+                </div>
+                <button
+                  style={{ ...S.btn, background: "#dc2626", ...(triggeringImport ? S.btnDis : {}) }}
+                  disabled={triggeringImport}
+                  onClick={triggerCoverageImport}
+                >
+                  {triggeringImport ? "Başlatılıyor…" : "Import Tetikle"}
+                </button>
+              </div>
+            );
+          })()}
+
+          {importMsg && (
+            <div style={{ ...S.msg, background: "#d1fae5", color: "#065f46", marginBottom: 16 }}>{importMsg}</div>
+          )}
+
+          {/* Import Durumu */}
+          <div style={S.card}>
+            <div style={S.cardH}>
+              <span style={S.cardT}>Son Import Durumu</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={{ ...S.btnSm }} onClick={loadCoverage} disabled={coverageLoading}>
+                  {coverageLoading ? "…" : "Yenile"}
+                </button>
+                <button
+                  style={{ ...S.btn, ...(triggeringImport ? S.btnDis : {}) }}
+                  disabled={triggeringImport}
+                  onClick={triggerCoverageImport}
+                >
+                  {triggeringImport ? "Başlatılıyor…" : "Manuel Import Tetikle"}
+                </button>
+              </div>
+            </div>
+            <div style={S.cardB}>
+              {importStatus ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                  {[
+                    {
+                      label: "Son Çalışma",
+                      value: importStatus.lastImport
+                        ? (importStatus.lastImport.status === "ok" ? "✓ Başarılı" : "✗ Hata")
+                        : "Henüz çalışmadı",
+                      color: importStatus.lastImport?.status === "ok" ? "#059669" : "#dc2626",
+                    },
+                    {
+                      label: "Tarih",
+                      value: importStatus.lastImport
+                        ? new Date(importStatus.lastImport.createdAt).toLocaleString("tr-TR")
+                        : "—",
+                      color: "#111827",
+                    },
+                    {
+                      label: "Eklenen Satır",
+                      value: importStatus.lastImport?.rowsAdded != null
+                        ? importStatus.lastImport.rowsAdded.toLocaleString()
+                        : "—",
+                      color: "#111827",
+                    },
+                    {
+                      label: "Toplam Veri",
+                      value: importStatus.totalRows > 0
+                        ? `${(importStatus.totalRows / 1_000_000).toFixed(1)}M`
+                        : "—",
+                      color: "#111827",
+                    },
+                  ].map(item => (
+                    <div key={item.label} style={{ background: "#f9fafb", borderRadius: 8, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 4,
+                                    textTransform: "uppercase", letterSpacing: ".05em" }}>{item.label}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: item.color }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: "#9ca3af", fontSize: 13 }}>
+                  {coverageLoading ? "Yükleniyor…" : "Import durumu alınamadı"}
+                </div>
+              )}
+              {importStatus?.lastImport?.message && (
+                <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280", fontStyle: "italic" }}>
+                  {importStatus.lastImport.message}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Zone Kapsam Tablosu */}
+          <div style={S.card}>
+            <div style={S.cardH}>
+              <span style={S.cardT}>Zone Veri Tazeliği</span>
+            </div>
+            <div style={{ overflowX: "auto" as const }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                    <th style={{ textAlign: "left", padding: "9px 14px", color: "#374151", fontWeight: 600 }}>Zone</th>
+                    <th style={{ textAlign: "left", padding: "9px 14px", color: "#374151", fontWeight: 600 }}>Ülke</th>
+                    <th style={{ textAlign: "left", padding: "9px 14px", color: "#374151", fontWeight: 600 }}>Son Veri</th>
+                    <th style={{ textAlign: "left", padding: "9px 14px", color: "#374151", fontWeight: 600 }}>Durum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverageZones.map(z => {
+                    const staleThreshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                    const isStale = !z.updatedAt || new Date(z.updatedAt) < staleThreshold;
+                    const isVeryStale = !z.updatedAt || new Date(z.updatedAt) < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+                    return (
+                      <tr key={z.zoneCode} style={{ borderBottom: "1px solid #f3f4f6",
+                                                     background: isVeryStale ? "#fff8f8" : isStale ? "#fffbeb" : "transparent" }}>
+                        <td style={{ padding: "9px 14px", fontFamily: "monospace", fontWeight: 600, color: "#1d4ed8" }}>{z.zoneCode}</td>
+                        <td style={{ padding: "9px 14px", color: "#374151" }}>{z.country}</td>
+                        <td style={{ padding: "9px 14px", fontSize: 12, color: "#6b7280" }}>
+                          {z.updatedAt ? new Date(z.updatedAt).toLocaleString("tr-TR") : "—"}
+                        </td>
+                        <td style={{ padding: "9px 14px" }}>
+                          {!z.updatedAt ? (
+                            <span style={badgeStyle("error")}>Veri Yok</span>
+                          ) : isVeryStale ? (
+                            <span style={badgeStyle("error")}>90+ Gün</span>
+                          ) : isStale ? (
+                            <span style={badgeStyle("warn")}>30+ Gün</span>
+                          ) : (
+                            <span style={badgeStyle("ok")}>Güncel</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {coverageZones.length === 0 && !coverageLoading && (
+                    <tr><td colSpan={4} style={{ padding: 24, textAlign: "center", color: "#9ca3af" }}>
+                      Zone verisi bulunamadı. ENTSO-E import sekmesinden veri ekleyin.
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* CLI Komutu */}
+          <div style={S.card}>
+            <div style={S.cardH}><span style={S.cardT}>Manuel Import (CLI)</span></div>
+            <div style={S.cardB}>
+              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+                Belirli bir yıl veya zone için CLI üzerinden import:
+              </div>
+              <pre style={{ background: "#0f172a", color: "#86efac", borderRadius: 8,
+                            padding: "12px 16px", fontSize: 12, fontFamily: "monospace",
+                            overflowX: "auto", lineHeight: 1.6, margin: 0 }}>
+{`npx tsx scripts/import-ef-year.ts --year=2025
+# Belirli zone'lar için:
+npx tsx scripts/import-ef-year.ts --year=2025 --zone=TR,DE,FR
+# Devam etmek için (hata sonrası):
+npx tsx scripts/import-ef-year.ts --year=2025 --resume=10`}
+              </pre>
+            </div>
+          </div>
         </div>
       )}
 

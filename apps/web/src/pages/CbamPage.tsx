@@ -158,7 +158,17 @@ export default function CbamPage() {
   return (
     <>
       <div style={s.page}>
-        <div style={s.h1}>CBAM Tesisleri</div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
+          <div style={s.h1}>CBAM Tesisleri</div>
+          <Link
+            to="/cbam/wizard"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#00b87a",
+                     color: "#fff", borderRadius: 8, padding: "9px 18px", fontSize: 14, fontWeight: 700,
+                     textDecoration: "none", flexShrink: 0 }}
+          >
+            🧮 Hesap Sihirbazı
+          </Link>
+        </div>
         <div style={s.sub}>
           CBAM kapsamındaki üretim tesisleri ve ürün emisyon hesapları — diğer modüllerden tamamen izole
         </div>

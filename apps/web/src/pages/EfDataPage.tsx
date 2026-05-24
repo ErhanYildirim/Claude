@@ -4,35 +4,8 @@ import {
   LineChart, Line, Legend,
 } from "recharts";
 import { api } from "../lib/api.js";
+import { useTheme } from "../contexts/ThemeContext.js";
 import type { EFZoneEntry, EFZoneSummary, EFMonthlyPoint, EFCoverageData, EFImportStatus } from "../lib/api.js";
-
-/* ── Styles ──────────────────────────────────────────────────────────────── */
-const s: Record<string, React.CSSProperties> = {
-  page:    { maxWidth: 1200, margin: "0 auto", padding: "32px 28px" },
-  h1:      { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
-  sub:     { fontSize: 14, color: "#5c7a72", marginBottom: 24 },
-  grid:    { display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" },
-  card:    { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "20px", marginBottom: 16 },
-  cardH:   { fontSize: 11, fontWeight: 700, color: "#5c7a72", marginBottom: 14,
-             textTransform: "uppercase" as const, letterSpacing: ".08em" },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, margin: "16px 0 12px" },
-  kpiBox:  { background: "#eef7f3", borderRadius: 9, padding: "14px 16px" },
-  kpiL:    { fontSize: 10, color: "#5c7a72", fontWeight: 700, marginBottom: 6,
-             textTransform: "uppercase" as const, letterSpacing: ".06em" },
-  kpiV:    { fontSize: 24, fontWeight: 800, lineHeight: 1 },
-  kpiU:    { fontSize: 11, color: "#5c7a72", marginTop: 4 },
-  pill:    { padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
-             background: "#e6f9f2", color: "#00b87a", display: "inline-block" },
-  input:   { width: "100%", padding: "9px 12px", borderRadius: 7,
-             border: "1px solid #d4ece4", fontSize: 13, outline: "none",
-             background: "#f4fbf8" },
-  zoneRow: { display: "flex", justifyContent: "space-between", alignItems: "center",
-             padding: "8px 12px", borderRadius: 7, cursor: "pointer", marginBottom: 2,
-             transition: "background .12s" },
-  groupLabel: { fontSize: 10, fontWeight: 700, color: "#5c7a72",
-                textTransform: "uppercase" as const, letterSpacing: ".08em",
-                padding: "10px 12px 4px" },
-};
 
 function ciColor(ci: number) {
   if (ci < 100) return "#059669";
@@ -54,7 +27,12 @@ function CIBadge({ ci }: { ci: number }) {
 }
 
 /* ── API Docs ─────────────────────────────────────────────────────────────── */
-function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
+function ApiDocsView({ zones, isDark }: { zones: EFZoneEntry[]; isDark: boolean }) {
+  const bg     = isDark ? "var(--bg-card,#162820)" : "#fff";
+  const border = isDark ? "rgba(255,255,255,.08)" : "#d4ece4";
+  const text   = isDark ? "#e2efe9" : "#0a1f1a";
+  const muted  = isDark ? "#7dab97" : "#5c7a72";
+
   const exampleZone = zones[0]?.zoneId ?? "TR";
   const block = (code: string) => (
     <pre style={{
@@ -64,7 +42,7 @@ function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
     }}>{code}</pre>
   );
   const heading = (t: string) => (
-    <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", letterSpacing: ".08em",
+    <div style={{ fontSize: 11, fontWeight: 700, color: muted, letterSpacing: ".08em",
                   textTransform: "uppercase", marginTop: 20, marginBottom: 8 }}>{t}</div>
   );
   const pill = (t: string, color = "#00b87a") => (
@@ -95,11 +73,13 @@ function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
     },
   ];
 
+  const card: React.CSSProperties = { background: bg, borderRadius: 10, border: `1px solid ${border}`, padding: "20px", marginBottom: 16 };
+
   return (
     <div style={{ maxWidth: 860 }}>
-      <div style={{ ...s.card, marginBottom: 16 }}>
+      <div style={card}>
         {heading("Genel Bakış")}
-        <p style={{ fontSize: 13, color: "#5c7a72", margin: "0 0 12px", lineHeight: 1.7 }}>
+        <p style={{ fontSize: 13, color: muted, margin: "0 0 12px", lineHeight: 1.7 }}>
           EF Veri Servisi REST API'si, saatlik granüler emisyon faktörü verisine programatik erişim sağlar.
           63+ ülke, 170+ şebeke; saatlik verisi mevcut. GHG Protocol Scope 2 Location-Based metodolojisine uygundur.
         </p>
@@ -112,9 +92,9 @@ function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
         </div>
       </div>
 
-      <div style={s.card}>
+      <div style={card}>
         {heading("Kimlik Doğrulama")}
-        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
+        <div style={{ fontSize: 13, color: muted, marginBottom: 8 }}>
           Bearer token (JWT) veya API Key ile:
         </div>
         {block(`Authorization: Bearer <jwt_token>
@@ -122,22 +102,22 @@ function ApiDocsView({ zones }: { zones: EFZoneEntry[] }) {
 Authorization: Bearer vf_<api_key>`)}
 
         {heading("Rate Limiting")}
-        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 4 }}>
+        <div style={{ fontSize: 13, color: muted, marginBottom: 4 }}>
           100 istek / dakika (IP başına). Aşıldığında <code>429 RATE_LIMIT_EXCEEDED</code> döner.
         </div>
 
         {heading("Endpoint'ler")}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {endpoints.map((ep, i) => (
-            <div key={i} style={{ border: "1px solid #d4ece4", borderRadius: 8, overflow: "hidden" }}>
+            <div key={i} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
-                            background: "#f4fbf8", borderBottom: "1px solid #d4ece4" }}>
+                            background: isDark ? "#1a3530" : "#f4fbf8", borderBottom: `1px solid ${border}` }}>
                 <span style={{ background: "#00b87a", color: "#fff", padding: "2px 8px",
                                borderRadius: 5, fontSize: 11, fontWeight: 700 }}>{ep.method}</span>
-                <code style={{ fontSize: 13, color: "#0a1f1a" }}>{ep.path}</code>
+                <code style={{ fontSize: 13, color: text }}>{ep.path}</code>
               </div>
               <div style={{ padding: "10px 14px" }}>
-                <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>{ep.desc}</div>
+                <div style={{ fontSize: 13, color: muted, marginBottom: 8 }}>{ep.desc}</div>
                 {block(ep.response)}
               </div>
             </div>
@@ -145,11 +125,11 @@ Authorization: Bearer vf_<api_key>`)}
         </div>
 
         {heading("Kod Örnekleri")}
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 4 }}>cURL</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: muted, marginBottom: 4 }}>cURL</div>
         {block(`curl -H "Authorization: Bearer $TOKEN" \\
   "https://api.voltfox.io/api/v1/ef/zones/${exampleZone}/hourly?start=2024-01-01&end=2024-01-31"`)}
 
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 4 }}>JavaScript</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: muted, marginBottom: 4 }}>JavaScript</div>
         {block(`const res = await fetch(
   "/api/v1/ef/zones/${exampleZone}/hourly?start=2024-01-01&end=2024-01-31",
   { headers: { Authorization: \`Bearer \${token}\` } }
@@ -157,7 +137,7 @@ Authorization: Bearer vf_<api_key>`)}
 const { data } = await res.json();
 // data: [{ hour, ciDirect, cfePct, rePct, dataEstimated }]`)}
 
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 4 }}>Python</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: muted, marginBottom: 4 }}>Python</div>
         {block(`import requests
 
 r = requests.get(
@@ -182,11 +162,19 @@ data = r.json()["data"]  # list of hourly EF points`)}
 }
 
 /* ── Coverage View ──────────────────────────────────────────────────────── */
-function CoverageView({ coverage, importStatus }: { coverage: EFCoverageData | null; importStatus: EFImportStatus | null }) {
+function CoverageView({ coverage, importStatus, isDark }: { coverage: EFCoverageData | null; importStatus: EFImportStatus | null; isDark: boolean }) {
+  const bg     = isDark ? "var(--bg-card,#162820)" : "#fff";
+  const border = isDark ? "rgba(255,255,255,.08)" : "#d4ece4";
+  const text   = isDark ? "#e2efe9" : "#0a1f1a";
+  const muted  = isDark ? "#7dab97" : "#5c7a72";
+  const inputBg = isDark ? "#1e3830" : "#f4fbf8";
+  const card: React.CSSProperties = { background: bg, borderRadius: 10, border: `1px solid ${border}`, padding: "20px", marginBottom: 16 };
+  const cardH: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: muted, marginBottom: 14, textTransform: "uppercase", letterSpacing: ".08em" };
+
   if (!coverage) {
     return (
-      <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
-        <div style={{ fontSize: 13, color: "#5c7a72" }}>Kapsam verisi yükleniyor…</div>
+      <div style={{ ...card, textAlign: "center", padding: "60px 40px" }}>
+        <div style={{ fontSize: 13, color: muted }}>Kapsam verisi yükleniyor…</div>
       </div>
     );
   }
@@ -198,44 +186,41 @@ function CoverageView({ coverage, importStatus }: { coverage: EFCoverageData | n
 
   return (
     <div>
-      <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={s.cardH}>Mevcut Yıllar</div>
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={cardH}>Mevcut Yıllar</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {years.map(y => (
-            <div key={y} style={{ background: "#e6f9f2", border: "1px solid #a7f3d0",
+            <div key={y} style={{ background: isDark ? "#064e3b" : "#e6f9f2", border: `1px solid ${isDark ? "#065f46" : "#a7f3d0"}`,
                                    borderRadius: 8, padding: "10px 18px", textAlign: "center" }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: "#00b87a" }}>{y}</div>
-              <div style={{ fontSize: 11, color: "#5c7a72" }}>
+              <div style={{ fontSize: 11, color: muted }}>
                 {coverage.zones.filter(z => z.years.some(yr => yr.year === y)).length} zone
               </div>
-              <div style={{ fontSize: 10, color: "#5c7a72" }}>{expectedHours(y).toLocaleString()} saat/zone</div>
+              <div style={{ fontSize: 10, color: muted }}>{expectedHours(y).toLocaleString()} saat/zone</div>
             </div>
           ))}
-          {years.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Veri yok</div>}
+          {years.length === 0 && <div style={{ color: muted, fontSize: 13 }}>Veri yok</div>}
         </div>
       </div>
 
-      <div style={s.card}>
-        <div style={s.cardH}>Zone × Yıl Kapsam Matrisi</div>
+      <div style={card}>
+        <div style={cardH}>Zone × Yıl Kapsam Matrisi</div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "6px 10px", color: "#5c7a72",
-                             borderBottom: "1px solid #d4ece4", fontWeight: 700 }}>Zone</th>
-                <th style={{ textAlign: "left", padding: "6px 10px", color: "#5c7a72",
-                             borderBottom: "1px solid #d4ece4", fontWeight: 700 }}>Ülke</th>
+                <th style={{ textAlign: "left", padding: "6px 10px", color: muted, borderBottom: `1px solid ${border}`, fontWeight: 700 }}>Zone</th>
+                <th style={{ textAlign: "left", padding: "6px 10px", color: muted, borderBottom: `1px solid ${border}`, fontWeight: 700 }}>Ülke</th>
                 {years.map(y => (
-                  <th key={y} style={{ textAlign: "center", padding: "6px 10px", color: "#5c7a72",
-                                       borderBottom: "1px solid #d4ece4", fontWeight: 700 }}>{y}</th>
+                  <th key={y} style={{ textAlign: "center", padding: "6px 10px", color: muted, borderBottom: `1px solid ${border}`, fontWeight: 700 }}>{y}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {coverage.zones.map(zone => (
-                <tr key={zone.zoneId} style={{ borderBottom: "1px solid #eef7f3" }}>
-                  <td style={{ padding: "6px 10px", fontWeight: 700, color: "#0a1f1a" }}>{zone.zoneId}</td>
-                  <td style={{ padding: "6px 10px", color: "#5c7a72" }}>{zone.country}</td>
+                <tr key={zone.zoneId} style={{ borderBottom: `1px solid ${border}` }}>
+                  <td style={{ padding: "6px 10px", fontWeight: 700, color: text }}>{zone.zoneId}</td>
+                  <td style={{ padding: "6px 10px", color: muted }}>{zone.country}</td>
                   {years.map(y => {
                     const yd = zone.years.find(yr => yr.year === y);
                     return (
@@ -243,13 +228,13 @@ function CoverageView({ coverage, importStatus }: { coverage: EFCoverageData | n
                         {yd ? (
                           <span style={{
                             display: "inline-block", padding: "2px 8px", borderRadius: 5, fontSize: 11,
-                            background: yd.complete ? "#e6f9f2" : "#fef3c7",
+                            background: yd.complete ? (isDark ? "#064e3b" : "#e6f9f2") : (isDark ? "#451a03" : "#fef3c7"),
                             color: yd.complete ? "#009966" : "#d97706", fontWeight: 600,
                           }}>
                             {yd.complete ? `✓ ${(yd.rowCount / 1000).toFixed(1)}k` : `${(yd.rowCount / 1000).toFixed(1)}k`}
                           </span>
                         ) : (
-                          <span style={{ color: "#d1d5db", fontSize: 11 }}>—</span>
+                          <span style={{ color: isDark ? "#2d5046" : "#d1d5db", fontSize: 11 }}>—</span>
                         )}
                       </td>
                     );
@@ -259,54 +244,54 @@ function CoverageView({ coverage, importStatus }: { coverage: EFCoverageData | n
             </tbody>
           </table>
         </div>
-        <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: muted, marginTop: 12 }}>
           ✓ = Tam veri (%99+) · Sarı = Eksik/kısmi veri · — = Veri yok
         </div>
       </div>
 
-      <div style={{ ...s.card, marginTop: 16 }}>
-        <div style={s.cardH}>Otomatik Güncelleme Durumu</div>
+      <div style={{ ...card, marginTop: 16 }}>
+        <div style={cardH}>Otomatik Güncelleme Durumu</div>
         {importStatus ? (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-              <div style={{ background: "#f4fbf8", borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ fontSize: 11, color: "#5c7a72", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Son Çalışma</div>
+              <div style={{ background: inputBg, borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, color: muted, fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Son Çalışma</div>
                 {importStatus.lastImport ? (
                   <>
                     <div style={{ fontSize: 14, fontWeight: 700, color: importStatus.lastImport.status === "ok" ? "#059669" : "#DC2626" }}>
                       {importStatus.lastImport.status === "ok" ? "✓ Başarılı" : "✗ Hata"}
                     </div>
-                    <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>
                       {new Date(importStatus.lastImport.createdAt).toLocaleString("tr-TR")}
                     </div>
                     {importStatus.lastImport.message && (
-                      <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 4, lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 11, color: muted, marginTop: 4, lineHeight: 1.5 }}>
                         {importStatus.lastImport.message}
                       </div>
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize: 13, color: "#94a3b8" }}>Henüz çalışmadı</div>
+                  <div style={{ fontSize: 13, color: muted }}>Henüz çalışmadı</div>
                 )}
               </div>
-              <div style={{ background: "#f4fbf8", borderRadius: 8, padding: "12px 14px" }}>
-                <div style={{ fontSize: 11, color: "#5c7a72", fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Sonraki Çalışma</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0a1f1a" }}>
+              <div style={{ background: inputBg, borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, color: muted, fontWeight: 700, marginBottom: 4, textTransform: "uppercase" }}>Sonraki Çalışma</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: text }}>
                   {new Date(importStatus.nextScheduledRun).toLocaleString("tr-TR")}
                 </div>
-                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>
                   Zamanlama: {importStatus.schedule} (UTC)
                 </div>
-                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>
                   Toplam: {importStatus.totalRows.toLocaleString()} satır
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 13, color: "#5c7a72" }}>Durum bilgisi yükleniyor…</div>
+          <div style={{ fontSize: 13, color: muted }}>Durum bilgisi yükleniyor…</div>
         )}
-        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 10, lineHeight: 1.7, marginTop: 12 }}>
+        <div style={{ fontSize: 13, color: muted, marginBottom: 10, lineHeight: 1.7, marginTop: 12 }}>
           Manuel import için CLI komutu:
         </div>
         <pre style={{ background: "#0a1f1a", color: "#00b87a", borderRadius: 8,
@@ -327,6 +312,21 @@ npx tsx scripts/import-ef-year.ts --year=2025 --dry-run`}
 
 /* ── Component ───────────────────────────────────────────────────────────── */
 export default function EfDataPage() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  const bg      = isDark ? "var(--bg-card,#162820)" : "#fff";
+  const border  = isDark ? "rgba(255,255,255,.08)" : "#d4ece4";
+  const text    = isDark ? "#e2efe9" : "#0a1f1a";
+  const muted   = isDark ? "#7dab97" : "#5c7a72";
+  const inputBg = isDark ? "#1e3830" : "#f4fbf8";
+  const stripeBg = isDark ? "#1a3530" : "#f9fdfb";
+  const gridLine = isDark ? "rgba(255,255,255,.06)" : "#d4ece4";
+
+  const card: React.CSSProperties  = { background: bg, borderRadius: 10, border: `1px solid ${border}`, padding: "20px", marginBottom: 16 };
+  const cardH: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: muted, marginBottom: 14,
+                                        textTransform: "uppercase", letterSpacing: ".08em" };
+
   const [zones,         setZones]         = useState<EFZoneEntry[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState("");
@@ -345,7 +345,6 @@ export default function EfDataPage() {
   const [coverage,      setCoverage]      = useState<EFCoverageData | null>(null);
   const [importStatus,  setImportStatus]  = useState<EFImportStatus | null>(null);
 
-  /* selectZone — önce tanımla, sonra useEffect içinde kullan */
   async function selectZone(zone: EFZoneEntry, year = selectedYear) {
     setSelected(zone);
     setSummary(null);
@@ -419,7 +418,6 @@ export default function EfDataPage() {
     }
   }
 
-  /* Zone listesi filtrelemesi */
   const filtered = zones.filter((z) =>
     z.country.toLowerCase().includes(search.toLowerCase()) ||
     z.zoneId.toLowerCase().includes(search.toLowerCase())
@@ -428,11 +426,13 @@ export default function EfDataPage() {
   const byCountry: Record<string, EFZoneEntry[]> = {};
   for (const z of filtered) (byCountry[z.country] ??= []).push(z);
 
+  const tooltipStyle = { background: bg, border: `1px solid ${border}`, borderRadius: 8, fontSize: 12 };
+
   /* ── Render ────────────────────────────────────────────────────────────── */
   return (
-    <div style={s.page}>
-      <div style={s.h1}>EF Veri Servisi</div>
-      <div style={s.sub}>
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 28px" }}>
+      <div style={{ fontSize: 22, fontWeight: 700, color: text, marginBottom: 4 }}>EF Veri Servisi</div>
+      <div style={{ fontSize: 14, color: muted, marginBottom: 24 }}>
         {loading
           ? "Yükleniyor..."
           : dbEmpty
@@ -441,14 +441,15 @@ export default function EfDataPage() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #d4ece4" }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${border}` }}>
         {(["data", "coverage", "api"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
             padding: "8px 18px", border: "none", cursor: "pointer", fontWeight: 600,
             fontSize: 13, borderRadius: "6px 6px 0 0",
-            background: activeTab === tab ? "#fff" : "transparent",
-            color: activeTab === tab ? "#0a1f1a" : "#5c7a72",
+            background: activeTab === tab ? bg : "transparent",
+            color: activeTab === tab ? text : muted,
             borderBottom: activeTab === tab ? "2px solid #00b87a" : "2px solid transparent",
+            fontFamily: "inherit",
           }}>
             {tab === "data" ? "Veri Servisi" : tab === "coverage" ? "Veri Kapsamı" : "API Dokümantasyonu"}
           </button>
@@ -456,24 +457,25 @@ export default function EfDataPage() {
       </div>
 
       {activeTab === "api" ? (
-        <ApiDocsView zones={zones} />
+        <ApiDocsView zones={zones} isDark={isDark} />
       ) : activeTab === "coverage" ? (
-        <CoverageView coverage={coverage} importStatus={importStatus} />
+        <CoverageView coverage={coverage} importStatus={importStatus} isDark={isDark} />
       ) : dbEmpty ? (
-        <div style={{ ...s.card, textAlign: "center", padding: "60px 40px" }}>
+        <div style={{ ...card, textAlign: "center", padding: "60px 40px" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>📡</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>EF Verisi Bulunamadı</div>
-          <div style={{ fontSize: 14, color: "#5c7a72" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: text, marginBottom: 8 }}>EF Verisi Bulunamadı</div>
+          <div style={{ fontSize: 14, color: muted }}>
             Import scripti çalıştırın: <code>npx tsx scripts/import-ef-year.ts --year=2025</code>
           </div>
         </div>
       ) : (
-        <div style={s.grid}>
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
 
           {/* ── Sol: Zone Listesi ───────────────────────────────────────── */}
-          <div style={s.card}>
+          <div style={card}>
             <input
-              style={s.input}
+              style={{ width: "100%", padding: "9px 12px", borderRadius: 7, border: `1px solid ${border}`,
+                       fontSize: 13, outline: "none", background: inputBg, color: text, boxSizing: "border-box" }}
               placeholder="Zone veya ülke ara..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -481,12 +483,14 @@ export default function EfDataPage() {
             <div style={{ marginTop: 8, maxHeight: 680, overflowY: "auto" }}>
               {loading
                 ? Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} style={{ background: "#eef7f3", borderRadius: 7,
+                    <div key={i} style={{ background: isDark ? "#1a3530" : "#eef7f3", borderRadius: 7,
                                           height: 36, marginBottom: 4, opacity: 0.7 - i * 0.08 }} />
                   ))
                 : Object.entries(byCountry).map(([country, czones]) => (
                     <div key={country}>
-                      <div style={s.groupLabel}>{country}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: muted,
+                                    textTransform: "uppercase", letterSpacing: ".08em",
+                                    padding: "10px 12px 4px" }}>{country}</div>
                       {czones.map((z) => {
                         const active = selected?.zoneId === z.zoneId;
                         return (
@@ -494,13 +498,15 @@ export default function EfDataPage() {
                             key={z.zoneId}
                             onClick={() => selectZone(z)}
                             style={{
-                              ...s.zoneRow,
+                              display: "flex", justifyContent: "space-between", alignItems: "center",
+                              padding: "8px 12px", borderRadius: 7, cursor: "pointer", marginBottom: 2,
+                              transition: "background .12s",
                               background: active ? "#00b87a" : "transparent",
-                              color: active ? "#fff" : "#0a1f1a",
+                              color: active ? "#fff" : text,
                             }}
                             onMouseEnter={(e) => {
                               if (!active)
-                                (e.currentTarget as HTMLElement).style.background = "#eef7f3";
+                                (e.currentTarget as HTMLElement).style.background = isDark ? "#1a3530" : "#eef7f3";
                             }}
                             onMouseLeave={(e) => {
                               if (!active)
@@ -530,34 +536,35 @@ export default function EfDataPage() {
           {/* ── Sağ: Zone Detayı ────────────────────────────────────────── */}
           <div>
             {!selected ? (
-              <div style={{ ...s.card, textAlign: "center", padding: "60px 20px", color: "#5c7a72" }}>
+              <div style={{ ...card, textAlign: "center", padding: "60px 20px", color: muted }}>
                 Sol listeden bir zone seçin
               </div>
             ) : detailLoading ? (
-              <div style={{ ...s.card, textAlign: "center", padding: "60px 20px", color: "#5c7a72" }}>
+              <div style={{ ...card, textAlign: "center", padding: "60px 20px", color: muted }}>
                 Yükleniyor...
               </div>
             ) : (
               <>
                 {/* Header kartı */}
-                <div style={s.card}>
+                <div style={card}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: "#0a1f1a" }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: text }}>
                         {selected.zoneId}
-                        <span style={{ fontSize: 14, fontWeight: 500, color: "#5c7a72", marginLeft: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: muted, marginLeft: 8 }}>
                           {selected.zoneName}
                         </span>
                       </div>
-                      <div style={{ fontSize: 13, color: "#5c7a72", marginTop: 2 }}>
+                      <div style={{ fontSize: 13, color: muted, marginTop: 2 }}>
                         {selected.country}
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={s.pill}>Saatlik</span>
+                      <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                     background: "#e6f9f2", color: "#00b87a", display: "inline-block" }}>Saatlik</span>
                       <select value={selectedYear} onChange={e => changeYear(Number(e.target.value))}
-                        style={{ padding: "3px 8px", borderRadius: 6, border: "1px solid #d4ece4",
-                                 fontSize: 12, background: "#fff", cursor: "pointer" }}>
+                        style={{ padding: "3px 8px", borderRadius: 6, border: `1px solid ${border}`,
+                                 fontSize: 12, background: inputBg, color: text, cursor: "pointer" }}>
                         {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                     </div>
@@ -565,35 +572,35 @@ export default function EfDataPage() {
 
                   {summary && (
                     <>
-                      <div style={s.kpiGrid}>
-                        <div style={s.kpiBox}>
-                          <div style={s.kpiL}>Yıllık Ort. CI (Direkt)</div>
-                          <div style={{ ...s.kpiV, color: ciColor(summary.ciDirect.avg) }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, margin: "16px 0 12px" }}>
+                        <div style={{ background: isDark ? "#1a3530" : "#eef7f3", borderRadius: 9, padding: "14px 16px" }}>
+                          <div style={{ fontSize: 10, color: muted, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Yıllık Ort. CI (Direkt)</div>
+                          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, color: ciColor(summary.ciDirect.avg) }}>
                             {summary.ciDirect.avg.toFixed(0)}
                           </div>
-                          <div style={s.kpiU}>gCO₂eq/kWh</div>
+                          <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>gCO₂eq/kWh</div>
                         </div>
-                        <div style={s.kpiBox}>
-                          <div style={s.kpiL}>Karbon Serbest Enerji</div>
-                          <div style={{ ...s.kpiV, color: "#00b87a" }}>
+                        <div style={{ background: isDark ? "#1a3530" : "#eef7f3", borderRadius: 9, padding: "14px 16px" }}>
+                          <div style={{ fontSize: 10, color: muted, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Karbon Serbest Enerji</div>
+                          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, color: "#00b87a" }}>
                             {summary.cfePct.avg.toFixed(1)}%
                           </div>
-                          <div style={s.kpiU}>CFE — {selectedYear} ortalaması</div>
+                          <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>CFE — {selectedYear} ortalaması</div>
                         </div>
-                        <div style={s.kpiBox}>
-                          <div style={s.kpiL}>Yenilenebilir Enerji</div>
-                          <div style={{ ...s.kpiV, color: "#009966" }}>
+                        <div style={{ background: isDark ? "#1a3530" : "#eef7f3", borderRadius: 9, padding: "14px 16px" }}>
+                          <div style={{ fontSize: 10, color: muted, fontWeight: 700, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Yenilenebilir Enerji</div>
+                          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, color: "#009966" }}>
                             {summary.rePct.avg.toFixed(1)}%
                           </div>
-                          <div style={s.kpiU}>RE — {selectedYear} ortalaması</div>
+                          <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>RE — {selectedYear} ortalaması</div>
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                         <CIBadge ci={summary.ciDirect.avg} />
-                        <span style={{ fontSize: 12, color: "#5c7a72" }}>
+                        <span style={{ fontSize: 12, color: muted }}>
                           Min {summary.ciDirect.min.toFixed(0)} · Max {summary.ciDirect.max.toFixed(0)} gCO₂/kWh
                         </span>
-                        <span style={{ fontSize: 12, color: "#5c7a72" }}>
+                        <span style={{ fontSize: 12, color: muted }}>
                           {summary.rowCount.toLocaleString()} saatlik veri noktası
                         </span>
                       </div>
@@ -603,21 +610,21 @@ export default function EfDataPage() {
 
                 {/* Aylık CI Bar Chart */}
                 {monthly.length > 0 && (
-                  <div style={s.card}>
-                    <div style={s.cardH}>Aylık Ortalama Emisyon Yoğunluğu — {selectedYear}</div>
+                  <div style={card}>
+                    <div style={cardH}>Aylık Ortalama Emisyon Yoğunluğu — {selectedYear}</div>
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={monthly} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
-                        <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: "#5c7a72" }} />
-                        <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit=" g" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridLine} />
+                        <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: muted }} />
+                        <YAxis tick={{ fontSize: 11, fill: muted }} unit=" g" />
                         <Tooltip
                           formatter={(v: unknown) =>
                             [`${Number(v).toFixed(1)} gCO₂/kWh`, "CI Direkt"] as [string, string]
                           }
-                          labelStyle={{ fontWeight: 600, color: "#0a1f1a" }}
-                          contentStyle={{ borderRadius: 8, border: "1px solid #d4ece4", fontSize: 12 }}
+                          labelStyle={{ fontWeight: 600, color: text }}
+                          contentStyle={tooltipStyle}
                         />
-                        <Bar dataKey="avgCiDirect" fill="#0a1f1a" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="avgCiDirect" fill={isDark ? "#4ade80" : "#0a1f1a"} radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -625,68 +632,113 @@ export default function EfDataPage() {
 
                 {/* CFE & RE Line Chart */}
                 {monthly.length > 0 && (
-                  <div style={s.card}>
-                    <div style={s.cardH}>Karbon Serbest & Yenilenebilir Enerji % — {selectedYear}</div>
+                  <div style={card}>
+                    <div style={cardH}>Karbon Serbest & Yenilenebilir Enerji % — {selectedYear}</div>
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={monthly} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
-                        <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: "#5c7a72" }} />
-                        <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit="%" domain={[0, 100]} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridLine} />
+                        <XAxis dataKey="monthName" tick={{ fontSize: 11, fill: muted }} />
+                        <YAxis tick={{ fontSize: 11, fill: muted }} unit="%" domain={[0, 100]} />
                         <Tooltip
                           formatter={(v: unknown, name: unknown) =>
                             [`${Number(v).toFixed(1)}%`, String(name ?? "")] as [string, string]
                           }
-                          contentStyle={{ borderRadius: 8, border: "1px solid #d4ece4", fontSize: 12 }}
+                          contentStyle={tooltipStyle}
+                          labelStyle={{ color: text }}
                         />
                         <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                        <Line
-                          dataKey="avgCfePct" name="CFE %"
-                          stroke="#00b87a" strokeWidth={2} dot={false} activeDot={{ r: 4 }}
-                        />
-                        <Line
-                          dataKey="avgRePct" name="RE %"
-                          stroke="#009966" strokeWidth={2} dot={false}
-                          strokeDasharray="4 3" activeDot={{ r: 4 }}
-                        />
+                        <Line dataKey="avgCfePct" name="CFE %" stroke="#00b87a" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                        <Line dataKey="avgRePct"  name="RE %"  stroke="#009966" strokeWidth={2} dot={false} strokeDasharray="4 3" activeDot={{ r: 4 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 )}
 
+                {/* Aylık Detay Tablosu */}
+                {monthly.length > 0 && (
+                  <div style={card}>
+                    <div style={cardH}>Aylık Detay — {selectedYear}</div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>
+                          <tr>
+                            {["Ay", "Ort. CI (gCO₂/kWh)", "Min CI", "Max CI", "CFE %", "RE %", "Veri"].map(h => (
+                              <th key={h} style={{
+                                textAlign: h === "Ay" ? "left" : "right",
+                                padding: "8px 12px", color: muted, fontWeight: 700,
+                                fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em",
+                                borderBottom: `1px solid ${border}`,
+                              }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {monthly.map((m, i) => (
+                            <tr key={i} style={{ background: i % 2 === 0 ? bg : stripeBg }}>
+                              <td style={{ padding: "8px 12px", fontWeight: 600, color: text, borderBottom: `1px solid ${border}` }}>
+                                {m.monthName}
+                              </td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: `1px solid ${border}` }}>
+                                <span style={{ color: ciColor(m.avgCiDirect), fontWeight: 700 }}>{m.avgCiDirect.toFixed(0)}</span>
+                              </td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: muted, borderBottom: `1px solid ${border}` }}>
+                                {m.minCiDirect != null ? m.minCiDirect.toFixed(0) : "—"}
+                              </td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: muted, borderBottom: `1px solid ${border}` }}>
+                                {m.maxCiDirect != null ? m.maxCiDirect.toFixed(0) : "—"}
+                              </td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: `1px solid ${border}` }}>
+                                <span style={{ color: "#00b87a", fontWeight: 600 }}>{m.avgCfePct.toFixed(1)}%</span>
+                              </td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: `1px solid ${border}` }}>
+                                <span style={{ color: "#009966", fontWeight: 600 }}>{m.avgRePct.toFixed(1)}%</span>
+                              </td>
+                              <td style={{ padding: "8px 12px", textAlign: "right", color: muted, borderBottom: `1px solid ${border}` }}>
+                                {m.dataPoints.toLocaleString()} saat
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 {/* Saatlik Zaman Serisi */}
-                <div style={s.card}>
+                <div style={card}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div style={s.cardH}>Saatlik Emisyon Yoğunluğu</div>
+                    <div style={cardH}>Saatlik Emisyon Yoğunluğu</div>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <input type="date" value={hourlyStart} min={`${selectedYear}-01-01`} max={`${selectedYear}-12-25`}
                         onChange={e => setHourlyStart(e.target.value)}
-                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12 }} />
-                      <span style={{ fontSize: 12, color: "#5c7a72" }}>→</span>
+                        style={{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${border}`, fontSize: 12, background: inputBg, color: text }} />
+                      <span style={{ fontSize: 12, color: muted }}>→</span>
                       <input type="date" value={hourlyEnd} min={`${selectedYear}-01-07`} max={`${selectedYear}-12-31`}
                         onChange={e => setHourlyEnd(e.target.value)}
-                        style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #d4ece4", fontSize: 12 }} />
+                        style={{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${border}`, fontSize: 12, background: inputBg, color: text }} />
                     </div>
                   </div>
                   {hourlyLoading ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: muted, fontSize: 13 }}>Yükleniyor…</div>
                   ) : hourlyData.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "#5c7a72", fontSize: 13 }}>Veri bulunamadı</div>
+                    <div style={{ textAlign: "center", padding: "40px 0", color: muted, fontSize: 13 }}>Veri bulunamadı</div>
                   ) : (
                     <>
                       <ResponsiveContainer width="100%" height={200}>
                         <LineChart data={hourlyData} margin={{ top: 4, right: 12, bottom: 0, left: -10 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d4ece4" />
-                          <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "#5c7a72" }}
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridLine} />
+                          <XAxis dataKey="hour" tick={{ fontSize: 9, fill: muted }}
                             interval={Math.floor(hourlyData.length / 8)} />
-                          <YAxis tick={{ fontSize: 11, fill: "#5c7a72" }} unit=" g" width={52} />
+                          <YAxis tick={{ fontSize: 11, fill: muted }} unit=" g" width={52} />
                           <Tooltip
                             formatter={(v: unknown) => [`${Number(v).toFixed(1)} gCO₂/kWh`, "CI Direkt"] as [string, string]}
-                            contentStyle={{ borderRadius: 8, border: "1px solid #d4ece4", fontSize: 12 }}
+                            contentStyle={tooltipStyle}
+                            labelStyle={{ color: text }}
                           />
                           <Line dataKey="ciDirect" name="CI Direkt" stroke="#ef4444" strokeWidth={1.5} dot={false} />
                         </LineChart>
                       </ResponsiveContainer>
-                      <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 8 }}>
+                      <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>
                         {hourlyData.length} saatlik veri noktası
                       </div>
                     </>
@@ -694,9 +746,9 @@ export default function EfDataPage() {
                 </div>
 
                 {/* API Erişimi */}
-                <div style={s.card}>
-                  <div style={s.cardH}>API Erişimi</div>
-                  <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 10 }}>
+                <div style={card}>
+                  <div style={cardH}>API Erişimi</div>
+                  <div style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
                     Bu zone için saatlik EF verisi REST API üzerinden erişilebilir:
                   </div>
                   <code style={{
@@ -710,7 +762,8 @@ export default function EfDataPage() {
                   </code>
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {["JSON", "8 784 veri noktası/yıl", "gCO₂eq/kWh", "UTC saatlik"].map((t) => (
-                      <span key={t} style={{ ...s.pill, fontSize: 11 }}>{t}</span>
+                      <span key={t} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                                             background: "#e6f9f2", color: "#00b87a", display: "inline-block" }}>{t}</span>
                     ))}
                   </div>
                 </div>

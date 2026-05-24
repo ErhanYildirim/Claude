@@ -500,7 +500,7 @@ export interface EFZoneSummary {
 }
 export interface EFHourlyPoint { hour: string; ciDirect: number; ciLifecycle: number; cfePct: number; rePct: number; dataEstimated: boolean; }
 export interface EFHourlyData { zoneId: string; start: string; end: string; count: number; unit: string; data: EFHourlyPoint[]; }
-export interface EFMonthlyPoint { month: number; monthName: string; avgCiDirect: number; avgCfePct: number; avgRePct: number; dataPoints: number; }
+export interface EFMonthlyPoint { month: number; monthName: string; avgCiDirect: number; minCiDirect: number; maxCiDirect: number; avgCfePct: number; avgRePct: number; dataPoints: number; }
 export interface EFMonthlyData { zoneId: string; year: number; months: EFMonthlyPoint[]; }
 
 // EF Coverage types

@@ -48,7 +48,7 @@ export async function runEfImport(year?: number): Promise<void> {
 type EFZoneRow   = { zone_id: string; zone_name: string; country: string; row_count: bigint };
 type EFSumRow    = { zone_id: string; zone_name: string; country: string; avg_ci_direct: number; min_ci_direct: number; max_ci_direct: number; avg_cfe_pct: number; avg_re_pct: number; row_count: bigint };
 type EFHourRow   = { hour: Date; ci_direct: number; ci_lifecycle: number; cfe_pct: number; re_pct: number; data_estimated: boolean };
-type EFMonthRow  = { month: number; avg_ci: number; avg_cfe: number; avg_re: number; data_points: bigint };
+type EFMonthRow  = { month: number; avg_ci: number; min_ci: number; max_ci: number; avg_cfe: number; avg_re: number; data_points: bigint };
 type ExistsRow   = { exists: boolean };
 
 export const efRoutes: FastifyPluginAsync = async (app) => {
@@ -218,6 +218,8 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
       SELECT
         EXTRACT(MONTH FROM hour)::int         AS month,
         ROUND(AVG(ci_direct)::numeric, 2)     AS avg_ci,
+        ROUND(MIN(ci_direct)::numeric, 2)     AS min_ci,
+        ROUND(MAX(ci_direct)::numeric, 2)     AS max_ci,
         ROUND(AVG(cfe_pct)::numeric, 2)       AS avg_cfe,
         ROUND(AVG(re_pct)::numeric, 2)        AS avg_re,
         COUNT(*)::bigint                      AS data_points
@@ -237,9 +239,11 @@ export const efRoutes: FastifyPluginAsync = async (app) => {
       zoneId,
       year: y,
       months: rows.map((r: EFMonthRow) => ({
-        month:      r.month,
-        monthName:  MONTH_NAMES[r.month],
+        month:       r.month,
+        monthName:   MONTH_NAMES[r.month],
         avgCiDirect: Number(r.avg_ci),
+        minCiDirect: Number(r.min_ci),
+        maxCiDirect: Number(r.max_ci),
         avgCfePct:   Number(r.avg_cfe),
         avgRePct:    Number(r.avg_re),
         dataPoints:  Number(r.data_points),

@@ -10,7 +10,7 @@ import "@xyflow/react/dist/style.css";
 import { api } from "../lib/api.js";
 import type { EsgGraph } from "../lib/api.js";
 import { nodeTypes } from "../components/esg-canvas/nodeTypes.js";
-import { edgeTypes, isValidConnection } from "../components/esg-canvas/edges/CustomEdges.js";
+import { edgeTypes } from "../components/esg-canvas/edges/CustomEdges.js";
 import { useCanvasLiveData } from "../hooks/useEsgNodeData.js";
 import { useViewMode, VIEW_MODE_LABELS, type ViewMode } from "../hooks/useViewMode.js";
 import { useValidationEngine } from "../hooks/useValidationEngine.js";
@@ -164,9 +164,15 @@ export default function EsgPlaygroundPage() {
   }, [scheduleSave, history]);
 
   const onConnect: OnConnect = useCallback(connection => {
-    setEdges(eds => addEdge({ ...connection, animated: true }, eds));
+    // Aktif moda göre default edge tipi ata — aksi takdirde mode filtresi gizler
+    const defaultType =
+      mode === "organizational" ? "orgEdge"      :
+      mode === "carbonflow"     ? "carbonFlowEdge":
+      mode === "regulatory"     ? "certFlowEdge"  :
+      "dataFlowEdge"; // dataflow (default)
+    setEdges(eds => addEdge({ ...connection, type: defaultType, animated: true }, eds));
     scheduleSave();
-  }, [scheduleSave]);
+  }, [scheduleSave, mode]);
 
   const onViewportChange = useCallback((vp: Viewport) => {
     viewportRef.current = vp;
@@ -176,6 +182,14 @@ export default function EsgPlaygroundPage() {
   async function createNew() {
     const g = await api.esgPlayground.create({ name: "Yeni Canvas" });
     navigate(`/esg-playground/${g.id}`);
+  }
+
+  // ── Canvas sil (listeden) ─────────────────────────────────────────────────
+  async function deleteGraph(e: React.MouseEvent, id: string, name: string) {
+    e.stopPropagation();
+    if (!window.confirm(`"${name}" canvas'ı kalıcı olarak silinecek. Emin misiniz?`)) return;
+    await api.esgPlayground.delete(id);
+    setGraphList(prev => prev.filter(g => g.id !== id));
   }
 
   // ── Renk tema ────────────────────────────────────────────────────────────
@@ -354,10 +368,27 @@ export default function EsgPlaygroundPage() {
                 style={{
                   background: card, border: `1px solid ${border}`, borderRadius: 12,
                   padding: "20px", cursor: "pointer", transition: "border-color 0.15s",
+                  position: "relative",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = "#10b981")}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = border)}
               >
+                {/* Sil butonu */}
+                <button
+                  onClick={e => deleteGraph(e, g.id, g.name)}
+                  title="Canvas'ı sil"
+                  style={{
+                    position: "absolute", top: 10, right: 10,
+                    background: "none", border: "none",
+                    color: sub, cursor: "pointer", fontSize: 14,
+                    padding: "2px 6px", borderRadius: 4,
+                    lineHeight: 1, opacity: 0.6,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#ef4444"; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = "0.6"; e.currentTarget.style.color = sub; }}
+                >
+                  🗑
+                </button>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>🕸️</div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: text, marginBottom: 4 }}>{g.name}</div>
                 {g.description && (
@@ -703,11 +734,7 @@ export default function EsgPlaygroundPage() {
             multiSelectionKeyCode="Shift"
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            isValidConnection={conn => {
-              const srcNode = nodes.find(n => n.id === conn.source);
-              const tgtNode = nodes.find(n => n.id === conn.target);
-              return isValidConnection(srcNode?.type, tgtNode?.type);
-            }}
+            isValidConnection={conn => conn.source !== conn.target}
             proOptions={{ hideAttribution: true }}
           >
             <Background color={isDark ? "#2d3748" : "#e2e8f0"} gap={20} />

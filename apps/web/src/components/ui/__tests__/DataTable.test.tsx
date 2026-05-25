@@ -2,9 +2,9 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { DataTable } from "../DataTable";
 
 const columns = [
-  { key: "name", header: "Tesis" },
-  { key: "emission", header: "Emisyon" },
-  { key: "status", header: "Durum" },
+  { key: "name" as const, header: "Tesis" },
+  { key: "emission" as const, header: "Emisyon" },
+  { key: "status" as const, header: "Durum" },
 ];
 
 const data = [

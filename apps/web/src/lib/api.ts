@@ -377,6 +377,67 @@ export const api = {
     },
   },
 
+  integrations: {
+    list: () => request<IntegrationListResult>("GET", "/integrations"),
+    save: (key: string, body: { config: Record<string, string>; enabled?: boolean }) =>
+      request<{ integration: IntegrationConfig; message: string }>("PUT", `/integrations/${key}`, body),
+    delete: (key: string) => request<void>("DELETE", `/integrations/${key}`),
+    test:   (key: string) => request<{ ok: boolean; message: string; testedAt: string }>("POST", `/integrations/${key}/test`),
+  },
+
+  marketPrices: {
+    list: (params: { zone?: string; from?: string; to?: string; type?: string; source?: string; limit?: number } = {}) => {
+      const qs = new URLSearchParams();
+      if (params.zone)   qs.set("zone",   params.zone);
+      if (params.from)   qs.set("from",   params.from);
+      if (params.to)     qs.set("to",     params.to);
+      if (params.type)   qs.set("type",   params.type);
+      if (params.source) qs.set("source", params.source);
+      if (params.limit)  qs.set("limit",  String(params.limit));
+      return request<MarketPriceList>("GET", `/market-prices?${qs}`);
+    },
+    getLatest: (zone: string) =>
+      request<MarketPriceLatest>("GET", `/market-prices/latest?zone=${zone}`),
+    getZones: () =>
+      request<{ zones: MarketZone[] }>("GET", "/market-prices/zones"),
+  },
+
+  generation: {
+    getForecast: (params: { zone?: string; from?: string; to?: string; psr_type?: string; record_type?: string } = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
+      return request<GenerationForecastList>("GET", `/generation/forecast?${qs}`);
+    },
+    getSummary: (zone: string) =>
+      request<GenerationSummary>("GET", `/generation/forecast/summary?zone=${zone}`),
+    getActual: (params: { zone?: string; from?: string; to?: string; psr_type?: string } = {}) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
+      return request<{ actuals: GenerationPoint[]; meta: unknown }>("GET", `/generation/actual?${qs}`);
+    },
+  },
+
+  efLive: {
+    getLive:    (zone: string) => request<EfLive>("GET", `/ef/live?zone=${zone}`),
+    getForecast: (zone: string, hours?: number, method?: string) => {
+      const qs = new URLSearchParams({ zone });
+      if (hours)  qs.set("hours",  String(hours));
+      if (method) qs.set("method", method);
+      return request<EfForecastList>("GET", `/ef/forecast?${qs}`);
+    },
+    getOptimalWindow: (zone: string, durationH: number, lookAheadH?: number) => {
+      const qs = new URLSearchParams({ zone, duration_h: String(durationH) });
+      if (lookAheadH) qs.set("look_ahead_h", String(lookAheadH));
+      return request<OptimalWindowResult>("GET", `/ef/optimal-window?${qs}`);
+    },
+    getHistory: (zone: string, from?: string, to?: string) => {
+      const qs = new URLSearchParams({ zone });
+      if (from) qs.set("from", from);
+      if (to)   qs.set("to",   to);
+      return request<EfHistory>("GET", `/ef/history?${qs}`);
+    },
+  },
+
   shareLinks: {
     create: (installationId: string, periodId: string, ttlDays?: number, password?: string) =>
       request<ShareLinkResult>("POST", "/share-links", { installationId, periodId, ttlDays, password }),
@@ -396,6 +457,41 @@ export const api = {
         return res.json() as Promise<ShareViewResult>;
       });
     },
+  },
+
+  esgPlayground: {
+    list: () => request<{ graphs: EsgGraph[] }>("GET", "/esg-playground").then(r => r.graphs),
+    get:  (id: string) => request<{ graph: EsgGraph }>("GET", `/esg-playground/${id}`).then(r => r.graph),
+    create: (body: { name?: string; description?: string }) =>
+      request<{ graph: EsgGraph }>("POST", "/esg-playground", body).then(r => r.graph),
+    update: (id: string, body: {
+      name?: string; description?: string;
+      nodesJson?: unknown; edgesJson?: unknown; viewport?: unknown
+    }) => request<{ graph: EsgGraph }>("PUT", `/esg-playground/${id}`, body).then(r => r.graph),
+    delete: (id: string) => request<void>("DELETE", `/esg-playground/${id}`),
+
+    snapshots: {
+      list: (graphId: string) =>
+        request<{ snapshots: EsgSnapshot[] }>("GET", `/esg-playground/${graphId}/snapshots`).then(r => r.snapshots),
+      get: (graphId: string, snapshotId: string) =>
+        request<{ snapshot: EsgSnapshot }>("GET", `/esg-playground/${graphId}/snapshots/${snapshotId}`).then(r => r.snapshot),
+      create: (graphId: string, body: { name: string; reportingPeriod?: string }) =>
+        request<{ snapshot: EsgSnapshot }>("POST", `/esg-playground/${graphId}/snapshots`, body).then(r => r.snapshot),
+    },
+
+    importPreview: (mode?: string) => {
+      const qs = mode ? `?mode=${mode}` : "";
+      return request<EsgImportPreview>("GET", `/esg-playground/import-preview${qs}`);
+    },
+
+    copilot: (body: {
+      graphId?: string;
+      prompt: string;
+      currentNodes?: unknown[];
+      currentEdges?: unknown[];
+    }) => request<{ add: unknown[]; connect: unknown[]; message: string }>(
+      "POST", "/esg-playground/copilot", body
+    ),
   },
 };
 
@@ -746,6 +842,110 @@ export interface TenantSubscription {
   usage:  { seats: number; installs: number };
 }
 
+// ── Integration types ─────────────────────────────────────────────────────────
+export interface IntegrationConfig {
+  id: string; key: string; enabled: boolean;
+  config: Record<string, unknown>;
+  status: "connected" | "disconnected" | "error" | "beta" | "coming_soon";
+  lastTestedAt: string | null; testMessage: string | null;
+  createdAt: string; updatedAt: string;
+}
+export interface IntegrationListResult { integrations: IntegrationConfig[]; }
+
+// ── Market Prices types ───────────────────────────────────────────────────────
+export interface MarketPrice {
+  zone:           string;
+  hour:           string;
+  priceEurMwh:    number | null;
+  priceTryMwh:    number | null;
+  currency:       string;
+  priceType:      "dam_actual" | "dam_forecast" | "intraday";
+  source:         "entso-e" | "epias" | "model";
+  forecastMadeAt: string | null;
+  confidenceLow:  number | null;
+  confidenceHigh: number | null;
+}
+export interface MarketPriceList {
+  prices: MarketPrice[];
+  meta: { zone: string; from: string; to: string; count: number; limit: number };
+}
+export interface MarketZone { code: string; name: string; country: string; hasData: boolean; }
+export interface MarketPriceLatest {
+  zone: string;
+  current: { actual: number | null; forecast: number | null };
+  summary: { avgActual24h: number | null; avgForecast24h: number | null; minActual: number | null; maxActual: number | null };
+  series: Array<{ hour: string; priceEurMwh: number | null; priceType: string; source: string }>;
+  updatedAt: string;
+}
+
+// ── Generation Forecast types ─────────────────────────────────────────────────
+export interface GenerationPoint {
+  zone:           string;
+  hour:           string;
+  psrType:        string;
+  recordType:     "actual" | "forecast";
+  quantityMw:     number;
+  source:         string;
+  forecastMadeAt: string | null;
+  confidenceLow:  number | null;
+  confidenceHigh: number | null;
+}
+export interface GenerationForecastList {
+  forecasts: GenerationPoint[];
+  meta: { zone: string; from: string; to: string; psrTypes: string[]; count: number };
+}
+export interface GenerationSummary {
+  zone: string;
+  summary: {
+    peakSolarHour: string | null; peakSolarMw: number | null;
+    peakWindHour:  string | null; peakWindMw:  number | null;
+    maxRePctHour:  string | null; maxRePct:    number | null;
+    avgRePct:      number | null;
+  };
+  series: Array<{ hour: string; solarMw: number; windMw: number; loadMw: number; rePct: number | null }>;
+  updatedAt: string;
+}
+
+// ── EF Live / Forecast types ──────────────────────────────────────────────────
+export interface EfLive {
+  zone:            string;
+  currentCi:       number | null;
+  currentRePct:    number | null;
+  currentCfePct:   number | null;
+  updatedAt:       string | null;
+  trend1h:         number | null;
+  trend24h:        number | null;
+  last24h: Array<{ hour: string; ci: number; rePct: number; cfePct: number }>;
+}
+export interface CiForecastPoint {
+  hour:           string;
+  ciGco2Kwh:      number;
+  horizonH:       number;
+  forecastMadeAt: string;
+}
+export interface EfForecastList {
+  zone: string; method: string; hours: number;
+  forecasts: CiForecastPoint[];
+  meta: { count: number; updatedAt: string };
+}
+export interface OptimalWindow {
+  startHour: string;
+  endHour:   string;
+  avgCi:     number;
+  minCi:     number;
+}
+export interface OptimalWindowResult {
+  zone: string; durationH: number; lookAheadH: number;
+  windows: OptimalWindow[];
+  updatedAt: string;
+}
+export interface EfHistoryPoint { hour: string; ci: number; cfePct: number; rePct: number; }
+export interface EfHistory {
+  zone: string;
+  history: EfHistoryPoint[];
+  meta: { from: string; to: string; count: number };
+}
+
 export interface CreateInstallationBody { facilityName: string; operator: string; facilityCountry: string; facilityRef?: string; sector: string; }
 export interface UpdatePeriodBody {
   periodName?: string; importCountry?: string; cnCode?: string;
@@ -762,4 +962,25 @@ export interface CreatePeriodBody {
   baselineEf?: number; renewableEf: number; matchingRatePct: number;
   gecConnected?: boolean; carbonPriceEur?: number;
   scope2Exempt?: boolean;
+}
+
+// ── ESG Playground ────────────────────────────────────────────────────────────
+export interface EsgGraph {
+  id: string; tenantId: string; name: string; description: string | null;
+  nodesJson: unknown; edgesJson: unknown; viewport: unknown;
+  createdBy: string; updatedBy: string | null;
+  createdAt: string; updatedAt: string;
+}
+
+export interface EsgSnapshot {
+  id: string; graphId: string; name: string; reportingPeriod: string | null;
+  nodesJson?: unknown; edgesJson?: unknown;
+  hash: string; isLocked: boolean; methodologyVer: string;
+  createdBy: string; createdAt: string;
+}
+
+export interface EsgImportPreview {
+  summary: { installations: number; nodesWillCreate: number; edgesWillCreate: number };
+  nodes: unknown[];
+  edges: unknown[];
 }

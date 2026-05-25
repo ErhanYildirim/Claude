@@ -3,8 +3,9 @@ import { Link, useLocation } from "react-router-dom";
 import { useTheme } from "../contexts/ThemeContext.js";
 import TopBar from "./TopBar.js";
 
-interface NavItem  { icon: string; label: string; path: string; }
-interface NavGroup { title: string; items: NavItem[]; }
+interface SubItem  { icon: string; label: string; path: string; }
+interface NavItem  { icon: string; label: string; path: string; children?: SubItem[]; }
+interface NavGroup { title: string; items: NavItem[]; accordion?: boolean; }
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -16,20 +17,29 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Ürünler",
     items: [
-      { icon: "🔬", label: "Granüler Hesaplama", path: "/gec" },
-      { icon: "⚡", label: "24/7 CFE Matching",  path: "/cfe" },
-      { icon: "🏛️", label: "CBAM Emissions",     path: "/cbam" },
+      { icon: "⚡", label: "24/7 CFE Matching",  path: "/cfe",
+        children: [
+          { icon: "🔬", label: "Granüler Hesaplama", path: "/gec" },
+        ],
+      },
+      { icon: "🏛️", label: "CBAM Emissions",     path: "/cbam",
+        children: [
+          { icon: "📄", label: "Teknik Dosya", path: "/reports/cbam" },
+        ],
+      },
       { icon: "📡", label: "EF Veri Servisi",    path: "/ef-data" },
+      { icon: "🌐", label: "Canlı & Tahmin",     path: "/live-forecast" },
+      { icon: "🕸️", label: "ESG Playground",     path: "/esg-playground" },
     ],
   },
   {
-    title: "Raporlama",
+    title: "Raporlamalar",
+    accordion: true,
     items: [
-      { icon: "📄", label: "CBAM Teknik Dosya", path: "/reports/cbam" },
-      { icon: "📄", label: "CDP Raporu",         path: "/reports/cdp" },
-      { icon: "📄", label: "ISO 14064",          path: "/reports/iso14064" },
-      { icon: "📄", label: "GHG Protocol",       path: "/reports/ghg" },
-      { icon: "🌍", label: "CSRD E1",            path: "/csrd" },
+      { icon: "📄", label: "CDP Raporu",    path: "/reports/cdp" },
+      { icon: "📄", label: "ISO 14064",     path: "/reports/iso14064" },
+      { icon: "📄", label: "GHG Protocol",  path: "/reports/ghg" },
+      { icon: "🌍", label: "CSRD E1",       path: "/csrd" },
     ],
   },
   {
@@ -40,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: "🎯", label: "Emisyon Hedefleri", path: "/emission-targets" },
       { icon: "📥", label: "CSV Import",         path: "/import" },
       { icon: "📊", label: "Sektör Benchmark",  path: "/benchmark" },
+      { icon: "🔌", label: "Entegrasyonlar",    path: "/integrations" },
       { icon: "🧪", label: "API Playground",    path: "/api-playground" },
     ],
   },
@@ -47,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 function isActive(path: string, pathname: string): boolean {
   if (path === "/cbam") return pathname === "/cbam" || pathname.startsWith("/cbam/");
+  if (path === "/cfe")  return pathname === "/cfe" || pathname.startsWith("/cfe/") || pathname === "/gec";
   if (path === "/gec")  return pathname === "/gec";
   return pathname === path || pathname.startsWith(path + "/");
 }
@@ -59,10 +71,21 @@ const SUBNAVS: SubNavConfig[] = [
   {
     prefix: "/cfe",
     tabs: [
-      { label: "Portföy",     path: "/cfe",              exact: true },
-      { label: "Eşleştirme", path: "/cfe/matching" },
-      { label: "Veri Girişi", path: "/cfe/data-entry" },
-      { label: "Sertifikalar", path: "/cfe/certificates" },
+      { label: "Portföy",          path: "/cfe",               exact: true },
+      { label: "Eşleştirme",       path: "/cfe/matching" },
+      { label: "Veri Girişi",      path: "/cfe/data-entry" },
+      { label: "Sertifikalar",     path: "/cfe/certificates" },
+      { label: "Tesisler",         path: "/cfe/facilities" },
+      { label: "Green Assets",     path: "/cfe/green-assets" },
+    ],
+  },
+  {
+    prefix: "/live-forecast",
+    tabs: [
+      { label: "Piyasa Fiyatları",    path: "/live-forecast",               exact: true },
+      { label: "RE Üretimi",          path: "/live-forecast/generation" },
+      { label: "Karbon Yoğunluğu",   path: "/live-forecast/carbon" },
+      { label: "Optimal Pencere",     path: "/live-forecast/optimal" },
     ],
   },
   {
@@ -93,6 +116,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [mobile,   setMobile]   = useState(window.innerWidth < MOBILE_BP);
   const [sideOpen, setSideOpen] = useState(false);
   const isDark = theme === "dark";
+
+  const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(NAV_GROUPS.filter(g => g.accordion).map(g => [g.title, false]))
+  );
+
+  // Auto-expand accordion if current path matches a child
+  useEffect(() => {
+    NAV_GROUPS.forEach(g => {
+      if (g.accordion && g.items.some(item => isActive(item.path, location.pathname))) {
+        setOpenAccordions(prev => ({ ...prev, [g.title]: true }));
+      }
+    });
+  }, [location.pathname]);
 
   useEffect(() => {
     function onResize() { setMobile(window.innerWidth < MOBILE_BP); }
@@ -236,41 +272,108 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: "8px 10px", overflowY: "auto" }}>
-          {NAV_GROUPS.map(group => (
-            <div key={group.title}>
-              <div style={{
-                fontSize: 10, color: "rgba(255,255,255,.25)", textTransform: "uppercase",
-                letterSpacing: ".09em", padding: "14px 12px 4px", fontWeight: 700,
-              }}>
-                {group.title}
-              </div>
-              {group.items.map(item => {
-                const active = isActive(item.path, location.pathname);
-                return (
-                  <Link
-                    key={item.label + item.path}
-                    to={item.path}
-                    style={{ ...itemBase, ...(active ? itemActive : {}) }}
-                    onMouseEnter={e => {
-                      if (!active) {
-                        (e.currentTarget as HTMLElement).style.background = "rgba(0,184,122,.1)";
-                        (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.9)";
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!active) {
-                        (e.currentTarget as HTMLElement).style.background = "transparent";
-                        (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.55)";
-                      }
+          {NAV_GROUPS.map(group => {
+            const isAccordion = !!group.accordion;
+            const accordionOpen = isAccordion ? (openAccordions[group.title] ?? false) : true;
+
+            return (
+              <div key={group.title}>
+                {isAccordion ? (
+                  /* Accordion toggle header */
+                  <button
+                    onClick={() => setOpenAccordions(prev => ({ ...prev, [group.title]: !prev[group.title] }))}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      width: "100%", background: "none", border: "none", cursor: "pointer",
+                      fontSize: 10, color: "rgba(255,255,255,.25)", textTransform: "uppercase",
+                      letterSpacing: ".09em", padding: "14px 12px 4px", fontWeight: 700,
                     }}
                   >
-                    <span style={{ width: 18, flexShrink: 0, textAlign: "center", fontSize: 14 }}>{item.icon}</span>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+                    <span>{group.title}</span>
+                    <span style={{
+                      fontSize: 9, color: "rgba(255,255,255,.25)",
+                      transform: accordionOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform .2s",
+                      display: "inline-block",
+                    }}>▼</span>
+                  </button>
+                ) : (
+                  <div style={{
+                    fontSize: 10, color: "rgba(255,255,255,.25)", textTransform: "uppercase",
+                    letterSpacing: ".09em", padding: "14px 12px 4px", fontWeight: 700,
+                  }}>
+                    {group.title}
+                  </div>
+                )}
+
+                {/* Items (collapsed if accordion is closed) */}
+                <div style={{
+                  overflow: "hidden",
+                  maxHeight: accordionOpen ? "600px" : "0px",
+                  transition: "max-height .22s cubic-bezier(.4,0,.2,1)",
+                }}>
+                  {group.items.map(item => {
+                    const active = isActive(item.path, location.pathname);
+                    const hasChildren = !!item.children?.length;
+                    return (
+                      <div key={item.label + item.path}>
+                        <Link
+                          to={item.path}
+                          style={{ ...itemBase, ...(active ? itemActive : {}) }}
+                          onMouseEnter={e => {
+                            if (!active) {
+                              (e.currentTarget as HTMLElement).style.background = "rgba(0,184,122,.1)";
+                              (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.9)";
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!active) {
+                              (e.currentTarget as HTMLElement).style.background = "transparent";
+                              (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.55)";
+                            }
+                          }}
+                        >
+                          <span style={{ width: 18, flexShrink: 0, textAlign: "center", fontSize: 14 }}>{item.icon}</span>
+                          {item.label}
+                        </Link>
+                        {/* Indented sub-items */}
+                        {hasChildren && item.children!.map(child => {
+                          const childActive = location.pathname === child.path || location.pathname.startsWith(child.path + "/");
+                          return (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              style={{
+                                ...itemBase,
+                                paddingLeft: 38,
+                                fontSize: 12,
+                                ...(childActive ? itemActive : {}),
+                              }}
+                              onMouseEnter={e => {
+                                if (!childActive) {
+                                  (e.currentTarget as HTMLElement).style.background = "rgba(0,184,122,.1)";
+                                  (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.9)";
+                                }
+                              }}
+                              onMouseLeave={e => {
+                                if (!childActive) {
+                                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                                  (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,.55)";
+                                }
+                              }}
+                            >
+                              <span style={{ width: 18, flexShrink: 0, textAlign: "center", fontSize: 12 }}>{child.icon}</span>
+                              {child.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Bottom — Ayarlar */}

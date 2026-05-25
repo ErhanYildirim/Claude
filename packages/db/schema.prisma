@@ -35,6 +35,8 @@ model Tenant {
   notificationPreferences NotificationPreference[]
   memberInvites           MemberInvite[]
   emissionTargets         EmissionTarget[]
+  integrationConfigs      IntegrationConfig[]
+  esgGraphs               EsgPlaygroundGraph[]
 
   @@map("tenants")
 }
@@ -522,6 +524,170 @@ model HourlyConsumption {
   @@index([periodId])
   @@index([hour])
   @@map("hourly_consumptions")
+}
+
+// ── IntegrationConfig (Tenant bazlı entegrasyon yapılandırmaları) ────────────
+model IntegrationConfig {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  key           String               // 'entso-e' | 'epias' | 'cbam-terminal' | ...
+  enabled       Boolean  @default(false)
+  configEnc     Json     @default("{}") @map("config_enc") // hassas alanlar app katmanında şifrelenir
+  status        String   @default("disconnected") // connected|disconnected|error|beta|coming_soon
+  lastTestedAt  DateTime? @map("last_tested_at")
+  testMessage   String?   @map("test_message")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt      @map("updated_at")
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("integration_configs")
+}
+
+// ── MarketPrice (DAM fiyatları — gerçekleşen + tahmin) ───────────────────────
+model MarketPrice {
+  id            String   @id @default(uuid()) @db.Uuid
+  zoneId        String   @map("zone_id")
+  hour          DateTime
+  priceEurMwh   Float?   @map("price_eur_mwh")
+  priceTryMwh   Float?   @map("price_try_mwh")
+  currency      String   @default("EUR")
+  priceType     String   @map("price_type")    // dam_actual | dam_forecast | intraday
+  source        String                          // entso-e | epias | model
+  forecastMadeAt DateTime? @map("forecast_made_at")
+  confidenceLow  Float?   @map("confidence_low")
+  confidenceHigh Float?   @map("confidence_high")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([zoneId, hour, priceType, source])
+  @@index([zoneId, hour(sort: Desc)])
+  @@index([priceType, hour(sort: Desc)])
+  @@map("market_prices")
+}
+
+// ── GenerationForecast (Yenilenebilir üretim — actual + forecast) ─────────────
+model GenerationForecast {
+  id            String   @id @default(uuid()) @db.Uuid
+  zoneId        String   @map("zone_id")
+  hour          DateTime
+  psrType       String   @map("psr_type")      // B16=solar, B19=wind_onshore, B18=wind_offshore, B10=hydro, TOTAL_LOAD
+  recordType    String   @map("record_type")   // actual | forecast
+  quantityMw    Float    @map("quantity_mw")
+  source        String                          // entso-e | open-meteo | model
+  forecastMadeAt DateTime? @map("forecast_made_at")
+  confidenceLow  Float?   @map("confidence_low")
+  confidenceHigh Float?   @map("confidence_high")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([zoneId, hour, psrType, recordType, source])
+  @@index([zoneId, hour(sort: Desc), psrType])
+  @@index([psrType, zoneId, hour(sort: Desc)])
+  @@map("generation_forecasts")
+}
+
+// ── WeatherSnapshot (Open-Meteo önbelleği) ────────────────────────────────────
+model WeatherSnapshot {
+  id               String   @id @default(uuid()) @db.Uuid
+  lat              Float
+  lon              Float
+  hour             DateTime
+  ghiWm2           Float?   @map("ghi_wm2")          // Global Horizontal Irradiance W/m²
+  dhiWm2           Float?   @map("dhi_wm2")          // Diffuse Horizontal Irradiance W/m²
+  windSpeed10m     Float?   @map("wind_speed_10m")
+  windSpeed100m    Float?   @map("wind_speed_100m")
+  windDirection10m Float?   @map("wind_direction_10m")
+  temperature2m    Float?   @map("temperature_2m")
+  cloudCover       Float?   @map("cloud_cover")
+  precipitation    Float?
+  source           String   @default("open-meteo")
+  forecastMadeAt   DateTime? @map("forecast_made_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([lat, lon, hour(sort: Desc)])
+  @@index([hour(sort: Desc)])
+  @@map("weather_snapshots")
+}
+
+// ── CiForecast (24–48 saatlik karbon yoğunluğu tahmini) ──────────────────────
+model CiForecast {
+  id                 String   @id @default(uuid()) @db.Uuid
+  zoneId             String   @map("zone_id")
+  hour               DateTime
+  ciGco2Kwh          Float    @map("ci_gco2_kwh")
+  ciActualGco2Kwh    Float?   @map("ci_actual_gco2_kwh")  // Gerçekleşen — sonradan doldurulur
+  method             String   @default("generation-mix")   // generation-mix | statistical
+  horizonH           Int      @map("horizon_h")            // Kaç saat öncesinden tahmin
+  mae                Float?                                 // Mean Absolute Error
+  forecastMadeAt     DateTime @map("forecast_made_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@unique([zoneId, hour, method, forecastMadeAt])
+  @@index([zoneId, hour(sort: Desc)])
+  @@index([zoneId, horizonH, hour(sort: Desc)])
+  @@map("ci_forecasts")
+}
+
+// ── DataImportJob (Cron job çalışma logu) ────────────────────────────────────
+model DataImportJob {
+  id            String   @id @default(uuid()) @db.Uuid
+  jobType       String   @map("job_type")  // dam-prices | generation-forecast | weather | ci-forecast | load-forecast | ef-actual
+  zoneId        String?  @map("zone_id")
+  status        String   @default("running") // running | success | error | partial
+  startedAt     DateTime @default(now()) @map("started_at")
+  finishedAt    DateTime? @map("finished_at")
+  rowsInserted  Int      @default(0) @map("rows_inserted")
+  errorMessage  String?  @map("error_message")
+  metadata      Json     @default("{}") @map("metadata")
+
+  @@index([jobType, startedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+  @@map("data_import_jobs")
+}
+
+// ── EsgPlaygroundGraph (ESG Dijital İkiz Canvas) ─────────────────────────────
+model EsgPlaygroundGraph {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String   @default("Yeni Canvas")
+  description String?
+  nodesJson   Json     @default("[]") @map("nodes_json")
+  edgesJson   Json     @default("[]") @map("edges_json")
+  viewport    Json     @default("{\"x\":0,\"y\":0,\"zoom\":1}")
+  createdBy   String   @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  snapshots   EsgPlaygroundSnapshot[]
+
+  @@index([tenantId])
+  @@map("esg_playground_graphs")
+}
+
+// ── EsgPlaygroundSnapshot (Denetim Anlık Görüntüsü — değiştirilemez) ─────────
+model EsgPlaygroundSnapshot {
+  id               String             @id @default(uuid()) @db.Uuid
+  graphId          String             @map("graph_id") @db.Uuid
+  graph            EsgPlaygroundGraph @relation(fields: [graphId], references: [id], onDelete: Cascade)
+
+  name             String
+  reportingPeriod  String?            @map("reporting_period")  // "Q1 2025" | "FY 2025"
+  nodesJson        Json               @map("nodes_json")
+  edgesJson        Json               @map("edges_json")
+  hash             String             // SHA-256 of nodesJson+edgesJson
+  isLocked         Boolean            @default(true) @map("is_locked")
+  methodologyVer   String             @default("1.0") @map("methodology_ver")
+  createdBy        String             @map("created_by") @db.Uuid
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  @@index([graphId])
+  @@map("esg_playground_snapshots")
 }
 
 // ── SmtpConfig (Sistem geneli tek kayıt — singleton id="default") ─────────────

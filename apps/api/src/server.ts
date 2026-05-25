@@ -80,6 +80,23 @@ import { periodImportRoutes }   from "./routes/period-import.js";
 import { benchmarkRoutes }      from "./routes/benchmark.js";
 import { cbamProductRoutes }    from "./routes/cbam-products.js";
 import { cbamFacilitiesRoutes } from "./routes/cbam-facilities.js";
+import { integrationsRoutes }   from "./routes/integrations.js";
+import { marketPricesRoutes }    from "./routes/market-prices.js";
+import { generationForecastRoutes } from "./routes/generation-forecast.js";
+import { efLiveRoutes }          from "./routes/ef-live.js";
+import { wsLiveRoutes }          from "./routes/ws-live.js";
+import { esgPlaygroundRoutes }   from "./routes/esg-playground.js";
+import { esgCopilotRoutes }      from "./routes/esg-copilot.js";
+import { wsCanvasRoutes }        from "./routes/ws-canvas.js";
+import websocket                  from "@fastify/websocket";
+import { importDamPrices }       from "./services/entso-e-prices.js";
+import { importEpiasPtf }        from "./services/epias-prices.js";
+import { importGenerationForecast, importGenerationActual, importLoadForecast } from "./services/entso-e-generation.js";
+import { importWeatherPilotZones } from "./services/open-meteo.js";
+import { runDamPriceForecast }   from "./services/forecast/dam-price-model.js";
+import { runSolarForecast }      from "./services/forecast/solar-model.js";
+import { runWindForecast }       from "./services/forecast/wind-model.js";
+import { runCiForecast, backfillCiActual } from "./services/forecast/ci-forecast.js";
 import cron from "node-cron";
 
 const MB = 1024 * 1024;
@@ -112,6 +129,9 @@ const app = Fastify({
   bodyLimit:      10 * MB,   // JSON/form: 10 MB; CSV upload rotaları override eder
   routerOptions:  { maxParamLength: 500 },
 } as Parameters<typeof Fastify>[0]);
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+await app.register(websocket);
 
 // ── Security plugins ─────────────────────────────────────────────────────────
 await app.register(cors, {
@@ -200,6 +220,14 @@ await app.register(periodImportRoutes,    { prefix: v1 });
 await app.register(benchmarkRoutes,       { prefix: v1 });
 await app.register(cbamFacilitiesRoutes,  { prefix: v1 });
 await app.register(cbamProductRoutes,     { prefix: v1 });
+await app.register(integrationsRoutes,    { prefix: v1 });
+await app.register(marketPricesRoutes,    { prefix: v1 });
+await app.register(generationForecastRoutes, { prefix: v1 });
+await app.register(efLiveRoutes,          { prefix: v1 });
+await app.register(wsLiveRoutes,          { prefix: v1 });
+await app.register(esgPlaygroundRoutes,   { prefix: v1 });
+await app.register(esgCopilotRoutes,      { prefix: v1 });
+await app.register(wsCanvasRoutes,        { prefix: v1 });
 
 // Health check — kamuya açık, detaylı DB + uygulama durumu
 app.get("/health", { config: { public: true } }, async (_req, reply) => {
@@ -315,6 +343,99 @@ try {
         skipDuplicates: true,
       });
     }
+  }, { timezone: "UTC" });
+
+  // ── Saatlik veri çekme cron'u (Task #126) — her saat başı ───────────────────
+  cron.schedule("5 * * * *", async () => {
+    app.log.info("[HourlyCron] Saatlik veri çekme başlıyor…");
+
+    const entsoToken = process.env.ENTSO_E_API_TOKEN;
+    const now        = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const twoHoursAhead = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+    const jobs = [
+      // ENTSO-E gerçekleşen üretim (EF için) — pilot zone'lar
+      entsoToken
+        ? Promise.allSettled(["TR", "DE", "ES", "FR"].map(z =>
+            importGenerationActual(entsoToken, z, twoHoursAgo, twoHoursAhead)
+          ))
+        : Promise.resolve(),
+
+      // Open-Meteo hava verisi (her saat güncel)
+      importWeatherPilotZones(),
+
+      // CI forecast güncelle
+      Promise.allSettled(["TR", "DE", "ES", "FR"].map(z =>
+        runCiForecast(z, now, new Date(now.getTime() + 48 * 60 * 60 * 1000))
+      )),
+
+      // CI gerçekleşen backfill (MAE hesapla)
+      Promise.allSettled(["TR", "DE", "ES", "FR"].map(z => backfillCiActual(z))),
+    ];
+
+    const results = await Promise.allSettled(jobs);
+    const errors  = results.filter(r => r.status === "rejected");
+    if (errors.length > 0) {
+      app.log.warn({ count: errors.length }, "[HourlyCron] Bazı job'lar hata verdi");
+    }
+    app.log.info("[HourlyCron] Tamamlandı.");
+  }, { timezone: "UTC" });
+
+  // ── Günlük DAM forecast cron'u (Task #127) — 15:00 UTC (D+1 fiyatlar hazır) ─
+  cron.schedule("0 15 * * *", async () => {
+    app.log.info("[DamCron] Günlük DAM forecast başlıyor…");
+
+    const entsoToken = process.env.ENTSO_E_API_TOKEN;
+    const epiasUser  = process.env.EPIAS_USERNAME;
+    const epiasPass  = process.env.EPIAS_PASSWORD;
+
+    const now       = new Date();
+    const tomorrow  = new Date(now); tomorrow.setUTCHours(0, 0, 0, 0); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const dayAfter  = new Date(tomorrow); dayAfter.setUTCDate(dayAfter.getUTCDate() + 1);
+
+    const steps: Promise<unknown>[] = [];
+
+    if (entsoToken) {
+      // 1. ENTSO-E A44 DAM fiyatları — pilot zone'lar
+      steps.push(Promise.allSettled(["DE", "FR", "ES", "NL", "TR"].map(z =>
+        importDamPrices(entsoToken, z, tomorrow, dayAfter)
+      )));
+
+      // 2. ENTSO-E A69 D+1 yenilenebilir üretim tahmini
+      steps.push(Promise.allSettled(["TR", "DE", "ES", "FR"].map(z =>
+        importGenerationForecast(entsoToken, z, tomorrow, dayAfter)
+      )));
+
+      // 3. ENTSO-E A65 D+1 yük tahmini
+      steps.push(Promise.allSettled(["TR", "DE", "ES", "FR"].map(z =>
+        importLoadForecast(entsoToken, z, tomorrow, dayAfter)
+      )));
+    }
+
+    // 4. EPIAŞ PTF (Türkiye)
+    if (epiasUser && epiasPass) {
+      steps.push(importEpiasPtf({ username: epiasUser, password: epiasPass }, tomorrow));
+    }
+
+    // Paralel çalıştır, hata izolasyonu
+    await Promise.allSettled(steps);
+
+    // 5. Fiyat istatistiksel modeli — tüm pilot zone'lar için D+1
+    await Promise.allSettled(["TR", "DE", "ES", "FR", "NL"].map(runDamPriceForecast));
+
+    // 6. Solar + Rüzgar modelleri
+    await Promise.allSettled([
+      ...["TR", "DE", "ES", "FR"].map(z => runSolarForecast(z, tomorrow, dayAfter)),
+      ...["TR", "DE", "ES", "FR"].map(z => runWindForecast(z, tomorrow, dayAfter)),
+    ]);
+
+    // 7. CI forecast
+    await Promise.allSettled(["TR", "DE", "ES", "FR"].map(z =>
+      runCiForecast(z, tomorrow, dayAfter)
+    ));
+
+    app.log.info("[DamCron] Günlük DAM forecast tamamlandı.");
   }, { timezone: "UTC" });
 
 } catch (err) {

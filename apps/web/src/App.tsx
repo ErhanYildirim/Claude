@@ -18,6 +18,9 @@ const CfePage                = lazy(() => import("./pages/CfePage.js"));
 const CfeMatchingPage        = lazy(() => import("./pages/CfeMatchingPage.js"));
 const CfeDataEntryPage       = lazy(() => import("./pages/CfeDataEntryPage.js"));
 const CfeCertificatesPage    = lazy(() => import("./pages/CfeCertificatesPage.js"));
+const CfeFacilitiesPage      = lazy(() => import("./pages/CfeFacilitiesPage.js"));
+const CfeGreenAssetsPage     = lazy(() => import("./pages/CfeGreenAssetsPage.js"));
+const IntegrationsPage       = lazy(() => import("./pages/IntegrationsPage.js"));
 const EfDataPage             = lazy(() => import("./pages/EfDataPage.js"));
 const CbamReportPage         = lazy(() => import("./pages/CbamReportPage.js"));
 const CdpReportPage          = lazy(() => import("./pages/CdpReportPage.js"));
@@ -40,6 +43,8 @@ const CbamProductPage        = lazy(() => import("./pages/CbamProductPage.js"));
 const EfZonesPage            = lazy(() => import("./pages/EfZonesPage.js"));
 const EfCoveragePage         = lazy(() => import("./pages/EfCoveragePage.js"));
 const EfApiPage              = lazy(() => import("./pages/EfApiPage.js"));
+const LiveForecastHubPage    = lazy(() => import("./pages/LiveForecastHubPage.js"));
+const EsgPlaygroundPage      = lazy(() => import("./pages/EsgPlaygroundPage.js"));
 
 // Admin pages (super-admin only)
 const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
@@ -143,6 +148,9 @@ function AppRouter() {
           <Route path="/cfe/matching"                                      element={<CfeMatchingPage />} />
           <Route path="/cfe/data-entry"                                    element={<CfeDataEntryPage />} />
           <Route path="/cfe/certificates"                                  element={<CfeCertificatesPage />} />
+          <Route path="/cfe/facilities"                                   element={<CfeFacilitiesPage />} />
+          <Route path="/cfe/green-assets"                                 element={<CfeGreenAssetsPage />} />
+          <Route path="/integrations"                                     element={<IntegrationsPage />} />
           <Route path="/ef-data"                                           element={<EfDataPage />} />
           <Route path="/ef-data/zones"                                     element={<EfZonesPage />} />
           <Route path="/ef-data/coverage"                                  element={<EfCoveragePage />} />
@@ -165,6 +173,9 @@ function AppRouter() {
           <Route path="/cbam/wizard"                                          element={<CbamWizardPage />} />
           <Route path="/cbam/facilities/:facilityId"                        element={<CbamFacilityPage />} />
           <Route path="/cbam/facilities/:facilityId/products/:productId"    element={<CbamProductPage />} />
+          <Route path="/live-forecast/*"                                    element={<LiveForecastHubPage />} />
+          <Route path="/esg-playground"                                    element={<EsgPlaygroundPage />} />
+          <Route path="/esg-playground/:graphId"                           element={<EsgPlaygroundPage />} />
           <Route path="*"                                                  element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

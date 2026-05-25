@@ -76,10 +76,17 @@ function buildItems(data: SearchResult | null, pages: typeof ALL_PAGES): ResultI
 interface GlobalSearchProps {
   topBar?: boolean;
   isDark?: boolean;
+  onClose?: () => void;
 }
 
-export default function GlobalSearch({ topBar = false, isDark = false }: GlobalSearchProps) {
-  const [open,    setOpen]    = useState(false);
+export default function GlobalSearch({ topBar = false, isDark = false, onClose }: GlobalSearchProps) {
+  // When onClose is provided, the parent controls visibility — start open immediately.
+  const [open,    setOpen]    = useState(() => !!onClose);
+
+  function closeSearch() {
+    setOpen(false);
+    onClose?.();
+  }
   const [query,   setQuery]   = useState("");
   const [data,    setData]    = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,7 +99,7 @@ export default function GlobalSearch({ topBar = false, isDark = false }: GlobalS
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setOpen(v => !v); }
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") closeSearch();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -133,7 +140,7 @@ export default function GlobalSearch({ topBar = false, isDark = false }: GlobalS
   const items        = buildItems(data, matchedPages);
 
   function go(href: string) {
-    setOpen(false);
+    closeSearch();
     navigate(href);
   }
 
@@ -222,7 +229,7 @@ export default function GlobalSearch({ topBar = false, isDark = false }: GlobalS
   return (
     <>
       <div
-        onClick={() => setOpen(false)}
+        onClick={() => closeSearch()}
         style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 900, backdropFilter: "blur(3px)" }}
       />
       <div style={{

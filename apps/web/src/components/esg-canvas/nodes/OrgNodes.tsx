@@ -5,10 +5,36 @@ type BND = Node<BaseNodeData>;
 
 export const OrgNode          = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "🏢", color: "#64748b" }} />;
 export const DivisionNode     = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "🏬", color: "#6366f1" }} />;
-export const FacilityNode     = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "🏭", color: "#3b82f6" }} />;
-export const BuildingNode     = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "🏗️", color: "#0ea5e9" }} />;
-export const ProcessNode      = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "⚙️", color: "#f97316" }} />;
-export const ProductNode      = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "📦", color: "#8b5cf6" }} />;
+export const FacilityNode = (p: NodeProps<BND>) => {
+  const bound = !!(p.data.sourceId as string | undefined);
+  return (
+    <BaseNode
+      {...p}
+      data={{
+        ...p.data, icon: "🏭", color: "#3b82f6",
+        badge:      p.data.badge as string | undefined ?? (bound ? "✓" : "!"),
+        badgeColor: p.data.badgeColor as string | undefined ?? (bound ? "#10b981" : "#f59e0b"),
+      }}
+    />
+  );
+};
+
+export const ProductNode = (p: NodeProps<BND>) => {
+  const bound = !!(p.data.sourceId as string | undefined);
+  return (
+    <BaseNode
+      {...p}
+      data={{
+        ...p.data, icon: "📦", color: "#8b5cf6",
+        badge:      p.data.badge as string | undefined ?? (bound ? "✓" : "!"),
+        badgeColor: p.data.badgeColor as string | undefined ?? (bound ? "#10b981" : "#f59e0b"),
+      }}
+    />
+  );
+};
+
+export const BuildingNode = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "🏗️", color: "#0ea5e9" }} />;
+export const ProcessNode  = (p: NodeProps<BND>) => <BaseNode {...p} data={{ ...p.data, icon: "⚙️", color: "#f97316" }} />;
 
 // VehicleFleetNode — özel görünüm (Scope 1 etiketi)
 interface FleetData extends BaseNodeData { scope?: string; }

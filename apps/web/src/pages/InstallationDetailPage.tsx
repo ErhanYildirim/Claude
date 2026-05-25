@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { dispatchResourceUpdate } from "../lib/canvasSync.js";
 import type { InstallationDetail, Period, CreatePeriodBody, EFEntry } from "../lib/api.js";
 import { Scope1Calculator } from "../components/Scope1Calculator.js";
 
@@ -64,6 +65,7 @@ const EMPTY_FUEL_ROW: FuelRow = { fuelType: "natural_gas", consumedMwh: 0 };
 
 export default function InstallationDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [installation, setInstallation] = useState<InstallationDetail | null>(null);
   const [showModal, setShowModal]           = useState(false);
   const [editingPeriod, setEditingPeriod]   = useState<Period | null>(null);
@@ -224,6 +226,7 @@ export default function InstallationDetailPage() {
         if (!prev) return prev;
         return { ...prev, periods: prev.periods.map(p => p.id === period.id ? { ...p, result: res.stored } : p) };
       });
+      dispatchResourceUpdate("installation", id, { calculated: true, periodId: period.id });
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Hesaplama hatası");
     }
@@ -264,8 +267,25 @@ export default function InstallationDetailPage() {
         <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
           <Link to="/gec" style={{ color: "#00b87a", textDecoration: "none" }}>← Tesisler</Link>
         </div>
-        <div style={s.h1}>{installation.facilityName}</div>
-        <div style={s.sub}>{installation.operator} · {installation.facilityCountry}</div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
+          <div>
+            <div style={s.h1}>{installation.facilityName}</div>
+            <div style={s.sub}>{installation.operator} · {installation.facilityCountry}</div>
+          </div>
+          <button
+            onClick={() => navigate(`/esg-playground?highlight=installation:${id}`)}
+            title="Bu tesisi canvas'ta göster"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "transparent", color: "#00b87a",
+              border: "1px solid #00b87a", borderRadius: 8,
+              padding: "7px 14px", fontSize: 13, fontWeight: 600,
+              cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+            }}
+          >
+            🕸️ Canvas'ta Göster
+          </button>
+        </div>
 
         <button style={s.addBtn} onClick={() => setShowModal(true)}>+ Yeni Dönem Ekle</button>
 

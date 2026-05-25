@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { dispatchResourceDeleted } from "../lib/canvasSync.js";
 import { api } from "../lib/api.js";
 import type { CbamProduct, CbamProductPeriod, RenewableSource, CbamCountryEf, Period, InstallationDetail } from "../lib/api.js";
 
@@ -66,6 +67,7 @@ const EMPTY_PERIOD = {
 
 export default function CbamProductPage() {
   const { facilityId, productId } = useParams<{ facilityId: string; productId: string }>();
+  const navigate = useNavigate();
   const [product,         setProduct]         = useState<CbamProduct | null>(null);
   const [periods,         setPeriods]         = useState<CbamProductPeriod[]>([]);
   const [renewSources,    setRenewSources]    = useState<RenewableSource[]>([]);
@@ -267,12 +269,25 @@ export default function CbamProductPage() {
             </span>
           </div>
         </div>
-        <button style={S.btn} onClick={() => {
-          if (showForm) { setShowForm(false); setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setError(""); }
-          else { setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setShowForm(true); }
-        }}>
-          {showForm ? "İptal" : "+ Dönem Ekle"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => navigate(`/esg-playground?highlight=cbamProduct:${productId}`)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "transparent", color: "#00b87a",
+              border: "1px solid #00b87a", borderRadius: 8,
+              padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            🕸️ Canvas'ta Göster
+          </button>
+          <button style={S.btn} onClick={() => {
+            if (showForm) { setShowForm(false); setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setError(""); }
+            else { setEditingPeriodId(null); setForm({ ...EMPTY_PERIOD }); setShowForm(true); }
+          }}>
+            {showForm ? "İptal" : "+ Dönem Ekle"}
+          </button>
+        </div>
       </div>
 
       {/* Enerji Dağıtım Modu Açıklaması */}

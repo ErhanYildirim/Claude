@@ -10,6 +10,11 @@ const VALID_KEYS = new Set([
   "open-meteo",
   "ttf-gas",
   "ets-carbon",
+  "anthropic",
+  "openai",
+  "gemini",
+  "mcp-servers",
+  "claude-skills",
 ]);
 
 const VALID_STATUSES = new Set([
@@ -171,6 +176,15 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
           break;
         case "irec-evidence":
           testResult = await testIrecEvidence(record.configEnc as Record<string, string>);
+          break;
+        case "anthropic":
+          testResult = await testAnthropic(record.configEnc as Record<string, string>);
+          break;
+        case "openai":
+          testResult = await testOpenAi(record.configEnc as Record<string, string>);
+          break;
+        case "gemini":
+          testResult = await testGemini(record.configEnc as Record<string, string>);
           break;
         default:
           testResult = { ok: false, message: "Bu entegrasyon için test desteklenmiyor" };
@@ -366,6 +380,54 @@ async function testIrecEvidence(config: Record<string, string>): Promise<{ ok: b
     return { ok: true, message: "I-REC yapılandırması kaydedildi — erişim için I-REC kayıt onayı gerekebilir" };
   } catch {
     return { ok: true, message: "I-REC yapılandırması kaydedildi — bağlantıyı canlı ortamda doğrulayın" };
+  }
+}
+
+async function testAnthropic(config: Record<string, string>): Promise<{ ok: boolean; message: string }> {
+  const apiKey = config.apiKey;
+  if (!apiKey) return { ok: false, message: "Anthropic API anahtarı girilmemiş" };
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/models", {
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.ok)            return { ok: true,  message: "Anthropic API bağlantısı başarılı — Claude modelleri kullanılabilir" };
+    if (res.status === 401) return { ok: false, message: "Geçersiz Anthropic API anahtarı — console.anthropic.com'dan kontrol edin" };
+    return { ok: false, message: `Anthropic API yanıt kodu: ${res.status}` };
+  } catch {
+    return { ok: false, message: "Anthropic API'ye erişilemiyor" };
+  }
+}
+
+async function testOpenAi(config: Record<string, string>): Promise<{ ok: boolean; message: string }> {
+  const apiKey = config.apiKey;
+  if (!apiKey) return { ok: false, message: "OpenAI API anahtarı girilmemiş" };
+  try {
+    const res = await fetch("https://api.openai.com/v1/models", {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.ok)            return { ok: true,  message: "OpenAI API bağlantısı başarılı" };
+    if (res.status === 401) return { ok: false, message: "Geçersiz OpenAI API anahtarı" };
+    return { ok: false, message: `OpenAI API yanıt kodu: ${res.status}` };
+  } catch {
+    return { ok: false, message: "OpenAI API'ye erişilemiyor" };
+  }
+}
+
+async function testGemini(config: Record<string, string>): Promise<{ ok: boolean; message: string }> {
+  const apiKey = config.apiKey;
+  if (!apiKey) return { ok: false, message: "Gemini API anahtarı girilmemiş" };
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (res.ok)            return { ok: true,  message: "Google Gemini API bağlantısı başarılı — modeller erişilebilir" };
+    if (res.status === 400 || res.status === 403) return { ok: false, message: "Geçersiz Gemini API anahtarı — aistudio.google.com'dan kontrol edin" };
+    return { ok: false, message: `Gemini API yanıt kodu: ${res.status}` };
+  } catch {
+    return { ok: false, message: "Gemini API'ye erişilemiyor" };
   }
 }
 

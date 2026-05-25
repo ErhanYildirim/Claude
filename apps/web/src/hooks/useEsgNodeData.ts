@@ -76,34 +76,71 @@ export function useEsgNodeData(
 }
 
 // Hook: tüm canvas node'larının canlı verisini birleştiren harita
+// gridNode/solarNode/windNode → batch API polling (30sn)
+// emissionCalcNode/cfMatchingNode/meterNode → node.data'dan türetilir (komponentlerde render edilir)
 export function useCanvasLiveData(
   nodes: Array<{ id: string; type?: string; data: Record<string, unknown> }>,
   enabled = true,
 ): Map<string, LiveData> {
   const [dataMap, setDataMap] = useState<Map<string, LiveData>>(new Map());
 
-  const LIVE_TYPES = new Set(["gridNode", "solarNode", "windNode"]);
-
   useEffect(() => {
     if (!enabled) return;
 
+    const ZONE_TYPES = new Set(["gridNode", "solarNode", "windNode"]);
+    const zoneNodes = nodes.filter(n => ZONE_TYPES.has(n.type ?? ""));
+    if (zoneNodes.length === 0) return;
+
+    // Benzersiz zone'ları topla
+    const zones = [...new Set(
+      zoneNodes.map(n => (n.data.zone as string | undefined) ?? "DE")
+    )];
+
     async function fetchAll() {
-      const liveNodes = nodes.filter(n => LIVE_TYPES.has(n.type ?? ""));
-      if (liveNodes.length === 0) return;
+      try {
+        // Tek batch çağrısıyla tüm zone CI verisi
+        const batchRes = await api.esgPlayground.liveData(zones);
+        const zoneData = batchRes.zones;
 
-      const results = await Promise.allSettled(
-        liveNodes.map(n => fetchForNodeType(n.type!, n.data).then(d => ({ id: n.id, data: d }))),
-      );
+        // Her node için liveData oluştur
+        const results: Array<{ id: string; data: LiveData }> = [];
 
-      setDataMap(prev => {
-        const next = new Map(prev);
-        for (const r of results) {
-          if (r.status === "fulfilled" && r.value.data) {
-            next.set(r.value.id, r.value.data);
+        for (const n of zoneNodes) {
+          const zone = (n.data.zone as string | undefined) ?? "DE";
+          const zd   = zoneData[zone];
+          if (!zd) continue;
+
+          if (n.type === "gridNode") {
+            results.push({
+              id: n.id,
+              data: {
+                liveValue:  zd.ci != null  ? `${zd.ci.toFixed(0)} gCO₂/kWh` : undefined,
+                subLabel:   `${zone} şebekesi`,
+                lastFetched: new Date(),
+              },
+            });
+          } else {
+            // solarNode / windNode — RE% göster
+            results.push({
+              id: n.id,
+              data: {
+                liveValue:  zd.rePct != null ? `${zd.rePct.toFixed(1)}% RE` : undefined,
+                subLabel:   `${zone} • ${n.type === "solarNode" ? "Güneş" : "Rüzgar"}`,
+                lastFetched: new Date(),
+              },
+            });
           }
         }
-        return next;
-      });
+
+        if (results.length === 0) return;
+        setDataMap(prev => {
+          const next = new Map(prev);
+          for (const r of results) next.set(r.id, r.data);
+          return next;
+        });
+      } catch {
+        // API erişilemezse eski verileri koru
+      }
     }
 
     fetchAll();

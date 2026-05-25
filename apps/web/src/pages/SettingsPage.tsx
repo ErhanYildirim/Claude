@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from "react";
 import { api } from "../lib/api.js";
-import type { MemberList, MemberItem, PendingInviteList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile } from "../lib/api.js";
+import type { MemberList, MemberItem, PendingInviteList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile, IntegrationConfig } from "../lib/api.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
@@ -1312,8 +1312,547 @@ function NotificationsTab() {
   );
 }
 
+// ── MCP Servers Bölümü ───────────────────────────────────────────────────────
+interface McpServer { name: string; type: "sse" | "stdio" | "http"; url: string; enabled: boolean; }
+
+function McpServersSection() {
+  const [servers,  setServers]  = useState<McpServer[]>([]);
+  const [form,     setForm]     = useState<McpServer>({ name: "", type: "sse", url: "", enabled: true });
+  const [showForm, setShowForm] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState("");
+
+  function load() {
+    api.integrations.list().then(r => {
+      const cfg = r.integrations.find(i => i.key === "mcp-servers");
+      const list = (cfg?.config as unknown as { servers?: McpServer[] })?.servers ?? [];
+      setServers(list);
+    }).catch(() => {});
+  }
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function save() {
+    if (!form.name.trim() || !form.url.trim()) { setErr("Ad ve URL zorunludur."); return; }
+    setSaving(true); setErr("");
+    try {
+      const updated = [...servers, { ...form, name: form.name.trim(), url: form.url.trim() }];
+      await api.integrations.save("mcp-servers", { config: { servers: JSON.stringify(updated) }, enabled: true });
+      setServers(updated);
+      setForm({ name: "", type: "sse", url: "", enabled: true });
+      setShowForm(false);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Kaydetme hatası"); }
+    setSaving(false);
+  }
+
+  async function remove(idx: number) {
+    const updated = servers.filter((_, i) => i !== idx);
+    try {
+      await api.integrations.save("mcp-servers", { config: { servers: JSON.stringify(updated) }, enabled: updated.length > 0 });
+      setServers(updated);
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : "Silme hatası"); }
+  }
+
+  async function toggle(idx: number) {
+    const updated = servers.map((s, i) => i === idx ? { ...s, enabled: !s.enabled } : s);
+    try {
+      await api.integrations.save("mcp-servers", { config: { servers: JSON.stringify(updated) }, enabled: true });
+      setServers(updated);
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div style={s.card}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            🔌 MCP Servers
+          </div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+            Model Context Protocol sunucuları — Claude'un araç olarak kullanabileceği harici servisler
+          </div>
+        </div>
+        <button style={{ ...s.btnSm, ...s.btnP }} onClick={() => setShowForm(f => !f)}>
+          {showForm ? "İptal" : "+ Ekle"}
+        </button>
+      </div>
+
+      {servers.length === 0 && !showForm && (
+        <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" as const, padding: "16px 0" }}>
+          Henüz MCP server eklenmemiş.
+        </div>
+      )}
+
+      {servers.map((srv, idx) => (
+        <div key={idx} style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+          background: "#f8fafc", borderRadius: 7, marginBottom: 8, border: "1px solid #e2e8f0",
+        }}>
+          <span style={{ fontSize: 18 }}>{srv.type === "sse" ? "📡" : srv.type === "stdio" ? "⚙️" : "🌐"}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srv.name}</div>
+            <div style={{ fontSize: 11, color: "#5c7a72", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srv.type.toUpperCase()} · {srv.url}</div>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, cursor: "pointer", flexShrink: 0 }}>
+            <input type="checkbox" checked={srv.enabled} onChange={() => toggle(idx)} />
+            {srv.enabled ? "Aktif" : "Pasif"}
+          </label>
+          <button style={{ ...s.btnSm, ...s.btnR, flexShrink: 0 }} onClick={() => remove(idx)}>Sil</button>
+        </div>
+      ))}
+
+      {showForm && (
+        <div style={{ background: "#f8fafc", borderRadius: 8, padding: "14px", border: "1px solid #e2e8f0", marginTop: 8 }}>
+          <div style={s.row2}>
+            <div>
+              <label style={s.label}>Server Adı *</label>
+              <input style={s.input} value={form.name} placeholder="örn: Filesystem, Slack"
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div>
+              <label style={s.label}>Protokol</label>
+              <select style={s.select} value={form.type}
+                onChange={e => setForm(f => ({ ...f, type: e.target.value as McpServer["type"] }))}>
+                <option value="sse">SSE (Server-Sent Events)</option>
+                <option value="http">HTTP (Streamable HTTP)</option>
+                <option value="stdio">stdio (Komut satırı)</option>
+              </select>
+            </div>
+          </div>
+          <label style={s.label}>
+            {form.type === "stdio" ? "Komut / Çalıştırılabilir *" : "Endpoint URL *"}
+          </label>
+          <input style={s.input}
+            value={form.url}
+            placeholder={form.type === "stdio" ? "npx -y @modelcontextprotocol/server-filesystem /path" : "https://mcp.example.com/sse"}
+            onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
+          {err && <div style={s.err}>{err}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={{ ...s.btnSm, ...s.btnP }} onClick={save} disabled={saving}>
+              {saving ? "Kaydediliyor..." : "Ekle"}
+            </button>
+            <button style={{ ...s.btnSm, ...s.btnSec }} onClick={() => { setShowForm(false); setErr(""); }}>İptal</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Claude Skill.md Bölümü ────────────────────────────────────────────────────
+function ClaudeSkillsSection() {
+  const [skills,   setSkills]   = useState<Array<{ name: string; content: string }>>([]);
+  const [editing,  setEditing]  = useState<number | null>(null);
+  const [draft,    setDraft]    = useState({ name: "", content: "" });
+  const [showNew,  setShowNew]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState("");
+
+  function load() {
+    api.integrations.list().then(r => {
+      const cfg = r.integrations.find(i => i.key === "claude-skills");
+      const list = (cfg?.config as unknown as { skills?: Array<{ name: string; content: string }> })?.skills ?? [];
+      setSkills(list);
+    }).catch(() => {});
+  }
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveSkill() {
+    if (!draft.name.trim() || !draft.content.trim()) { setErr("Ad ve içerik zorunludur."); return; }
+    setSaving(true); setErr("");
+    try {
+      const updated = editing !== null
+        ? skills.map((s, i) => i === editing ? { ...draft } : s)
+        : [...skills, { ...draft }];
+      await api.integrations.save("claude-skills", { config: { skills: JSON.stringify(updated) }, enabled: true });
+      setSkills(updated);
+      setDraft({ name: "", content: "" });
+      setEditing(null); setShowNew(false);
+    } catch (e: unknown) { setErr(e instanceof Error ? e.message : "Kaydetme hatası"); }
+    setSaving(false);
+  }
+
+  async function removeSkill(idx: number) {
+    if (!confirm("Bu skill'i silmek istediğinizden emin misiniz?")) return;
+    const updated = skills.filter((_, i) => i !== idx);
+    try {
+      await api.integrations.save("claude-skills", { config: { skills: JSON.stringify(updated) }, enabled: updated.length > 0 });
+      setSkills(updated);
+      if (editing === idx) { setEditing(null); setDraft({ name: "", content: "" }); }
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : "Silme hatası"); }
+  }
+
+  const PLACEHOLDER = `---
+name: voltfox-engineering
+description: Voltfox teknik mühendislik asistanı
+---
+
+Sen Voltfox'un teknik sahibisin. CBAM, GHG Protocol ve ISO 14064-1 gereksinimlerini
+teknik tasarıma yansıtan kıdemli bir yazılım mühendisi gibi düşün.`;
+
+  const isOpen = showNew || editing !== null;
+
+  return (
+    <div style={s.card}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            📄 Claude Skill.md Dosyaları
+          </div>
+          <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+            Claude Code CLI skill tanımları — Claude'un davranışını özelleştiren sistem promptlar
+          </div>
+        </div>
+        {!isOpen && (
+          <button style={{ ...s.btnSm, ...s.btnP }} onClick={() => { setDraft({ name: "", content: "" }); setShowNew(true); }}>
+            + Yeni Skill
+          </button>
+        )}
+      </div>
+
+      {skills.length === 0 && !isOpen && (
+        <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" as const, padding: "16px 0" }}>
+          Henüz skill tanımı eklenmemiş.
+        </div>
+      )}
+
+      {!isOpen && skills.map((skill, idx) => (
+        <div key={idx} style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+          background: "#f8fafc", borderRadius: 7, marginBottom: 8, border: "1px solid #e2e8f0",
+        }}>
+          <span style={{ fontSize: 18 }}>📋</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b" }}>{skill.name}</div>
+            <div style={{ fontSize: 11, color: "#5c7a72", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {skill.content.slice(0, 80)}...
+            </div>
+          </div>
+          <button style={{ ...s.btnSm, ...s.btnSec, flexShrink: 0 }}
+            onClick={() => { setDraft({ ...skill }); setEditing(idx); }}>Düzenle</button>
+          <button style={{ ...s.btnSm, ...s.btnR, flexShrink: 0 }} onClick={() => removeSkill(idx)}>Sil</button>
+        </div>
+      ))}
+
+      {isOpen && (
+        <div style={{ marginTop: 8 }}>
+          <label style={s.label}>Skill Adı *</label>
+          <input style={s.input} value={draft.name} placeholder="örn: voltfox-engineering"
+            onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
+          <label style={s.label}>skill.md İçeriği *</label>
+          <textarea
+            value={draft.content}
+            onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
+            placeholder={PLACEHOLDER}
+            rows={14}
+            style={{
+              ...s.input,
+              fontFamily: "monospace", fontSize: 12, lineHeight: 1.6,
+              resize: "vertical" as const, minHeight: 200, marginBottom: 10,
+            }}
+          />
+          {err && <div style={s.err}>{err}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={{ ...s.btnSm, ...s.btnP }} onClick={saveSkill} disabled={saving}>
+              {saving ? "Kaydediliyor..." : editing !== null ? "Güncelle" : "Kaydet"}
+            </button>
+            <button style={{ ...s.btnSm, ...s.btnSec }}
+              onClick={() => { setShowNew(false); setEditing(null); setDraft({ name: "", content: "" }); setErr(""); }}>
+              İptal
+            </button>
+            {editing !== null && (
+              <button style={{ ...s.btnSm, ...s.btnR }} onClick={() => removeSkill(editing!)}>Sil</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 14, padding: "10px 14px", background: "#fffbeb", borderRadius: 7, border: "1px solid #fde68a", fontSize: 12, color: "#92400e", lineHeight: 1.6 }}>
+        <strong>Nasıl kullanılır?</strong> Skill.md dosyaları Claude Code CLI'da <code>/.voltfox-engineering</code> gibi slash komutları olarak çalışır.
+        Bu sayfada oluşturduğunuz tanımlar ekip genelinde paylaşılır.
+      </div>
+    </div>
+  );
+}
+
+// ── AI Modeller Sekmesi ───────────────────────────────────────────────────────
+const AI_PROVIDERS: Array<{
+  key: string; name: string; icon: string; desc: string;
+  fields: Array<{ id: string; label: string; placeholder: string }>;
+}> = [
+  {
+    key: "anthropic", name: "Anthropic Claude", icon: "🤖",
+    desc: "ESG Co-Pilot için birincil model. Claude Sonnet ile canvas'ı doğal dilde düzenleyin.",
+    fields: [{ id: "apiKey", label: "API Anahtarı", placeholder: "sk-ant-api03-..." }],
+  },
+  {
+    key: "openai", name: "OpenAI GPT-4o", icon: "🟢",
+    desc: "Anthropic anahtarı yoksa ESG Co-Pilot otomatik olarak GPT-4o kullanır.",
+    fields: [{ id: "apiKey", label: "API Anahtarı", placeholder: "sk-proj-..." }],
+  },
+  {
+    key: "gemini", name: "Google Gemini", icon: "💎",
+    desc: "Anthropic ve OpenAI anahtarı yoksa Gemini 2.0 Flash kullanılır.",
+    fields: [{ id: "apiKey", label: "API Anahtarı", placeholder: "AIzaSy..." }],
+  },
+];
+
+const AI_STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  connected:    { bg: "#D1FAE5", color: "#065F46", label: "Bağlı" },
+  disconnected: { bg: "#FEF3C7", color: "#92400E", label: "Yapılandırılmamış" },
+  error:        { bg: "#FEE2E2", color: "#DC2626", label: "Hata" },
+  beta:         { bg: "#DBEAFE", color: "#009966", label: "Beta" },
+  coming_soon:  { bg: "#F3F4F6", color: "#6B7280", label: "Yakında" },
+};
+
+function AiModelsTab() {
+  const [configs,         setConfigs]         = useState<Record<string, IntegrationConfig>>({});
+  const [forms,           setForms]           = useState<Record<string, Record<string, string>>>({});
+  const [saving,          setSaving]          = useState<Record<string, boolean>>({});
+  const [testing,         setTesting]         = useState<Record<string, boolean>>({});
+  const [testResult,      setTestResult]      = useState<Record<string, { ok: boolean; message: string } | null>>({});
+  const [showKey,         setShowKey]         = useState<Record<string, boolean>>({});
+  const [saveErrors,      setSaveErrors]      = useState<Record<string, string | null>>({});
+  const [confirmRemoveKey, setConfirmRemoveKey] = useState<string | null>(null);
+
+  function refreshConfigs() {
+    return api.integrations.list().then(r => {
+      const map: Record<string, IntegrationConfig> = {};
+      for (const intg of r.integrations) {
+        if (["anthropic", "openai", "gemini"].includes(intg.key)) map[intg.key] = intg;
+      }
+      setConfigs(map);
+    }).catch(() => {});
+  }
+
+  useEffect(() => { refreshConfigs(); }, []);
+
+  async function save(key: string) {
+    const form = forms[key] ?? {};
+    if (!Object.values(form).some(v => v.trim())) return;
+    setSaving(p => ({ ...p, [key]: true }));
+    setSaveErrors(p => ({ ...p, [key]: null }));
+    try {
+      await api.integrations.save(key, { config: form, enabled: true });
+      await refreshConfigs();
+      setForms(p => ({ ...p, [key]: {} }));
+      setTestResult(p => ({ ...p, [key]: null }));
+    } catch (e: unknown) {
+      setSaveErrors(p => ({ ...p, [key]: e instanceof Error ? e.message : "Kaydetme başarısız" }));
+    }
+    setSaving(p => ({ ...p, [key]: false }));
+  }
+
+  async function test(key: string) {
+    setTesting(p => ({ ...p, [key]: true }));
+    setTestResult(p => ({ ...p, [key]: null }));
+    try {
+      const res = await api.integrations.test(key);
+      setTestResult(p => ({ ...p, [key]: { ok: res.ok, message: res.message } }));
+      refreshConfigs();
+    } catch (e: unknown) {
+      setTestResult(p => ({ ...p, [key]: { ok: false, message: e instanceof Error ? e.message : "Test başarısız" } }));
+    }
+    setTesting(p => ({ ...p, [key]: false }));
+  }
+
+  async function remove(key: string) {
+    if (confirmRemoveKey !== key) { setConfirmRemoveKey(key); return; }
+    setConfirmRemoveKey(null);
+    setSaveErrors(p => ({ ...p, [key]: null }));
+    try {
+      await api.integrations.delete(key);
+      setConfigs(p => { const n = { ...p }; delete n[key]; return n; });
+      setTestResult(p => ({ ...p, [key]: null }));
+    } catch (e: unknown) {
+      setSaveErrors(p => ({ ...p, [key]: e instanceof Error ? e.message : "Silme başarısız" }));
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 20, lineHeight: 1.6 }}>
+        ESG Co-Pilot ve diğer AI özellikleri için harici AI sağlayıcılarının API anahtarlarını yapılandırın.
+        Anahtarlar şifrelenmiş olarak saklanır ve kayıt sonrası tam değerleri gösterilmez.
+      </div>
+
+      {AI_PROVIDERS.map(provider => {
+        const cfg        = configs[provider.key];
+        const form       = forms[provider.key] ?? {};
+        const isSaving   = saving[provider.key];
+        const isTesting  = testing[provider.key];
+        const result     = testResult[provider.key];
+        const status     = cfg?.status ?? "disconnected";
+        const badge      = AI_STATUS_BADGE[status] ?? AI_STATUS_BADGE.disconnected;
+        const hasNewValue = Object.values(form).some(v => v.trim());
+
+        return (
+          <div key={provider.key} style={s.card}>
+            {/* Başlık satırı */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 26 }}>{provider.icon}</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{provider.name}</div>
+                  <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2, maxWidth: 380, lineHeight: 1.5 }}>
+                    {provider.desc}
+                  </div>
+                </div>
+              </div>
+              <span style={{ ...s.badge, background: badge.bg, color: badge.color, flexShrink: 0, marginLeft: 12 }}>
+                {badge.label}
+              </span>
+            </div>
+
+            {/* Son test bilgisi */}
+            {cfg?.lastTestedAt && (
+              <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 12, padding: "6px 10px",
+                            background: "#f8fafc", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+                Son test: {new Date(cfg.lastTestedAt).toLocaleString("tr-TR")}
+                {cfg.testMessage && (
+                  <span style={{ marginLeft: 6, color: status === "connected" ? "#10b981" : "#dc2626" }}>
+                    · {cfg.testMessage}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* API Anahtarı alanı */}
+            {provider.fields.map(field => (
+              <div key={field.id}>
+                <label style={s.label}>
+                  {field.label}
+                  {cfg && (
+                    <span style={{ fontSize: 11, color: "#5c7a72", fontWeight: 400, marginLeft: 8 }}>
+                      (kayıtlı — değiştirmek için yeni değer girin)
+                    </span>
+                  )}
+                </label>
+                <div style={{ position: "relative" as const }}>
+                  <input
+                    style={{ ...s.input, paddingRight: 40, fontFamily: "monospace", fontSize: 12 }}
+                    type={showKey[`${provider.key}:${field.id}`] ? "text" : "password"}
+                    value={form[field.id] ?? ""}
+                    onChange={e => setForms(p => ({
+                      ...p,
+                      [provider.key]: { ...(p[provider.key] ?? {}), [field.id]: e.target.value },
+                    }))}
+                    placeholder={cfg ? "••••••••••••••••••••••" : field.placeholder}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(p => ({ ...p, [`${provider.key}:${field.id}`]: !p[`${provider.key}:${field.id}`] }))}
+                    style={{
+                      position: "absolute", right: 10, top: "50%", transform: "translateY(-56%)",
+                      background: "none", border: "none", cursor: "pointer",
+                      color: "#9ca3af", fontSize: 15, padding: 0, lineHeight: 1,
+                    }}
+                    title={showKey[`${provider.key}:${field.id}`] ? "Gizle" : "Göster"}
+                    tabIndex={-1}
+                  >
+                    {showKey[`${provider.key}:${field.id}`] ? "🙈" : "👁"}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Test sonucu */}
+            {result && (
+              <div style={{
+                padding: "9px 12px", borderRadius: 7, marginBottom: 14,
+                background: result.ok ? "#f0fdf4" : "#fef2f2",
+                border: `1px solid ${result.ok ? "#bbf7d0" : "#fecaca"}`,
+                fontSize: 13, color: result.ok ? "#065f46" : "#dc2626",
+                display: "flex", alignItems: "center", gap: 7,
+              }}>
+                <span>{result.ok ? "✅" : "❌"}</span>
+                <span>{result.message}</span>
+              </div>
+            )}
+
+            {/* Kaydetme / silme hatası */}
+            {saveErrors[provider.key] && (
+              <div style={{
+                padding: "8px 12px", borderRadius: 7, marginBottom: 14,
+                background: "#fef2f2", border: "1px solid #fecaca",
+                fontSize: 13, color: "#dc2626",
+                display: "flex", alignItems: "center", gap: 7,
+              }}>
+                <span>❌</span>
+                <span>{saveErrors[provider.key]}</span>
+                <button onClick={() => setSaveErrors(p => ({ ...p, [provider.key]: null }))}
+                  style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+            )}
+
+            {/* Butonlar */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, alignItems: "center" }}>
+              <button
+                style={{ ...s.btnSm, ...s.btnP, padding: "7px 18px", fontSize: 13 }}
+                onClick={() => save(provider.key)}
+                disabled={isSaving || !hasNewValue}
+              >
+                {isSaving ? "Kaydediliyor..." : "Kaydet"}
+              </button>
+              {cfg && (
+                <>
+                  <button
+                    style={{ ...s.btnSm, ...s.btnG, padding: "7px 18px", fontSize: 13 }}
+                    onClick={() => test(provider.key)}
+                    disabled={isTesting}
+                  >
+                    {isTesting ? "Test ediliyor..." : "Bağlantıyı Test Et"}
+                  </button>
+                  {confirmRemoveKey === provider.key ? (
+                    <>
+                      <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>Emin misiniz?</span>
+                      <button
+                        style={{ ...s.btnSm, ...s.btnR, padding: "7px 14px", fontSize: 13 }}
+                        onClick={() => remove(provider.key)}
+                      >
+                        Evet, kaldır
+                      </button>
+                      <button
+                        style={{ ...s.btnSm, ...s.btnSec, padding: "7px 12px", fontSize: 13 }}
+                        onClick={() => setConfirmRemoveKey(null)}
+                      >
+                        İptal
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      style={{ ...s.btnSm, ...s.btnR, padding: "7px 16px", fontSize: 13 }}
+                      onClick={() => remove(provider.key)}
+                    >
+                      Kaldır
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      <div style={{ ...s.card, background: "linear-gradient(135deg,#f0f9ff,#e0f2fe)", border: "1px solid #bae6fd" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#0369a1" }}>
+          Co-Pilot nasıl çalışır?
+        </div>
+        <div style={{ fontSize: 12, color: "#0c4a6e", lineHeight: 1.7 }}>
+          En az bir API anahtarı yapılandırın. Öncelik sırası: <strong>Anthropic → OpenAI → Gemini</strong>.<br />
+          ESG Playground ekranında <strong>"AI"</strong> sekmesine geçerek doğal dilde komut verebilirsiniz.<br />
+          Örnek: <em>"Berlin fabrikamı ekle, DE şebekesine bağla ve CBAM hesap motoru ekle"</em>
+        </div>
+      </div>
+
+      <McpServersSection />
+      <ClaudeSkillsSection />
+    </div>
+  );
+}
+
 // ── Ana Sayfa ─────────────────────────────────────────────────────────────────
-type Tab = "team" | "company" | "subscription" | "permissions" | "apikeys" | "webhooks" | "audit" | "notifications";
+type Tab = "team" | "company" | "subscription" | "permissions" | "apikeys" | "webhooks" | "audit" | "notifications" | "ai-models";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("team");
@@ -1323,6 +1862,7 @@ export default function SettingsPage() {
     { id: "company",      label: "Şirket" },
     { id: "subscription", label: "Abonelik" },
     { id: "permissions",  label: "İzinler" },
+    { id: "ai-models",     label: "AI Modeller" },
     { id: "apikeys",       label: "API Anahtarları" },
     { id: "webhooks",      label: "Webhook'lar" },
     { id: "notifications", label: "Bildirimler" },
@@ -1347,6 +1887,7 @@ export default function SettingsPage() {
       {tab === "company"      && <TenantTab />}
       {tab === "subscription" && <SubscriptionTab />}
       {tab === "permissions"  && <PermissionsTab />}
+      {tab === "ai-models"    && <AiModelsTab />}
       {tab === "apikeys"      && <ApiKeysTab />}
       {tab === "webhooks"      && <WebhooksTab />}
       {tab === "notifications" && <NotificationsTab />}

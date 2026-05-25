@@ -64,6 +64,7 @@ export function useCollaboration(graphId: string | undefined, enabled: boolean):
     let ws: WebSocket;
     let pingTimer: ReturnType<typeof setInterval>;
     let dead = false;
+    let retryCount = 0;
 
     async function connect() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -76,6 +77,7 @@ export function useCollaboration(graphId: string | undefined, enabled: boolean):
 
       ws.onopen = () => {
         if (dead) { ws.close(); return; }
+        retryCount = 0;
         setConnected(true);
         pingTimer = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "ping" }));
@@ -85,7 +87,10 @@ export function useCollaboration(graphId: string | undefined, enabled: boolean):
       ws.onclose = () => {
         setConnected(false);
         clearInterval(pingTimer);
-        if (!dead) setTimeout(connect, 3000); // yeniden bağlan
+        if (!dead && retryCount < 5) {
+          retryCount++;
+          setTimeout(connect, 3000);
+        }
       };
 
       ws.onerror = () => {

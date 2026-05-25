@@ -31,6 +31,8 @@ const EDGE_VISIBILITY: Record<ViewMode, Set<string>> = {
   regulatory:     new Set(["carbonFlowEdge", "certFlowEdge"]),
 };
 
+export { NODE_VISIBILITY };
+
 export function useViewMode(allNodes: Node[], allEdges: Edge[]) {
   const [mode, setMode] = useState<ViewMode>("dataflow");
 
@@ -40,11 +42,13 @@ export function useViewMode(allNodes: Node[], allEdges: Edge[]) {
   });
 
   const visibleEdges = allEdges.map(e => {
-    const visible = EDGE_VISIBILITY[mode].has(e.type ?? "");
+    // Tipi olmayan (eski/import) edge'leri dataFlowEdge olarak kabul et
+    const edgeType = (e.type && e.type !== "") ? e.type : "dataFlowEdge";
+    const visible = EDGE_VISIBILITY[mode].has(edgeType);
     // Carbon Flow modunda carbonFlowEdge → sankeyEdge olarak render et
-    const effectiveType = (mode === "carbonflow" && e.type === "carbonFlowEdge")
+    const effectiveType = (mode === "carbonflow" && edgeType === "carbonFlowEdge")
       ? "sankeyEdge"
-      : e.type;
+      : edgeType;
     return { ...e, type: effectiveType, hidden: !visible };
   });
 

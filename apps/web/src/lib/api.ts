@@ -404,7 +404,7 @@ export const api = {
     save: (key: string, body: { config: Record<string, string>; enabled?: boolean }) =>
       request<{ integration: IntegrationConfig; message: string }>("PUT", `/integrations/${key}`, body),
     delete: (key: string) => request<void>("DELETE", `/integrations/${key}`),
-    test:   (key: string) => request<{ ok: boolean; message: string; testedAt: string }>("POST", `/integrations/${key}/test`),
+    test:   (key: string) => request<{ ok: boolean; message: string; testedAt: string }>("POST", `/integrations/${key}/test`, {}),
   },
 
   marketPrices: {
@@ -506,14 +506,32 @@ export const api = {
       return request<EsgImportPreview>("GET", `/esg-playground/import-preview${qs}`);
     },
 
+    templates: {
+      list: () =>
+        request<{ templates: EsgTemplate[] }>("GET", "/esg-playground/templates").then(r => r.templates),
+      clone: (key: string, body: { name?: string; description?: string }) =>
+        request<{ graph: EsgGraph }>("POST", `/esg-playground/templates/${key}/clone`, body).then(r => r.graph),
+    },
+
+    generateFromCompany: (body?: { name?: string; includeProducts?: boolean }) =>
+      request<{ graph: EsgGraph; summary: { installations: number; cbamFacilities: number; nodesCreated: number; edgesCreated: number } }>(
+        "POST", "/esg-playground/generate-from-company", body ?? {}
+      ),
+
     copilot: (body: {
       graphId?: string;
       prompt: string;
       currentNodes?: unknown[];
       currentEdges?: unknown[];
-    }) => request<{ add: unknown[]; connect: unknown[]; message: string }>(
+      model?: string;
+    }) => request<{ add: unknown[]; connect: unknown[]; message: string; provider?: string }>(
       "POST", "/esg-playground/copilot", body
     ),
+
+    liveData: (zones: string[]) =>
+      request<{ zones: Record<string, { ci: number | null; rePct: number | null; updatedAt: string | null }> }>(
+        "GET", `/canvas-live-data?zones=${zones.join(",")}`
+      ),
   },
 };
 
@@ -991,6 +1009,14 @@ export interface EsgGraph {
   id: string; tenantId: string; name: string; description: string | null;
   nodesJson: unknown; edgesJson: unknown; viewport: unknown;
   createdBy: string; updatedBy: string | null;
+  isTemplate: boolean; templateKey: string | null; templateCategory: string | null;
+  createdAt: string; updatedAt: string;
+}
+
+export interface EsgTemplate {
+  id: string; name: string; description: string | null;
+  isTemplate: boolean; templateKey: string; templateCategory: string | null;
+  icon?: string;
   createdAt: string; updatedAt: string;
 }
 

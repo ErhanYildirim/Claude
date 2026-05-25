@@ -78,15 +78,29 @@ function AdminLayout() {
 
 function AppRouter() {
   const { session, loading } = useAuth();
-  const [onboarded, setOnboarded]     = useState<boolean | null>(null);
+  const [onboarded, setOnboarded]       = useState<boolean | null>(null);
   const [onboardLoading, setOnboardLoading] = useState(false);
+  const [onboardError, setOnboardError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session) { setOnboarded(null); return; }
+    if (!session) { setOnboarded(null); setOnboardError(null); return; }
     setOnboardLoading(true);
+    setOnboardError(null);
     api.onboarding.me()
-      .then(data => setOnboarded(data.onboarded))
-      .catch(() => setOnboarded(false))
+      .then(data => {
+        setOnboarded(data.onboarded);
+      })
+      .catch((err: unknown) => {
+        const status = (err as { status?: number })?.status;
+        // 401/403 → session geçersiz → oturumu kapat, login sayfasına yönlendir
+        if (status === 401 || status === 403) {
+          import("./lib/supabase.js").then(({ supabase }) => supabase.auth.signOut());
+          setOnboarded(null); // flash önle — login sayfası session null olunca açılır
+          return;
+        }
+        // Gerçek API hatası → yeniden dene sayfası göster
+        setOnboardError("Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.");
+      })
       .finally(() => setOnboardLoading(false));
   }, [session]);
 
@@ -94,6 +108,21 @@ function AppRouter() {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#5c7a72" }}>
         Yükleniyor...
+      </div>
+    );
+  }
+
+  if (onboardError) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", gap: 12, color: "#1e293b" }}>
+        <div style={{ fontSize: 18, fontWeight: 600 }}>⚠️ Bağlantı hatası</div>
+        <div style={{ fontSize: 14, color: "#64748b" }}>{onboardError}</div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#10b981", color: "#fff", fontWeight: 600, cursor: "pointer", fontSize: 14 }}
+        >
+          Yenile
+        </button>
       </div>
     );
   }

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import type { CbamFacility, CbamProduct } from "../lib/api.js";
+import { dispatchResourceUpdate, dispatchResourceDeleted } from "../lib/canvasSync.js";
 
 const SECTOR_LABELS: Record<string, string> = {
   steel: "Çelik", aluminium: "Alüminyum", cement: "Çimento",
@@ -30,6 +31,7 @@ const EMPTY_PROD = { productName: "", cnCode: "", description: "", unit: "tonne"
 
 export default function CbamFacilityPage() {
   const { facilityId } = useParams<{ facilityId: string }>();
+  const navigate = useNavigate();
   const [facility,  setFacility]  = useState<CbamFacility | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [showForm,  setShowForm]  = useState(false);
@@ -89,6 +91,7 @@ export default function CbamFacilityPage() {
           isCbamScope:          form.isCbamScope,
           energyAllocationMode: form.energyAllocationMode as "facility" | "band",
         });
+        dispatchResourceUpdate("cbamProduct", editProd.id, { name: form.productName });
       } else {
         await api.cbamProducts.create(facilityId, {
           productName:          form.productName,
@@ -113,6 +116,7 @@ export default function CbamFacilityPage() {
     if (!confirm(`"${productName}" ürününü silmek istediğinizden emin misiniz?`)) return;
     try {
       await api.cbamProducts.delete(facilityId, productId);
+      dispatchResourceDeleted("cbamProduct", productId);
       load();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Silme hatası");
@@ -150,14 +154,27 @@ export default function CbamFacilityPage() {
             )}
           </div>
         </div>
-        {canEdit && (
-          <button style={s.btn} onClick={() => {
-            if (showForm) { setShowForm(false); setEditProd(null); setError(""); }
-            else openCreate();
-          }}>
-            {showForm ? "İptal" : "+ Ürün Ekle"}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={() => navigate(`/esg-playground?highlight=cbamFacility:${facilityId}`)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "transparent", color: "#00b87a",
+              border: "1px solid #00b87a", borderRadius: 8,
+              padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            🕸️ Canvas'ta Göster
           </button>
-        )}
+          {canEdit && (
+            <button style={s.btn} onClick={() => {
+              if (showForm) { setShowForm(false); setEditProd(null); setError(""); }
+              else openCreate();
+            }}>
+              {showForm ? "İptal" : "+ Ürün Ekle"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Add/Edit product form */}

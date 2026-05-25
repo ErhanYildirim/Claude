@@ -653,20 +653,25 @@ model EsgPlaygroundGraph {
   tenantId    String   @map("tenant_id") @db.Uuid
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name        String   @default("Yeni Canvas")
-  description String?
-  nodesJson   Json     @default("[]") @map("nodes_json")
-  edgesJson   Json     @default("[]") @map("edges_json")
-  viewport    Json     @default("{\"x\":0,\"y\":0,\"zoom\":1}")
-  createdBy   String   @map("created_by") @db.Uuid
-  updatedBy   String?  @map("updated_by") @db.Uuid
+  name             String   @default("Yeni Canvas")
+  description      String?
+  nodesJson        Json     @default("[]") @map("nodes_json")
+  edgesJson        Json     @default("[]") @map("edges_json")
+  viewport         Json     @default("{\"x\":0,\"y\":0,\"zoom\":1}")
+  createdBy        String   @map("created_by") @db.Uuid
+  updatedBy        String?  @map("updated_by") @db.Uuid
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  isTemplate       Boolean  @default(false) @map("is_template")
+  templateKey      String?  @unique @map("template_key")
+  templateCategory String?  @map("template_category")
 
-  snapshots   EsgPlaygroundSnapshot[]
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt      @map("updated_at")
+
+  snapshots        EsgPlaygroundSnapshot[]
 
   @@index([tenantId])
+  @@index([isTemplate])
   @@map("esg_playground_graphs")
 }
 

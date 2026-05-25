@@ -404,7 +404,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <main style={{
         marginLeft: mobile ? 0 : SIDEBAR_W,
         marginTop: contentTop,
-        minHeight: `calc(100vh - ${contentTop}px)`,
+        height: `calc(100vh - ${contentTop}px)`,
+        overflowY: "auto",
         background: "var(--bg, #f4fbf8)",
         color: "var(--text, #0a1f1a)",
         transition: "background .2s, color .2s",

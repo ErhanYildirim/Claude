@@ -246,6 +246,28 @@ export const api = {
     update: (id: string, body: Partial<CreateCbamFacilityBody>) =>
       request<{ facility: CbamFacility }>("PATCH", `/cbam/facilities/${id}`, body),
     delete: (id: string) => request<void>("DELETE", `/cbam/facilities/${id}`),
+
+    wizardPdf: async (body: Record<string, unknown>): Promise<void> => {
+      const headers = await authHeaders();
+      const res = await fetch(`${BASE}/cbam/wizard-pdf`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw Object.assign(new Error(err.message ?? "PDF oluşturulamadı"), { status: res.status });
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      const cd   = res.headers.get("Content-Disposition") ?? "";
+      const m    = cd.match(/filename="([^"]+)"/);
+      a.href     = url;
+      a.download = m?.[1] ?? "cbam-teknik-dosya.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    },
   },
 
   cbamProducts: {
@@ -276,28 +298,6 @@ export const api = {
     gridEf: (country: string, year: number) =>
       request<{ country: string; year: number; efTco2Mwh: number | null; hasData: boolean; source: string | null }>(
         "GET", `/cbam/grid-ef?country=${encodeURIComponent(country)}&year=${year}`),
-
-    wizardPdf: async (body: Record<string, unknown>): Promise<void> => {
-      const headers = await authHeaders();
-      const res = await fetch(`${BASE}/cbam/wizard-pdf`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw Object.assign(new Error(err.message ?? "PDF oluşturulamadı"), { status: res.status });
-      }
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      const cd   = res.headers.get("Content-Disposition") ?? "";
-      const m    = cd.match(/filename="([^"]+)"/);
-      a.href     = url;
-      a.download = m?.[1] ?? "cbam-teknik-dosya.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
-    },
   },
 
   emissionTargets: {

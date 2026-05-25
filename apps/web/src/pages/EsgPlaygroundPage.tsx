@@ -4,7 +4,7 @@ import {
   ReactFlow, Background, Controls, MiniMap,
   addEdge, applyNodeChanges, applyEdgeChanges,
   type Node, type Edge, type OnNodesChange, type OnEdgesChange,
-  type OnConnect, type Viewport,
+  type OnConnect, type Viewport, type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api } from "../lib/api.js";
@@ -49,6 +49,9 @@ export default function EsgPlaygroundPage() {
   const [graphList, setGraphList]   = useState<EsgGraph[]>([]);
   const collab = useCollaboration(graphId, !!graphId);
   const [commentMode, setCommentMode] = useState(false);
+  const [rfInstance, setRfInstance]   = useState<ReactFlowInstance | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) ?? null : null;
 
   // Canlı veri — grid/solar/wind node'larına otomatik badge
   const liveDataMap = useCanvasLiveData(
@@ -217,6 +220,34 @@ export default function EsgPlaygroundPage() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [history]);
+
+  // ── Sürükle-Bırak — Node Palette → Canvas ─────────────────────────────────
+  const NODE_DROP_LABELS: Record<string, string> = {
+    orgNode: "Organizasyon", divisionNode: "Bölüm", facilityNode: "Yeni Tesis",
+    buildingNode: "Bina", processNode: "Proses", productNode: "Ürün",
+    vehicleFleetNode: "Araç Filosu", gridNode: "Şebeke", solarNode: "Solar PV",
+    windNode: "Rüzgar", hydroNode: "Hidroelektrik", naturalGasNode: "Doğalgaz",
+    ppaContractNode: "PPA Sözleşmesi", meterNode: "Sayaç", apiSourceNode: "API Kaynağı",
+    manualEntryNode: "Manuel Giriş", emissionCalcNode: "Emisyon Hesap",
+    cfMatchingNode: "CFE Eşleştirme", cbamCalcNode: "CBAM Hesap",
+    cbamReportNode: "CBAM Rapor", ghgReportNode: "GHG Raporu", scopeGroupNode: "Scope Grubu",
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData("application/voltfox-node-type");
+    if (!type || !rfInstance) return;
+    const position = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    const newNode: Node = {
+      id: `node-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type,
+      position,
+      data: { label: NODE_DROP_LABELS[type] ?? type },
+    };
+    history.pushHistory(nodesRef.current, edgesRef.current);
+    setNodes(nds => [...nds, newNode]);
+    scheduleSave();
+  }, [rfInstance, scheduleSave, history]);
 
   // ── PNG Export ─────────────────────────────────────────────────────────────
   async function exportPng() {
@@ -639,6 +670,11 @@ export default function EsgPlaygroundPage() {
           />
           <ReactFlow
             key={FLOW_KEY}
+            onInit={setRfInstance}
+            onDrop={handleDrop}
+            onDragOver={e => e.preventDefault()}
+            onNodeClick={(_, node) => { setSelectedNodeId(node.id); setRightPanel("properties"); }}
+            onPaneClick={() => setSelectedNodeId(null)}
             nodes={visibleNodes.map(n => {
               const lockedBy = collab.lockedNodes.get(n.id);
               const isLockedByOther = lockedBy && lockedBy.userId !== collab.myUserId;
@@ -706,9 +742,27 @@ export default function EsgPlaygroundPage() {
           }}>
             {rightPanel === "properties" && (
               <PanelSection title="Özellikler" sub={sub} text={text} border={border}>
-                <p style={{ fontSize: 13, color: sub, padding: "0 16px" }}>
-                  Bir node seçin.
-                </p>
+                {selectedNode ? (
+                  <NodePropertiesPanel
+                    node={selectedNode}
+                    text={text} sub={sub} border={border}
+                    onChange={(id, data) => {
+                      setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, ...data } } : n));
+                      scheduleSave();
+                    }}
+                    onDelete={(id) => {
+                      history.pushHistory(nodesRef.current, edgesRef.current);
+                      setNodes(nds => nds.filter(n => n.id !== id));
+                      setEdges(eds => eds.filter(e => e.source !== id && e.target !== id));
+                      setSelectedNodeId(null);
+                      scheduleSave();
+                    }}
+                  />
+                ) : (
+                  <p style={{ fontSize: 13, color: sub, padding: "0 16px" }}>
+                    Bir node seçin.
+                  </p>
+                )}
               </PanelSection>
             )}
             {rightPanel === "validation" && (
@@ -832,7 +886,7 @@ function NodePalette({ card: _card, text, sub, border }: {
           </div>
         ))}
         <p style={{ fontSize: 11, color: sub, padding: "8px 8px 0", lineHeight: 1.5 }}>
-          Sürükleyerek canvas'a bırakın. Node tipleri #138-#140'ta genişletilecek.
+          Sürükleyerek canvas'a bırakın.
         </p>
       </div>
     </div>
@@ -1116,6 +1170,75 @@ function SimulatorPanel({ simulator, text, sub, border }: {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+const NODE_TYPE_DISPLAY: Record<string, string> = {
+  orgNode: "Organizasyon", divisionNode: "Bölüm", facilityNode: "Tesis",
+  buildingNode: "Bina", processNode: "Proses", productNode: "Ürün",
+  vehicleFleetNode: "Araç Filosu", gridNode: "Şebeke", solarNode: "Solar PV",
+  windNode: "Rüzgar", hydroNode: "Hidroelektrik", naturalGasNode: "Doğalgaz",
+  ppaContractNode: "PPA Sözleşmesi", meterNode: "Sayaç", apiSourceNode: "API Kaynağı",
+  manualEntryNode: "Manuel Giriş", emissionCalcNode: "Emisyon Hesap",
+  cfMatchingNode: "CFE Eşleştirme", cbamCalcNode: "CBAM Hesap",
+  cbamReportNode: "CBAM Rapor", ghgReportNode: "GHG Raporu", scopeGroupNode: "Scope Grubu",
+};
+
+function NodePropertiesPanel({ node, text, sub, border, onChange, onDelete }: {
+  node: Node;
+  text: string; sub: string; border: string;
+  onChange: (id: string, data: Record<string, unknown>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const inputStyle = {
+    width: "100%", padding: "5px 8px", borderRadius: 5,
+    border: `1px solid ${border}`, background: "transparent",
+    color: text, fontSize: 12, boxSizing: "border-box" as const,
+  };
+
+  return (
+    <div style={{ padding: "0 16px" }}>
+      <div style={{ fontSize: 10, color: sub, marginBottom: 12, fontFamily: "monospace" }}>
+        {NODE_TYPE_DISPLAY[node.type ?? ""] ?? node.type}
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 11, color: sub, display: "block", marginBottom: 4 }}>Başlık</label>
+        <input
+          value={String(node.data?.label ?? "")}
+          onChange={e => onChange(node.id, { label: e.target.value })}
+          style={inputStyle}
+        />
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 11, color: sub, display: "block", marginBottom: 4 }}>Alt Başlık</label>
+        <input
+          value={String(node.data?.subLabel ?? "")}
+          onChange={e => onChange(node.id, { subLabel: e.target.value })}
+          placeholder="İsteğe bağlı"
+          style={inputStyle}
+        />
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 11, color: sub, display: "block", marginBottom: 4 }}>Konum</label>
+        <div style={{ fontSize: 11, color: sub, fontFamily: "monospace" }}>
+          x: {Math.round(node.position.x)}, y: {Math.round(node.position.y)}
+        </div>
+      </div>
+
+      <button
+        onClick={() => onDelete(node.id)}
+        style={{
+          width: "100%", padding: "6px", borderRadius: 5, border: "none",
+          background: "rgba(239,68,68,0.1)", color: "#ef4444",
+          fontSize: 11, cursor: "pointer",
+        }}
+      >
+        🗑 Node'u Sil
+      </button>
     </div>
   );
 }

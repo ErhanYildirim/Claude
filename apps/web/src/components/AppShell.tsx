@@ -123,9 +123,9 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           gap: "9px",
           padding: "8px 10px",
           borderRadius: "var(--radius-md)",
-          color: active ? "var(--accent)" : "var(--text-secondary)",
-          background: active ? "var(--accent-bg)" : "transparent",
-          border: active ? "1px solid var(--border-accent)" : "1px solid transparent",
+          color: active ? "var(--accent)" : "rgba(255,255,255,0.65)",
+          background: active ? "rgba(0,168,102,0.12)" : "transparent",
+          border: active ? "1px solid rgba(0,168,102,0.18)" : "1px solid transparent",
           fontSize: "var(--text-sm)",
           fontWeight: active ? 600 : 500,
           textDecoration: "none",
@@ -151,9 +151,9 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
         <span style={{ flex: 1 }}>{item.label}</span>
         {item.badge && (
           <span style={{
-            background: "var(--accent-bg)",
+            background: "rgba(0,168,102,0.18)",
             color: "var(--accent)",
-            border: "1px solid var(--border-accent)",
+            border: "1px solid rgba(0,168,102,0.25)",
             fontSize: "9px",
             fontWeight: 700,
             padding: "1px 5px",
@@ -177,7 +177,7 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           gap: "9px",
           padding: "8px 10px",
           borderRadius: "var(--radius-md)",
-          color: active || open ? "var(--text-primary)" : "var(--text-secondary)",
+          color: active || open ? "#e2f0ea" : "rgba(255,255,255,0.65)",
           background: "transparent",
           border: "none",
           cursor: "pointer",
@@ -188,7 +188,7 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
           fontFamily: "var(--font-sans)",
           transition: "background 0.12s",
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = "var(--border)")}
+        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
       >
         <Icon size={15} strokeWidth={2} style={{ flexShrink: 0, opacity: 0.7 }} />
@@ -209,8 +209,8 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
                   alignItems: "center",
                   padding: "6px 10px",
                   borderRadius: "var(--radius-sm)",
-                  color: childActive ? "var(--accent)" : "var(--text-muted)",
-                  borderLeft: `1px solid ${childActive ? "var(--border-accent)" : "var(--border)"}`,
+                  color: childActive ? "var(--accent)" : "rgba(255,255,255,0.48)",
+                  borderLeft: `1px solid ${childActive ? "rgba(0,168,102,0.35)" : "rgba(255,255,255,0.10)"}`,
                   fontSize: "var(--text-sm)",
                   fontWeight: childActive ? 600 : 400,
                   textDecoration: "none",

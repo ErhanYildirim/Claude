@@ -6,3 +6,6 @@ dist/
 *.log
 .agents/
 .claude/
+*.zip
+Emissions Factors/
+Enerji_*.csv

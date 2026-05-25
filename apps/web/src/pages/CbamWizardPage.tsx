@@ -795,11 +795,30 @@ export default function CbamWizardPage() {
             <button style={s.btnOut} onClick={() => setStep(3)}>← Geri</button>
             <div style={{ display: "flex", gap: 12 }}>
               <button
-                style={{ ...s.btnOut, opacity: 0.65, cursor: "not-allowed" }}
-                title="PDF teknik dosya export — yakında"
-                disabled
+                style={s.btnOut}
+                onClick={async () => {
+                  try {
+                    await api.cbamFacilities.wizardPdf({
+                      sector: state.sector, cnCode: state.cnCode,
+                      country: state.country, periodName: state.periodName,
+                      prodVolume: state.prodVolume,
+                      fuels:     state.fuels.map(f => ({ fuelType: f.fuelType, quantityGJ: f.quantityGJ, efTco2PerGj: f.efTco2PerGj })),
+                      processes: state.processes.map(p => ({ material: p.material, quantityTonne: p.quantityTonne, stoichFactor: p.stoichFactor })),
+                      elecKwh: state.elecKwh, elecEf: state.elecEf, gecConnected: state.gecConnected,
+                      scope1FuelTco2: scope1Fuel, scope1ProcTco2: scope1Proc,
+                      scope1TotalTco2: scope1Tco2, scope2Tco2, totalTco2,
+                      seeActual, seeDefault: seeDefault ?? null,
+                      savingsPerTonne: savingsPerTonne ?? null,
+                      savingsTco2: savingsTotalTco2 ?? null,
+                      savingsEur: savingsEur ?? null,
+                      carbonPrice,
+                    });
+                  } catch (err) {
+                    alert("PDF oluşturulurken hata: " + (err instanceof Error ? err.message : "Bilinmeyen hata"));
+                  }
+                }}
               >
-                PDF Teknik Dosya İndir (Yakında)
+                📄 PDF Teknik Dosya İndir
               </button>
               <Link to="/cbam" style={{ ...s.btn, textDecoration: "none", display: "inline-block", lineHeight: "1.5" }}>
                 CBAM Tesislere Dön →

@@ -88,6 +88,7 @@ import { wsLiveRoutes }          from "./routes/ws-live.js";
 import { esgPlaygroundRoutes }   from "./routes/esg-playground.js";
 import { esgCopilotRoutes }      from "./routes/esg-copilot.js";
 import { wsCanvasRoutes }        from "./routes/ws-canvas.js";
+import { cbamWizardPdfRoutes }   from "./routes/cbam-wizard-pdf.js";
 import websocket                  from "@fastify/websocket";
 import { importDamPrices }       from "./services/entso-e-prices.js";
 import { importEpiasPtf }        from "./services/epias-prices.js";
@@ -228,6 +229,7 @@ await app.register(wsLiveRoutes,          { prefix: v1 });
 await app.register(esgPlaygroundRoutes,   { prefix: v1 });
 await app.register(esgCopilotRoutes,      { prefix: v1 });
 await app.register(wsCanvasRoutes,        { prefix: v1 });
+await app.register(cbamWizardPdfRoutes,   { prefix: v1 });
 
 // Health check — kamuya açık, detaylı DB + uygulama durumu
 app.get("/health", { config: { public: true } }, async (_req, reply) => {

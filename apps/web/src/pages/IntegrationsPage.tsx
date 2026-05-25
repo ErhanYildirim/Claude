@@ -128,8 +128,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "CBAM",
     icon: "🏛️",
     color: "#7c3aed",
-    defaultStatus: "coming_soon",
-    testable: false,
+    defaultStatus: "disconnected",
+    testable: true,
     configFields: [
       {
         key: "eoriNumber",
@@ -171,8 +171,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "Raporlama",
     icon: "📊",
     color: "#0284c7",
-    defaultStatus: "coming_soon",
-    testable: false,
+    defaultStatus: "disconnected",
+    testable: true,
     configFields: [
       {
         key: "accountId",
@@ -213,8 +213,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "Sertifika",
     icon: "🏅",
     color: "#d97706",
-    defaultStatus: "coming_soon",
-    testable: false,
+    defaultStatus: "disconnected",
+    testable: true,
     configFields: [
       {
         key: "participantId",
@@ -248,8 +248,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     category: "Piyasa Verisi",
     icon: "🌤️",
     color: "#0ea5e9",
-    defaultStatus: "coming_soon",
-    testable: false,
+    defaultStatus: "beta",
+    testable: true,
     configFields: [],
   },
   {
@@ -258,12 +258,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     shortName: "TTF Gas",
     description: "Avrupa TTF gaz fiyatları — marjinal elektrik üretim maliyeti tahmini",
     longDescription:
-      "Title Transfer Facility (TTF), Avrupa'nın referans doğalgaz spot piyasasıdır. TTF fiyatları, gaz kombine santrallerin marjinal maliyetini ve dolayısıyla karbon yoğunluğu tahminlerini doğrudan etkiler. Bu entegrasyon geliştirilmektedir.",
+      "Title Transfer Facility (TTF), Avrupa'nın referans doğalgaz spot piyasasıdır. TTF fiyatları, gaz kombine santrallerin marjinal maliyetini ve dolayısıyla karbon yoğunluğu tahminlerini doğrudan etkiler. EIA API anahtarı ile etkinleştirilebilir.",
     category: "Piyasa Verisi",
     icon: "🔥",
     color: "#f97316",
-    defaultStatus: "coming_soon",
-    testable: false,
+    defaultStatus: "disconnected",
+    testable: true,
     configFields: [
       {
         key: "apiKey",
@@ -278,14 +278,14 @@ const INTEGRATIONS: IntegrationDef[] = [
     key: "ets-carbon",
     name: "AB ETS Karbon Fiyatı",
     shortName: "ETS Carbon",
-    description: "Avrupa Birliği Emisyon Ticaret Sistemi karbon izni (EUA) fiyatları",
+    description: "Avrupa Birliği Emisyon Ticaret Sistemi karbon izni (EUA) günlük fiyatları",
     longDescription:
-      "AB Emisyon Ticaret Sistemi (EU ETS) kapsamındaki Avrupa Birliği Emisyon İzni (EUA) günlük fiyatları. CBAM hesaplamalarında ve karbon maliyet modellemesinde referans değer olarak kullanılır. Yakında entegrasyon desteği eklenecektir.",
+      "AB Emisyon Ticaret Sistemi (EU ETS) kapsamındaki Avrupa Birliği Emisyon İzni (EUA) günlük fiyatları. CBAM hesaplamalarında ve karbon maliyet modellemesinde referans değer olarak kullanılır. Ember Climate API ile entegre edilebilir.",
     category: "Piyasa Verisi",
     icon: "🌍",
     color: "#16a34a",
-    defaultStatus: "coming_soon",
-    testable: false,
+    defaultStatus: "disconnected",
+    testable: true,
     configFields: [
       {
         key: "apiKey",
@@ -685,7 +685,7 @@ export default function IntegrationsPage() {
       [key]: {
         ...prev[key],
         config,
-        status: prev[key].status === "coming_soon" ? "coming_soon" : "disconnected",
+        status: "disconnected",
       },
     }));
   }
@@ -714,7 +714,23 @@ export default function IntegrationsPage() {
       return;
     }
 
-    throw new Error(`${def.shortName} için test henüz desteklenmiyor`);
+    // Tüm diğer testable entegrasyonlar — backend test handler'ı çağır
+    if (def.testable) {
+      const result = await api.integrations.test(key);
+      setStates(prev => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          status:      result.ok ? "connected" : "error",
+          lastTestedAt: result.testedAt,
+          testMessage:  result.message,
+        },
+      }));
+      if (!result.ok) throw new Error(result.message);
+      return;
+    }
+
+    throw new Error(`${def.shortName} için test desteklenmiyor`);
   }
 
   const activeDef   = activeKey ? INTEGRATIONS.find(d => d.key === activeKey)! : null;
@@ -737,7 +753,7 @@ export default function IntegrationsPage() {
         {[
           { label: "Toplam Entegrasyon", value: INTEGRATIONS.length },
           { label: "Aktif Bağlantı", value: connectedCount },
-          { label: "Yakında", value: INTEGRATIONS.filter(d => d.defaultStatus === "coming_soon").length },
+          { label: "Beta", value: INTEGRATIONS.filter(d => d.defaultStatus === "beta").length },
         ].map(k => (
           <div key={k.label} style={{
             background: "#fff", border: "1px solid #d4ece4", borderRadius: 10,

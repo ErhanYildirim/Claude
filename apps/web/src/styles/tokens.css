@@ -1,0 +1,136 @@
+/* ═══════════════════════════════════════════════════════════════
+   Voltfox Design Tokens
+   Modern Teal Dark sistem — Outfit tipografisi, 4px spacing grid
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Light theme (default) ─────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-base:     #f0f7f4;
+  --bg-surface:  #ffffff;
+  --bg-elevated: #f5faf7;
+  --bg-subtle:   #e8f3ed;
+
+  /* Accent */
+  --accent:        #00a866;
+  --accent-bright: #00c87a;
+  --accent-muted:  #007a4a;
+  --accent-bg:     rgba(0,168,102,0.10);
+
+  /* Text */
+  --text-primary:   #0a1f1a;
+  --text-secondary: #2d6b52;
+  --text-muted:     #6b9e88;
+
+  /* Border */
+  --border:        rgba(0,0,0,0.08);
+  --border-accent: rgba(0,168,102,0.15);
+
+  /* Semantic */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger:  #dc2626;
+  --info:    #2563eb;
+
+  /* Shadow */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.10);
+  --shadow-glow: 0 8px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,168,102,0.12);
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-pill: 9999px;
+
+  /* Spacing (4px base) */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Typography */
+  --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   16px;
+  --text-lg:   18px;
+  --text-xl:   22px;
+  --text-2xl:  28px;
+
+  /* ── Backward-compat aliases (mevcut sayfalar için) ── */
+  --bg:           var(--bg-base);
+  --bg-card:      var(--bg-surface);
+  --bg-topbar:    var(--bg-surface);
+  --bg-sidebar:   #0a1f1a;
+  --text:         var(--text-primary);
+  --text-subtle:  var(--text-muted);
+  --border-light: var(--bg-elevated);
+  --accent-dark:  var(--accent-muted);
+  --accent-light: var(--accent-bg);
+  --panel:        var(--bg-surface);
+  --muted:        var(--text-secondary);
+  --accent-2:     var(--accent-muted);
+  --warn:         var(--warning);
+  --radius-card:  var(--radius-lg);
+  --radius:       var(--radius-lg);
+}
+
+/* ── Dark theme ────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-base:     #060e0b;
+  --bg-surface:  #0d1f18;
+  --bg-elevated: #132a1f;
+  --bg-subtle:   #1c3a2c;
+
+  /* Accent */
+  --accent:        #00c87a;
+  --accent-bright: #00e87a;
+  --accent-muted:  #008854;
+  --accent-bg:     rgba(0,200,122,0.10);
+
+  /* Text */
+  --text-primary:   #e2f0ea;
+  --text-secondary: #7dbfa0;
+  --text-muted:     #4d8a6a;
+
+  /* Border */
+  --border:        rgba(255,255,255,0.09);
+  --border-accent: rgba(0,200,122,0.12);
+
+  /* Semantic */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger:  #ef4444;
+  --info:    #3b82f6;
+
+  /* Shadow */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.30);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.40);
+  --shadow-glow: 0 8px 24px rgba(0,0,0,0.50), 0 0 0 1px rgba(0,200,122,0.09);
+
+  /* Radius — dark tema aynı değerleri kullanır */
+
+  /* ── Backward-compat aliases ── */
+  --bg:           var(--bg-base);
+  --bg-card:      var(--bg-surface);
+  --bg-topbar:    var(--bg-surface);
+  --bg-sidebar:   #080f0d;
+  --text:         var(--text-primary);
+  --text-subtle:  var(--text-muted);
+  --border-light: var(--bg-elevated);
+  --accent-dark:  var(--accent-bright);
+  --accent-light: var(--accent-bg);
+  --panel:        var(--bg-surface);
+  --muted:        var(--text-secondary);
+  --accent-2:     var(--accent-bright);
+  --warn:         var(--warning);
+}

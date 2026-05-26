@@ -45,6 +45,7 @@ const EfCoveragePage         = lazy(() => import("./pages/EfCoveragePage.js"));
 const EfApiPage              = lazy(() => import("./pages/EfApiPage.js"));
 const LiveForecastHubPage    = lazy(() => import("./pages/LiveForecastHubPage.js"));
 const EsgPlaygroundPage      = lazy(() => import("./pages/EsgPlaygroundPage.js"));
+const EsgCanvasReportPage        = lazy(() => import("./pages/EsgCanvasReportPage.js"));
 
 // Admin pages (super-admin only)
 const AdminDashboardPage   = lazy(() => import("./pages/admin/AdminDashboardPage.js"));
@@ -205,6 +206,7 @@ function AppRouter() {
           <Route path="/live-forecast/*"                                    element={<LiveForecastHubPage />} />
           <Route path="/esg-playground"                                    element={<EsgPlaygroundPage />} />
           <Route path="/esg-playground/:graphId"                           element={<EsgPlaygroundPage />} />
+          <Route path="/esg-playground/:graphId/report"                   element={<EsgCanvasReportPage />} />
           <Route path="*"                                                  element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>

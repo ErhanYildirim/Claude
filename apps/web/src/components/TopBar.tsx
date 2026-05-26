@@ -48,6 +48,9 @@ function getBreadcrumb(pathname: string): BreadcrumbEntry[] {
   }
   if (pathname.startsWith("/admin")) return [{ label: "Admin Panel" }];
 
+  if (pathname.match(/^\/esg-playground\/.+\/report$/)) {
+    return [{ label: "Ürünler" }, { label: "ESG Playground", path: "/esg-playground" }, { label: "Canvas Raporu" }];
+  }
   const entry = ROUTE_MAP[pathname];
   if (!entry) return [{ label: "Voltfox" }];
   if (entry.parent) return [{ label: entry.parent }, { label: entry.label }];

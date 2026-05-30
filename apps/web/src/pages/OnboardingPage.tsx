@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/api.js";
 import { supabase } from "../lib/supabase.js";
+import { Button, Card, Input } from "../components/ui/index.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TIMEZONES = [
@@ -58,32 +59,26 @@ const ROLE_OPTIONS = [
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s: Record<string, React.CSSProperties> = {
-  page:    { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#e6f9f2 0%,#f0f4ff 100%)" },
-  card:    { background: "#fff", borderRadius: 16, padding: "40px 40px 32px", width: 480, boxShadow: "0 8px 40px rgba(0,0,0,.1)", position: "relative" as const },
-  logo:    { fontWeight: 900, fontSize: 20, color: "#00b87a", marginBottom: 2, letterSpacing: "-.01em" },
+  page:    { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,var(--accent-bg) 0%,#f0f4ff 100%)" },
+  logo:    { fontWeight: 900, fontSize: 20, color: "var(--accent)", marginBottom: 2, letterSpacing: "-.01em" },
   stepper: { display: "flex", gap: 0, marginBottom: 32, marginTop: 4 },
   stepDot: { flex: 1, height: 4, borderRadius: 2, transition: "background .25s" },
   stepNum: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 },
-  stepTag: { display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#e6f9f2", color: "#00b87a" },
-  h2:      { fontSize: 20, fontWeight: 800, color: "#0a1f1a", marginBottom: 4 },
-  sub:     { color: "#5c7a72", fontSize: 13, marginBottom: 24 },
-  label:   { display: "block", fontSize: 12, fontWeight: 700, color: "#1a3530", marginBottom: 5, textTransform: "uppercase" as const, letterSpacing: ".05em" },
-  input:   { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #D1D5DB", fontSize: 14, outline: "none", marginBottom: 14, boxSizing: "border-box" as const, fontFamily: "inherit" },
-  select:  { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #D1D5DB", fontSize: 14, background: "#fff", marginBottom: 14, boxSizing: "border-box" as const, fontFamily: "inherit", cursor: "pointer" },
+  stepTag: { display: "inline-block", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "var(--accent-bg)", color: "var(--accent)" },
+  h2:      { fontSize: 20, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 },
+  sub:     { color: "var(--text-muted)", fontSize: 13, marginBottom: 24 },
+  select:  { width: "100%", padding: "10px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 14, background: "var(--bg-surface)", marginBottom: 14, boxSizing: "border-box" as const, fontFamily: "inherit", cursor: "pointer" },
   row2:    { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
   btnRow:  { display: "flex", gap: 10, marginTop: 24 },
-  btnP:    { flex: 1, padding: "11px", borderRadius: 8, background: "#00b87a", color: "#fff", fontWeight: 700, fontSize: 14, border: "none", cursor: "pointer" },
-  btnSec:  { padding: "11px 18px", borderRadius: 8, background: "#f4fbf8", color: "#1a3530", fontWeight: 600, fontSize: 14, border: "1px solid #d4ece4", cursor: "pointer" },
-  btnBack: { padding: "11px 18px", borderRadius: 8, background: "none", color: "#5c7a72", fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" },
-  err:     { color: "#DC2626", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "#FEF2F2", borderRadius: 7 },
-  skip:    { textAlign: "center" as const, marginTop: 12, fontSize: 13, color: "#5c7a72", cursor: "pointer", textDecoration: "underline" },
+  err:     { color: "var(--danger)", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "var(--bg-subtle)", borderRadius: "var(--radius-md)" },
+  skip:    { textAlign: "center" as const, marginTop: 12, fontSize: 13, color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline" },
   successIcon: { fontSize: 52, textAlign: "center" as const, marginBottom: 16 },
-  successH:    { fontSize: 24, fontWeight: 800, color: "#0a1f1a", textAlign: "center" as const, marginBottom: 8 },
-  successSub:  { color: "#5c7a72", fontSize: 14, textAlign: "center" as const, marginBottom: 24 },
-  summaryCard: { background: "#f4fbf8", borderRadius: 10, padding: "14px 16px", marginBottom: 12 },
+  successH:    { fontSize: 24, fontWeight: 800, color: "var(--text-primary)", textAlign: "center" as const, marginBottom: 8 },
+  successSub:  { color: "var(--text-muted)", fontSize: 14, textAlign: "center" as const, marginBottom: 24 },
+  summaryCard: { background: "var(--bg-elevated)", borderRadius: "var(--radius-lg)", padding: "14px 16px", marginBottom: 12 },
   summaryRow:  { display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 },
-  summaryL:    { color: "#5c7a72" },
-  summaryV:    { fontWeight: 600, color: "#0a1f1a" },
+  summaryL:    { color: "var(--text-muted)" },
+  summaryV:    { fontWeight: 600, color: "var(--text-primary)" },
 };
 
 const STEPS = ["Şirket", "Tesis", "Ekip", "Tamam"];
@@ -100,7 +95,7 @@ function Stepper({ current }: { current: number }) {
       {STEPS.map((_, i) => (
         <div key={i} style={{
           ...s.stepDot,
-          background: i <= current ? "#00b87a" : "#d4ece4",
+          background: i <= current ? "var(--accent)" : "var(--border)",
           marginRight: i < STEPS.length - 1 ? 4 : 0,
         }} />
       ))}
@@ -138,17 +133,26 @@ function Step1({ onNext }: { onNext: (data: Step1State) => void }) {
       <div style={s.h2}>Şirketinizi kurun</div>
       <div style={s.sub}>Voltfox hesabınız bu şirket altında oluşturulacak.</div>
       {err && <div style={s.err}>{err}</div>}
-      <label style={s.label}>Şirket Adı</label>
-      <input style={s.input} value={companyName} onChange={e => setCompanyName(e.target.value)}
-        placeholder="Örn: Çelik A.Ş." required minLength={2} maxLength={100} autoFocus />
-      <label style={s.label}>Zaman Dilimi</label>
+      <div style={{ marginBottom: 14 }}>
+        <Input
+          label="Şirket Adı"
+          value={companyName}
+          onChange={e => setCompanyName(e.target.value)}
+          placeholder="Örn: Çelik A.Ş."
+          required
+          minLength={2}
+          maxLength={100}
+          autoFocus
+        />
+      </div>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>Zaman Dilimi</label>
       <select style={s.select} value={timezone} onChange={e => setTimezone(e.target.value)}>
         {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
       </select>
       <div style={s.btnRow}>
-        <button style={{ ...s.btnP, opacity: busy ? 0.7 : 1 }} type="submit" disabled={busy}>
+        <Button variant="primary" size="lg" type="submit" disabled={busy} style={{ flex: 1, opacity: busy ? 0.7 : 1 }}>
           {busy ? "Oluşturuluyor..." : "Devam Et"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -185,31 +189,42 @@ function Step2({ onNext, onBack }: { onNext: (data: Step2State) => void; onBack:
       <div style={s.h2}>İlk tesisi ekleyin</div>
       <div style={s.sub}>İzleme yapacağınız üretim tesisini tanımlayın. Sonradan da ekleyebilirsiniz.</div>
       {err && <div style={s.err}>{err}</div>}
-      <label style={s.label}>Tesis Adı</label>
-      <input style={s.input} value={facilityName} onChange={e => setFacilityName(e.target.value)}
-        placeholder="Örn: İzmir Çelik Fabrikası" autoFocus />
-      <label style={s.label}>Operatör / İşletmeci</label>
-      <input style={s.input} value={operator} onChange={e => setOperator(e.target.value)}
-        placeholder="Örn: Demir Çelik A.Ş." />
+      <div style={{ marginBottom: 14 }}>
+        <Input
+          label="Tesis Adı"
+          value={facilityName}
+          onChange={e => setFacilityName(e.target.value)}
+          placeholder="Örn: İzmir Çelik Fabrikası"
+          autoFocus
+        />
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <Input
+          label="Operatör / İşletmeci"
+          value={operator}
+          onChange={e => setOperator(e.target.value)}
+          placeholder="Örn: Demir Çelik A.Ş."
+        />
+      </div>
       <div style={s.row2}>
         <div>
-          <label style={s.label}>Ülke</label>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>Ülke</label>
           <select style={s.select} value={facilityCountry} onChange={e => setFacilityCountry(e.target.value)}>
             {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={s.label}>Sektör</label>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>Sektör</label>
           <select style={s.select} value={sector} onChange={e => setSector(e.target.value)}>
             {SECTORS.map(sec => <option key={sec.value} value={sec.value}>{sec.label}</option>)}
           </select>
         </div>
       </div>
       <div style={s.btnRow}>
-        <button type="button" style={s.btnBack} onClick={onBack}>Geri</button>
-        <button style={{ ...s.btnP, opacity: busy ? 0.7 : 1 }} type="submit" disabled={busy}>
+        <Button variant="ghost" type="button" onClick={onBack}>Geri</Button>
+        <Button variant="primary" size="lg" type="submit" disabled={busy} style={{ flex: 1, opacity: busy ? 0.7 : 1 }}>
           {busy ? "Ekleniyor..." : "Tesisi Ekle"}
-        </button>
+        </Button>
       </div>
       <div style={s.skip} onClick={skip}>Şimdilik atla, sonra eklerim</div>
     </form>
@@ -245,18 +260,25 @@ function Step3({ onNext, onBack }: { onNext: (data: Step3State) => void; onBack:
       <div style={s.h2}>Ekibinizi davet edin</div>
       <div style={s.sub}>İlk takım arkadaşınıza davet bağlantısı gönderin. Daha fazlasını Ayarlar'dan ekleyebilirsiniz.</div>
       {err && <div style={s.err}>{err}</div>}
-      <label style={s.label}>E-posta Adresi</label>
-      <input style={s.input} type="email" value={email} onChange={e => setEmail(e.target.value)}
-        placeholder="ornek@sirket.com" autoFocus />
-      <label style={s.label}>Rol</label>
+      <div style={{ marginBottom: 14 }}>
+        <Input
+          label="E-posta Adresi"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="ornek@sirket.com"
+          autoFocus
+        />
+      </div>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>Rol</label>
       <select style={s.select} value={role} onChange={e => setRole(e.target.value)}>
         {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
       </select>
       <div style={s.btnRow}>
-        <button type="button" style={s.btnBack} onClick={onBack}>Geri</button>
-        <button style={{ ...s.btnP, opacity: busy ? 0.7 : 1 }} type="submit" disabled={busy}>
+        <Button variant="ghost" type="button" onClick={onBack}>Geri</Button>
+        <Button variant="primary" size="lg" type="submit" disabled={busy} style={{ flex: 1, opacity: busy ? 0.7 : 1 }}>
           {busy ? "Gönderiliyor..." : "Davet Gönder"}
-        </button>
+        </Button>
       </div>
       <div style={s.skip} onClick={skip}>Atla, ekibi sonra davet ederim</div>
     </form>
@@ -294,9 +316,9 @@ function Step4({ step1, step2, step3 }: { step1: Step1State; step2: Step2State; 
         )}
       </div>
 
-      <button style={s.btnP} onClick={() => { window.location.href = "/"; }}>
+      <Button variant="primary" size="lg" onClick={() => { window.location.href = "/"; }} style={{ width: "100%" }}>
         Platforma Git
-      </button>
+      </Button>
     </div>
   );
 }
@@ -310,7 +332,7 @@ export default function OnboardingPage() {
 
   return (
     <div style={s.page}>
-      <div style={s.card}>
+      <Card style={{ padding: "40px 40px 32px", width: 480, boxShadow: "var(--shadow-md)", position: "relative" }}>
         <div style={s.logo}>Voltfox</div>
         <Stepper current={step} />
 
@@ -318,7 +340,7 @@ export default function OnboardingPage() {
         {step === 1 && <Step2 onNext={data => { setS2(data); setStep(2); }} onBack={() => setStep(0)} />}
         {step === 2 && <Step3 onNext={data => { setS3(data); setStep(3); }} onBack={() => setStep(1)} />}
         {step === 3 && <Step4 step1={s1} step2={s2} step3={s3} />}
-      </div>
+      </Card>
     </div>
   );
 }

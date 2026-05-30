@@ -4,30 +4,29 @@ import { supabase } from "../lib/supabase.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { api } from "../lib/api.js";
 import type { NotificationPrefs } from "../lib/api.js";
+import { Button, Card, Input } from "../components/ui/index.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 720, margin: "0 auto", padding: "32px 28px" },
-  h1:     { fontSize: 22, fontWeight: 700, color: "#0a1f1a", marginBottom: 4 },
-  sub:    { fontSize: 14, color: "#5c7a72", marginBottom: 28 },
-  card:   { background: "#fff", borderRadius: 10, border: "1px solid #d4ece4", padding: "24px", marginBottom: 16 },
-  cardH:  { fontSize: 13, fontWeight: 700, color: "#0a1f1a", marginBottom: 16 },
-  label:  { display: "block", fontSize: 12, fontWeight: 600, color: "#1a3530", marginBottom: 5 },
-  input:  { width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #d4ece4",
-            fontSize: 14, outline: "none", marginBottom: 14, boxSizing: "border-box" as const },
-  btn:    { padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer",
-            fontWeight: 600, fontSize: 13 },
-  btnG:   { background: "#00b87a", color: "#fff" },
-  btnR:   { background: "#FEE2E2", color: "#DC2626" },
-  btnGh:  { background: "#eef7f3", color: "#1a3530" },
-  ok:     { fontSize: 13, color: "#059669", marginBottom: 12, fontWeight: 500 },
-  err:    { fontSize: 13, color: "#DC2626", marginBottom: 12, fontWeight: 500 },
+  h1:     { fontSize: 22, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 },
+  sub:    { fontSize: 14, color: "var(--text-muted)", marginBottom: 28 },
+  cardH:  { fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16 },
+  ok:     { fontSize: 13, color: "var(--success)", marginBottom: 12, fontWeight: 500 },
+  err:    { fontSize: 13, color: "var(--danger)", marginBottom: 12, fontWeight: 500 },
   row:    { display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "11px 0", borderBottom: "1px solid #eef7f3" },
+            padding: "11px 0", borderBottom: "1px solid var(--bg-elevated)" },
   avatarBig: {
-    width: 80, height: 80, borderRadius: "50%", flexShrink: 0,
+    width: 80, height: 80, borderRadius: "var(--radius-pill)", flexShrink: 0,
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 30, fontWeight: 800, color: "#fff",
-    background: "linear-gradient(135deg,#00b87a,#009966)",
+    fontSize: 30, fontWeight: 800, color: "var(--bg-surface)",
+    background: "linear-gradient(135deg,var(--accent),#009966)",
+  },
+  inputReadonly: {
+    width: "100%", padding: "9px 12px", borderRadius: "var(--radius-md)",
+    border: "1px solid var(--border)", fontSize: 14, outline: "none",
+    marginBottom: 14, boxSizing: "border-box" as const,
+    background: "var(--bg-elevated)", color: "var(--text-muted)", cursor: "not-allowed",
+    display: "block", lineHeight: "1.5",
   },
 };
 
@@ -155,90 +154,108 @@ export default function ProfilePage() {
       <div style={s.sub}>Hesap bilgilerinizi ve güvenlik ayarlarınızı yönetin.</div>
 
       {/* Avatar + kimlik kartı */}
-      <div style={{ ...s.card, display: "flex", alignItems: "center", gap: 20 }}>
+      <Card style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 16 }}>
         <div style={s.avatarBig}>{avatar}</div>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#0a1f1a" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>
             {name || email}
           </div>
-          <div style={{ fontSize: 13, color: "#5c7a72", marginTop: 2 }}>{email}</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{email}</div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
             Kullanıcı ID: {user?.id?.slice(0, 8)}…
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* İsim değiştir */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={s.cardH}>Görünen Ad</div>
         <form onSubmit={saveName}>
-          <label style={s.label}>Ad Soyad</label>
-          <input style={s.input} value={displayName}
-            onChange={e => setDisplayName(e.target.value)}
-            placeholder="Adınızı girin" />
+          <div style={{ marginBottom: 14 }}>
+            <Input
+              label="Ad Soyad"
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              placeholder="Adınızı girin"
+            />
+          </div>
           {nameOk  && <div style={s.ok}>Kaydedildi!</div>}
           {nameErr && <div style={s.err}>{nameErr}</div>}
-          <button type="submit" style={{ ...s.btn, ...s.btnG }} disabled={nameSaving}>
+          <Button variant="primary" type="submit" disabled={nameSaving}>
             {nameSaving ? "Kaydediliyor…" : "Kaydet"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
       {/* E-posta (read-only) */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={s.cardH}>E-posta Adresi</div>
-        <div style={{ ...s.input, background: "#f4fbf8", color: "#5c7a72", cursor: "not-allowed",
-                      display: "block", lineHeight: "1.5" }}>
+        <div style={s.inputReadonly}>
           {email}
         </div>
         <div style={{ fontSize: 12, color: "#94a3b8" }}>
           E-posta değişikliği için yöneticinizle iletişime geçin.
         </div>
-      </div>
+      </Card>
 
       {/* Şifre değiştir */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={s.cardH}>Şifre Değiştir</div>
         <form onSubmit={changePassword}>
-          <label style={s.label}>Mevcut Şifre</label>
-          <input style={s.input} type="password" value={currentPwd}
-            onChange={e => setCurrentPwd(e.target.value)}
-            placeholder="Mevcut şifrenizi girin (doğrulama için)" />
-          <label style={s.label}>Yeni Şifre</label>
-          <input style={s.input} type="password" value={newPwd}
-            onChange={e => setNewPwd(e.target.value)}
-            placeholder="En az 8 karakter" />
-          <label style={s.label}>Yeni Şifre (Tekrar)</label>
-          <input style={s.input} type="password" value={confirmPwd}
-            onChange={e => setConfirmPwd(e.target.value)}
-            placeholder="Şifreyi tekrar girin" />
+          <div style={{ marginBottom: 14 }}>
+            <Input
+              label="Mevcut Şifre"
+              type="password"
+              value={currentPwd}
+              onChange={e => setCurrentPwd(e.target.value)}
+              placeholder="Mevcut şifrenizi girin (doğrulama için)"
+            />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <Input
+              label="Yeni Şifre"
+              type="password"
+              value={newPwd}
+              onChange={e => setNewPwd(e.target.value)}
+              placeholder="En az 8 karakter"
+            />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <Input
+              label="Yeni Şifre (Tekrar)"
+              type="password"
+              value={confirmPwd}
+              onChange={e => setConfirmPwd(e.target.value)}
+              placeholder="Şifreyi tekrar girin"
+            />
+          </div>
           {pwdOk  && <div style={s.ok}>Şifre başarıyla değiştirildi!</div>}
           {pwdErr && <div style={s.err}>{pwdErr}</div>}
-          <button type="submit" style={{ ...s.btn, ...s.btnG }} disabled={pwdSaving}>
+          <Button variant="primary" type="submit" disabled={pwdSaving}>
             {pwdSaving ? "Değiştiriliyor…" : "Şifreyi Değiştir"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
       {/* Oturum yönetimi */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={s.cardH}>Oturum Yönetimi</div>
         <div style={{ ...s.row, borderBottom: "none" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0a1f1a" }}>Tüm Oturumları Kapat</div>
-            <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Tüm Oturumları Kapat</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
               Tüm cihaz ve tarayıcılardaki oturumları sonlandırır.
             </div>
           </div>
-          <button style={{ ...s.btn, ...s.btnR }} onClick={signOutAll} disabled={signOutAllLoading}>
+          <Button variant="danger" onClick={signOutAll} disabled={signOutAllLoading}>
             {signOutAllLoading ? "Kapatılıyor…" : "Tümünü Kapat"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Bildirim Tercihleri */}
       {prefs && (
-        <div style={s.card}>
+        <Card style={{ marginBottom: 16 }}>
           <div style={s.cardH}>Bildirim Tercihleri</div>
           {([
             { key: "calculationDone", label: "Emisyon hesaplama tamamlandı" },
@@ -247,7 +264,7 @@ export default function ProfilePage() {
             { key: "periodCreated",   label: "Yeni dönem oluşturuldu" },
           ] as const).map(({ key, label }) => (
             <div key={key} style={{ ...s.row, ...(key === "periodCreated" ? { borderBottom: "none" } : {}) }}>
-              <div style={{ fontSize: 14, color: "#0a1f1a" }}>{label}</div>
+              <div style={{ fontSize: 14, color: "var(--text-primary)" }}>{label}</div>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <input type="checkbox"
                   checked={prefs[key]}
@@ -259,41 +276,40 @@ export default function ProfilePage() {
                     await api.notifications.updatePrefs({ [key]: e.target.checked }).catch(() => {});
                     setPrefsSaving(false);
                   }}
-                  style={{ width: 16, height: 16, accentColor: "#00b87a" }} />
-                <span style={{ fontSize: 12, color: "#5c7a72" }}>{prefs[key] ? "Açık" : "Kapalı"}</span>
+                  style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{prefs[key] ? "Açık" : "Kapalı"}</span>
               </label>
             </div>
           ))}
-        </div>
+        </Card>
       )}
 
       {/* Veri & Gizlilik */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={s.cardH}>Veri & Gizlilik (GDPR)</div>
         <div style={s.row}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0a1f1a" }}>Verilerimi İndir</div>
-            <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>Verilerimi İndir</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
               Üyelik bilgileri ve işlem geçmişinizi JSON formatında indirin.
             </div>
           </div>
-          <button style={{ ...s.btn, ...s.btnGh, border: "1px solid #d4ece4" }}
-            onClick={downloadData}>
+          <Button variant="secondary" onClick={downloadData}>
             ↓ İndir
-          </button>
+          </Button>
         </div>
         <div style={{ ...s.row, borderBottom: "none" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#DC2626" }}>Şirketten Ayrıl</div>
-            <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--danger)" }}>Şirketten Ayrıl</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
               Bu tenant'taki üyeliğinizi kalıcı olarak sonlandırır.
             </div>
           </div>
-          <button style={{ ...s.btn, ...s.btnR }} onClick={leaveOrganization} disabled={leaveLoading}>
+          <Button variant="danger" onClick={leaveOrganization} disabled={leaveLoading}>
             {leaveLoading ? "İşleniyor…" : "Ayrıl"}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

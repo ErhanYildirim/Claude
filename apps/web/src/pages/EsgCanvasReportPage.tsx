@@ -52,7 +52,7 @@ function exportExcel(graph: EsgGraph, outputNodes: CanvasNode[], liveZones: Reco
     ["Canvas", graph.name],
     ["Tarih",  new Date(graph.updatedAt).toLocaleString("tr-TR")],
     [],
-    ["Node Adı", "Değer", "Birim", "Son Güncelleme"],
+    ["Node Adı", "Değer", "Birim", "Rapor Tarihi"],
     ...outputNodes.map(n => {
       const cfg = OUTPUT_CONFIG[n.type ?? ""] ?? { title: n.data.label ?? "", unit: "" };
       const val = n.type === "cbamReportNode" ? (n.data.subLabel ?? "") : (n.data.liveValue ?? "");
@@ -63,11 +63,11 @@ function exportExcel(graph: EsgGraph, outputNodes: CanvasNode[], liveZones: Reco
 
   const energyRows = [
     ["Zone", "CI (gCO₂/kWh)", "RE%"],
-    ...Object.entries(liveZones).map(([zone, v]) => [zone, v.ci, v.rePct]),
+    ...Object.entries(liveZones).map(([zone, v]) => [zone, v.ci ?? "N/A", v.rePct ?? "N/A"]),
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(energyRows), "Enerji");
 
-  XLSX.writeFile(wb, `${graph.name.replace(/[^a-z0-9ğüşıöçA-ZĞÜŞİÖÇ\s]/gi, "")}-rapor.xlsx`);
+  XLSX.writeFile(wb, `${graph.name.trim().replace(/[^a-z0-9ğüşıöçA-ZĞÜŞİÖÇ\s]/gi, "")}-rapor.xlsx`);
 }
 
 function parseNodes(nodesJson: unknown): { outputNodes: CanvasNode[]; energyNodes: CanvasNode[] } {
@@ -154,7 +154,7 @@ export default function EsgCanvasReportPage() {
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         [data-testid="kpi-card"] { page-break-inside: avoid; }
       `}</style>
-      <ReportHeader graph={graph!} lastUpdated={lastUpdated} onRefresh={() => fetchLive(energyNodes)} outputNodes={outputNodes} energyNodes={energyNodes} liveZones={liveZones} />
+      <ReportHeader graph={graph!} lastUpdated={lastUpdated} onRefresh={() => fetchLive(energyNodes)} outputNodes={outputNodes} liveZones={liveZones} />
       <CanvasMeta graph={graph!} outputCount={outputNodes.length} energyCount={energyNodes.length} />
       <KpiGrid outputNodes={outputNodes} />
       {energyNodes.length > 0 && Object.keys(liveZones).length > 0 && (
@@ -171,7 +171,6 @@ function ReportHeader({
   lastUpdated: Date | null;
   onRefresh: () => void;
   outputNodes: CanvasNode[];
-  energyNodes: CanvasNode[];
   liveZones: Record<string, LiveZoneData>;
 }) {
   const navigate = useNavigate();

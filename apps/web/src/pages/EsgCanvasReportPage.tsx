@@ -47,16 +47,18 @@ interface LiveZoneData {
 
 function exportExcel(graph: EsgGraph, outputNodes: CanvasNode[], liveZones: Record<string, LiveZoneData>) {
   const wb = XLSX.utils.book_new();
+  const exportedAt = new Date().toLocaleString("tr-TR");
 
   const reportRows = [
     ["Canvas", graph.name],
-    ["Tarih",  new Date(graph.updatedAt).toLocaleString("tr-TR")],
+    ["Canvas Güncellemesi",  new Date(graph.updatedAt).toLocaleString("tr-TR")],
+    ["Dışa Aktarım",  exportedAt],
     [],
-    ["Node Adı", "Değer", "Birim", "Rapor Tarihi"],
+    ["Node Adı", "Değer", "Birim"],
     ...outputNodes.map(n => {
       const cfg = OUTPUT_CONFIG[n.type ?? ""] ?? { title: n.data.label ?? "", unit: "" };
       const val = n.type === "cbamReportNode" ? (n.data.subLabel ?? "") : (n.data.liveValue ?? "");
-      return [n.data.label ?? cfg.title, val, cfg.unit, new Date().toLocaleString("tr-TR")];
+      return [n.data.label ?? cfg.title, val, cfg.unit];
     }),
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(reportRows), "Rapor");
@@ -67,7 +69,8 @@ function exportExcel(graph: EsgGraph, outputNodes: CanvasNode[], liveZones: Reco
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(energyRows), "Enerji");
 
-  XLSX.writeFile(wb, `${graph.name.trim().replace(/[^a-z0-9ğüşıöçA-ZĞÜŞİÖÇ\s]/gi, "")}-rapor.xlsx`);
+  const safeName = graph.name.trim().replace(/[^a-z0-9ğüşıöçA-ZĞÜŞİÖÇ\s]/gi, "") || "canvas";
+  XLSX.writeFile(wb, `${safeName}-rapor.xlsx`);
 }
 
 function parseNodes(nodesJson: unknown): { outputNodes: CanvasNode[]; energyNodes: CanvasNode[] } {

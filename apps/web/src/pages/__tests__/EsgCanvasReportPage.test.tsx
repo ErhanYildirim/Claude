@@ -91,4 +91,24 @@ describe("EsgCanvasReportPage", () => {
       expect(screen.getByTestId("kpi-value")).toHaveTextContent("—");
     });
   });
+
+  it("sourceType=installation olan node platform linkini gösterir", async () => {
+    vi.mocked(api.esgPlayground.get).mockResolvedValue({
+      id: "test-id", name: "Test", description: null,
+      nodesJson: [{
+        id: "1", type: "emissionCalcNode",
+        data: { label: "Emisyon", liveValue: "8.4 t", sourceType: "installation", sourceId: "inst-123" },
+      }],
+      edgesJson: [], viewport: {}, createdBy: "u1", updatedBy: null,
+      isTemplate: false, templateKey: null, templateCategory: null,
+      tenantId: "t1", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      const link = screen.getByTestId("kpi-platform-link") as HTMLAnchorElement;
+      expect(link.href).toContain("/installations/inst-123");
+    });
+  });
 });

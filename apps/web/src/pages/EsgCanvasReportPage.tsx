@@ -31,6 +31,13 @@ const OUTPUT_CONFIG: Record<string, { title: string; unit: string; color: string
   cbamReportNode:   { title: "CBAM Teknik Dosya",     unit: "",      color: "#b91c1c" },
 };
 
+function sourceLink(sourceType?: string, sourceId?: string): string | null {
+  if (!sourceType || !sourceId) return null;
+  if (sourceType === "installation") return `/installations/${sourceId}`;
+  if (sourceType === "cbamFacility") return `/cbam/facilities/${sourceId}`;
+  return null;
+}
+
 interface LiveZoneData {
   ci: number | null;
   rePct: number | null;
@@ -135,7 +142,15 @@ function CanvasMeta(_: { graph: EsgGraph; outputCount: number; energyCount: numb
 }
 function KpiGrid({ outputNodes }: { outputNodes: CanvasNode[] }) {
   return (
-    <div data-testid="kpi-grid">
+    <div
+      data-testid="kpi-grid"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+        gap: 16,
+        marginBottom: 20,
+      }}
+    >
       {outputNodes.map(n => <KpiCard key={n.id} node={n} />)}
     </div>
   );
@@ -145,10 +160,46 @@ function KpiCard({ node }: { node: CanvasNode }) {
   const displayValue = node.type === "cbamReportNode"
     ? (node.data.subLabel || null)
     : (node.data.liveValue || null);
+  const hasValue = displayValue !== null && displayValue !== "";
+  const link = sourceLink(node.data.sourceType, node.data.sourceId);
+
   return (
-    <div data-testid="kpi-card" style={{ marginBottom: 12 }}>
-      <div>{node.data.label ?? cfg.title}</div>
-      <div data-testid="kpi-value">{displayValue ?? "—"}</div>
+    <div
+      data-testid="kpi-card"
+      style={{
+        background: "var(--bg-surface)",
+        border: `1px solid ${hasValue ? "var(--border)" : "var(--border)"}`,
+        borderRadius: "var(--radius-lg)",
+        padding: "20px",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: "3px",
+        background: hasValue ? cfg.color : "var(--border)",
+      }} />
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+        {node.data.label ?? cfg.title}
+      </div>
+      <div
+        data-testid="kpi-value"
+        style={{ fontSize: 32, fontWeight: 800, color: hasValue ? "var(--text-primary)" : "var(--text-muted)", lineHeight: 1 }}
+      >
+        {displayValue ?? "—"}
+      </div>
+      {cfg.unit && hasValue && (
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>{cfg.unit}</div>
+      )}
+      {link && (
+        <a
+          href={link}
+          data-testid="kpi-platform-link"
+          style={{ display: "block", marginTop: 12, fontSize: 11, color: "var(--accent)", textDecoration: "none" }}
+        >
+          → Platform sayfasına git
+        </a>
+      )}
     </div>
   );
 }

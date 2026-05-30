@@ -4,41 +4,28 @@ import { api } from "../lib/api.js";
 import { dispatchResourceUpdate } from "../lib/canvasSync.js";
 import type { InstallationDetail, Period, CreatePeriodBody, EFEntry } from "../lib/api.js";
 import { Scope1Calculator } from "../components/Scope1Calculator.js";
+import { Button, Card, Badge } from "../components/ui/index.js";
 
 const s: Record<string, React.CSSProperties> = {
-  nav:     { background: "#00b87a", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 },
-  back:    { color: "rgba(255,255,255,.8)", textDecoration: "none", fontSize: 13 },
-  brand:   { fontWeight: 700, fontSize: 18, color: "#fff" },
   page:    { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
   h1:      { fontSize: 22, fontWeight: 700, marginBottom: 4 },
-  sub:     { color: "#5c7a72", fontSize: 14, marginBottom: 28 },
-  addBtn:  { display: "inline-flex", alignItems: "center", gap: 6, background: "#00b87a", color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 20 },
-  table:   { width: "100%", borderCollapse: "collapse" as const, background: "#fff", borderRadius: 10, overflow: "hidden", border: "1px solid #d4ece4" },
-  th:      { background: "#f4fbf8", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#5c7a72", borderBottom: "1px solid #d4ece4" },
-  td:      { padding: "12px 14px", borderBottom: "1px solid #eef7f3", fontSize: 14 },
-  btnSm:   { padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-  green:   { background: "#D1FAE5", color: "#065F46" },
-  blue:    { background: "#DBEAFE", color: "#009966" },
-  gray:    { background: "#eef7f3", color: "#5c7a72" },
+  sub:     { color: "var(--text-muted)", fontSize: 14, marginBottom: 28 },
+  table:   { width: "100%", borderCollapse: "collapse" as const, background: "var(--bg-surface)", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border)" },
+  th:      { background: "var(--bg-base)", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border)" },
+  td:      { padding: "12px 14px", borderBottom: "1px solid var(--bg-elevated)", fontSize: 14 },
   modal:   { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, overflowY: "auto" as const },
-  mCard:   { background: "#fff", borderRadius: 12, padding: "32px", width: 580, margin: "20px auto", boxShadow: "0 8px 32px rgba(0,0,0,.15)" },
+  mCard:   { background: "var(--bg-surface)", borderRadius: "var(--radius-lg)", padding: "32px", width: 580, margin: "20px auto", boxShadow: "var(--shadow-md)" },
   mTitle:  { fontSize: 17, fontWeight: 700, marginBottom: 20 },
-  label:   { display: "block", fontSize: 13, fontWeight: 600, color: "#1a3530", marginBottom: 5 },
-  input:   { width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, outline: "none", marginBottom: 14, boxSizing: "border-box" as const },
-  select:  { width: "100%", padding: "9px 12px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 14, marginBottom: 14, background: "#fff", boxSizing: "border-box" as const },
+  label:   { display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 },
+  input:   { width: "100%", padding: "9px 12px", borderRadius: "var(--radius-md)", border: "1px solid #D1D5DB", fontSize: 14, outline: "none", marginBottom: 14, boxSizing: "border-box" as const },
+  select:  { width: "100%", padding: "9px 12px", borderRadius: "var(--radius-md)", border: "1px solid #D1D5DB", fontSize: 14, marginBottom: 14, background: "var(--bg-surface)", boxSizing: "border-box" as const },
   row2:    { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
   btnRow:  { display: "flex", gap: 10, marginTop: 8 },
-  btn:     { flex: 1, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14 },
-  btnP:    { background: "#00b87a", color: "#fff" },
-  btnS:    { background: "#eef7f3", color: "#1a3530" },
-  err:     { color: "#DC2626", fontSize: 13, marginBottom: 12 },
-  section: { fontSize: 13, fontWeight: 600, color: "#5c7a72", marginBottom: 8, marginTop: 18, textTransform: "uppercase" as const, letterSpacing: ".05em" },
-  badge:   { display: "inline-block", fontSize: 11, padding: "2px 7px", borderRadius: 4, marginLeft: 6, fontWeight: 600 },
-  badgeAuto: { background: "#D1FAE5", color: "#065F46" },
-  badgeManual: { background: "#FEF3C7", color: "#92400E" },
-  efNote:  { fontSize: 12, color: "#5c7a72", marginTop: -10, marginBottom: 14 },
-  dropzone: { border: "2px dashed #D1D5DB", borderRadius: 8, padding: "24px", textAlign: "center" as const, cursor: "pointer", marginBottom: 14, transition: "border-color .2s" },
-  dropzoneActive: { borderColor: "#00b87a", background: "#e6f9f2" },
+  err:     { color: "var(--danger)", fontSize: 13, marginBottom: 12 },
+  section: { fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, marginTop: 18, textTransform: "uppercase" as const, letterSpacing: ".05em" },
+  efNote:  { fontSize: 12, color: "var(--text-muted)", marginTop: -10, marginBottom: 14 },
+  dropzone: { border: "2px dashed #D1D5DB", borderRadius: "var(--radius-md)", padding: "24px", textAlign: "center" as const, cursor: "pointer", marginBottom: 14, transition: "border-color .2s" },
+  dropzoneActive: { borderColor: "var(--accent)", background: "var(--accent-bg)" },
 };
 
 const EMPTY_FORM: CreatePeriodBody = {
@@ -259,38 +246,31 @@ export default function InstallationDetailPage() {
     if (file) setCsvFile(file);
   }
 
-  if (!installation) return <div style={{ padding: 40, textAlign: "center", color: "#5c7a72" }}>Yükleniyor...</div>;
+  if (!installation) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Yükleniyor...</div>;
 
   return (
     <>
       <div style={s.page}>
-        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 8 }}>
-          <Link to="/gec" style={{ color: "#00b87a", textDecoration: "none" }}>← Tesisler</Link>
+        <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }}>
+          <Link to="/gec" style={{ color: "var(--accent)", textDecoration: "none" }}>← Tesisler</Link>
         </div>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
           <div>
             <div style={s.h1}>{installation.facilityName}</div>
             <div style={s.sub}>{installation.operator} · {installation.facilityCountry}</div>
           </div>
-          <button
+          <Button
+            variant="secondary"
             onClick={() => navigate(`/esg-playground?highlight=installation:${id}`)}
-            title="Bu tesisi canvas'ta göster"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              background: "transparent", color: "#00b87a",
-              border: "1px solid #00b87a", borderRadius: 8,
-              padding: "7px 14px", fontSize: 13, fontWeight: 600,
-              cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
-            }}
           >
             🕸️ Canvas'ta Göster
-          </button>
+          </Button>
         </div>
 
-        <button style={s.addBtn} onClick={() => setShowModal(true)}>+ Yeni Dönem Ekle</button>
+        <Button variant="primary" onClick={() => setShowModal(true)} style={{ marginBottom: 20 }}>+ Yeni Dönem Ekle</Button>
 
         {installation.periods.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "#5c7a72" }}>
+          <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
             Henüz raporlama dönemi yok. İlk dönemi ekleyin.
           </div>
         ) : (
@@ -309,39 +289,40 @@ export default function InstallationDetailPage() {
               {installation.periods.map(p => (
                 <tr key={p.id}>
                   <td style={s.td}>
-                    <Link to={`/installations/${id}/periods/${p.id}`} style={{ color: "#00b87a", fontWeight: 600 }}>
+                    <Link to={`/installations/${id}/periods/${p.id}`} style={{ color: "var(--accent)", fontWeight: 600 }}>
                       {p.periodName}
                     </Link>
-                    <div style={{ fontSize: 12, color: "#5c7a72" }}>{p.startDate?.slice(0,10)} – {p.endDate?.slice(0,10)}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{p.startDate?.slice(0,10)} – {p.endDate?.slice(0,10)}</div>
                   </td>
                   <td style={s.td}>{p.cnCode}</td>
                   <td style={s.td}>{p.prodVolumeTonne.toLocaleString()}</td>
                   <td style={s.td}>
-                    {p.result ? `${p.result.seeBaseline.toFixed(4)} tCO₂e/t` : <span style={{ color: "#5c7a72" }}>—</span>}
+                    {p.result ? `${p.result.seeBaseline.toFixed(4)} tCO₂e/t` : <span style={{ color: "var(--text-muted)" }}>—</span>}
                   </td>
                   <td style={s.td}>
                     {p.result
                       ? <span style={{ color: "#059669", fontWeight: 600 }}>{p.result.seeVoltfox.toFixed(4)} tCO₂e/t</span>
-                      : <span style={{ color: "#5c7a72" }}>—</span>}
+                      : <span style={{ color: "var(--text-muted)" }}>—</span>}
                   </td>
                   <td style={s.td}>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-                      <button style={{ ...s.btnSm, ...(p.result ? s.blue : s.green) }}
+                      <Button
+                        variant={p.result ? "secondary" : "primary"}
+                        size="sm"
                         disabled={calculating === p.id}
-                        onClick={() => calculate(p)}>
+                        onClick={() => calculate(p)}
+                      >
                         {calculating === p.id ? "..." : p.result ? "Yeniden Hesapla" : "Hesapla"}
-                      </button>
-                      <button style={{ ...s.btnSm, ...s.gray }} onClick={() => openCsvModal(p.id)}>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openCsvModal(p.id)}>
                         CSV Yükle
-                      </button>
-                      <button style={{ ...s.btnSm, background: "#e6f9f2", color: "#009966" }}
-                        onClick={() => openEditPeriod(p)}>
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => openEditPeriod(p)}>
                         Düzenle
-                      </button>
-                      <button style={{ ...s.btnSm, background: "#FEE2E2", color: "#DC2626" }}
-                        onClick={() => deletePeriod(p)}>
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => deletePeriod(p)}>
                         Sil
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -349,12 +330,12 @@ export default function InstallationDetailPage() {
             </tbody>
           </table>
         )}
-        <div style={{ marginTop: 32, padding: "14px 18px", background: "#f0f9ff", borderRadius: 10, border: "1px solid #bae6fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ marginTop: 32, padding: "14px 18px", background: "#f0f9ff", borderRadius: "var(--radius-lg)", border: "1px solid #bae6fd", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#0369a1", marginBottom: 2 }}>CBAM Ürün Yönetimi</div>
-            <div style={{ fontSize: 12, color: "#5c7a72" }}>CBAM ürün ve dönem verileri CBAM modülünde izole olarak yönetilir.</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>CBAM ürün ve dönem verileri CBAM modülünde izole olarak yönetilir.</div>
           </div>
-          <Link to="/cbam" style={{ padding: "8px 16px", borderRadius: 7, background: "#0369a1", color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+          <Link to="/cbam" style={{ padding: "8px 16px", borderRadius: "var(--radius-md)", background: "#0369a1", color: "var(--bg-surface)", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
             CBAM Modülü →
           </Link>
         </div>
@@ -407,8 +388,8 @@ export default function InstallationDetailPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...s.section as object }}>
                 Scope 1
                 <button type="button" onClick={() => setShowScope1Calc(true)}
-                  style={{ fontSize: 11, color: "#009966", background: "#e6f9f2", border: "1px solid rgba(0,153,102,.3)",
-                           borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>
+                  style={{ fontSize: 11, color: "var(--text-secondary)", background: "var(--accent-bg)", border: "1px solid var(--border-accent)",
+                           borderRadius: "var(--radius-md)", padding: "3px 10px", cursor: "pointer", fontWeight: 600 }}>
                   Hesaplama Yardımcısı
                 </button>
               </div>
@@ -437,13 +418,13 @@ export default function InstallationDetailPage() {
               {/* Yakıt breakdown — opsiyonel */}
               <div style={{ marginBottom: 14 }}>
                 <button type="button"
-                  style={{ background: "none", border: "none", color: "#00b87a", fontSize: 13, cursor: "pointer", padding: 0, fontWeight: 600 }}
+                  style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, cursor: "pointer", padding: 0, fontWeight: 600 }}
                   onClick={() => setShowFuel(v => !v)}>
                   {showFuel ? "▼" : "▶"} Yakıt Detayı ile Hesapla (opsiyonel)
                 </button>
                 {showFuel && (
-                  <div style={{ marginTop: 12, background: "#f4fbf8", border: "1px solid #d4ece4", borderRadius: 8, padding: 14 }}>
-                    <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 10 }}>
+                  <div style={{ marginTop: 12, background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: 14 }}>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
                       Yakıt tipi ve tüketim girin — Scope 1 toplamı otomatik hesaplanır (IPCC 2006).
                     </div>
                     {fuelRows.map((row, i) => {
@@ -452,7 +433,7 @@ export default function InstallationDetailPage() {
                       return (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 8, marginBottom: 8, alignItems: "end" }}>
                           <div>
-                            {i === 0 && <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Yakıt Tipi</div>}
+                            {i === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 3 }}>Yakıt Tipi</div>}
                             <select style={{ ...s.select, marginBottom: 0 }}
                               value={row.fuelType}
                               onChange={e => setFuelRows(rows => rows.map((r, j) => j === i ? { ...r, fuelType: e.target.value as FuelType } : r))}>
@@ -462,20 +443,20 @@ export default function InstallationDetailPage() {
                             </select>
                           </div>
                           <div>
-                            {i === 0 && <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Tüketim (MWh)</div>}
+                            {i === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 3 }}>Tüketim (MWh)</div>}
                             <input style={{ ...s.input, marginBottom: 0 }} type="number" min="0" step="0.1"
                               value={row.consumedMwh || ""}
                               onChange={e => setFuelRows(rows => rows.map((r, j) => j === i ? { ...r, consumedMwh: parseFloat(e.target.value) || 0 } : r))} />
                           </div>
                           <div>
-                            {i === 0 && <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 3 }}>Sonuç (tCO₂)</div>}
-                            <div style={{ padding: "9px 12px", background: "#E0F2FE", borderRadius: 7, fontSize: 13, fontWeight: 600, color: "#0369A1" }}>
+                            {i === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 3 }}>Sonuç (tCO₂)</div>}
+                            <div style={{ padding: "9px 12px", background: "#E0F2FE", borderRadius: "var(--radius-md)", fontSize: 13, fontWeight: 600, color: "#0369A1" }}>
                               {tco2.toFixed(2)}
                             </div>
                           </div>
                           <div style={{ paddingTop: i === 0 ? 18 : 0 }}>
                             {fuelRows.length > 1 && (
-                              <button type="button" style={{ background: "#FEE2E2", border: "none", borderRadius: 6, color: "#DC2626", cursor: "pointer", padding: "6px 10px", fontSize: 13 }}
+                              <button type="button" style={{ background: "#FEE2E2", border: "none", borderRadius: "var(--radius-md)", color: "var(--danger)", cursor: "pointer", padding: "6px 10px", fontSize: 13 }}
                                 onClick={() => setFuelRows(rows => rows.filter((_, j) => j !== i))}>×</button>
                             )}
                           </div>
@@ -484,11 +465,11 @@ export default function InstallationDetailPage() {
                     })}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
                       <button type="button"
-                        style={{ background: "none", border: "1px dashed #D1D5DB", borderRadius: 6, color: "#5c7a72", cursor: "pointer", padding: "5px 12px", fontSize: 12 }}
+                        style={{ background: "none", border: "1px dashed #D1D5DB", borderRadius: "var(--radius-md)", color: "var(--text-muted)", cursor: "pointer", padding: "5px 12px", fontSize: 12 }}
                         onClick={() => setFuelRows(rows => [...rows, { ...EMPTY_FUEL_ROW }])}>
                         + Yakıt Ekle
                       </button>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0a1f1a" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
                         Toplam: {fuelTotal().toFixed(2)} tCO₂
                       </div>
                     </div>
@@ -521,7 +502,7 @@ export default function InstallationDetailPage() {
                   <label style={s.label}>
                     Tesis Ülkesi
                     {efCountries.length > 0 && (
-                      <span style={{ fontWeight: 400, color: "#5c7a72", fontSize: 12, marginLeft: 4 }}>
+                      <span style={{ fontWeight: 400, color: "var(--text-muted)", fontSize: 12, marginLeft: 4 }}>
                         (EF için ülke seç)
                       </span>
                     )}
@@ -543,17 +524,17 @@ export default function InstallationDetailPage() {
                       ))}
                     </select>
                   ) : (
-                    <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14 }}>Yükleniyor...</div>
+                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 14 }}>Yükleniyor...</div>
                   )}
                 </div>
                 <div>
                   <label style={s.label}>
                     Baseline EF (tCO₂/MWh)
                     {efEntry && !efManual && (
-                      <span style={{ ...s.badge, ...s.badgeAuto }}>Otomatik</span>
+                      <Badge variant="success">Otomatik</Badge>
                     )}
                     {efManual && (
-                      <span style={{ ...s.badge, ...s.badgeManual }}>Manuel</span>
+                      <Badge variant="warning">Manuel</Badge>
                     )}
                   </label>
                   <input style={s.input} type="number" min="0" step="0.0001"
@@ -564,7 +545,7 @@ export default function InstallationDetailPage() {
                     <div style={s.efNote}>
                       Kaynak: {efEntry.source} · {efEntry.year} yılı verisi
                       {efManual && " · "}
-                      <button type="button" style={{ background: "none", border: "none", color: "#5c7a72", cursor: "pointer", fontSize: 11, textDecoration: "underline", padding: 0 }}
+                      <button type="button" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, textDecoration: "underline", padding: 0 }}
                         onClick={() => { setEfManual(false); if (efEntry) set("baselineEf", efEntry.ef); }}>
                         sıfırla
                       </button>
@@ -592,7 +573,7 @@ export default function InstallationDetailPage() {
                 onChange={e => set("carbonPriceEur", e.target.value ? parseFloat(e.target.value) : undefined)}
                 placeholder="Opsiyonel" />
 
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14, padding: "10px 12px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 7 }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14, padding: "10px 12px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "var(--radius-md)" }}>
                 <input type="checkbox" checked={form.gecConnected ?? false}
                   onChange={e => set("gecConnected", e.target.checked)}
                   style={{ marginTop: 2, flexShrink: 0 }} />
@@ -604,13 +585,13 @@ export default function InstallationDetailPage() {
                 </div>
               </label>
 
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14, padding: "10px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 7 }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14, padding: "10px 12px", background: "var(--bg-subtle)", border: "1px solid var(--warning)", borderRadius: "var(--radius-md)" }}>
                 <input type="checkbox" checked={form.scope2Exempt ?? false}
                   onChange={e => set("scope2Exempt", e.target.checked)}
                   style={{ marginTop: 2, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#92400E" }}>Scope 2 CBAM Muafiyeti</div>
-                  <div style={{ fontSize: 12, color: "#B45309", marginTop: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--warning)" }}>Scope 2 CBAM Muafiyeti</div>
+                  <div style={{ fontSize: 12, color: "var(--warning)", marginTop: 2 }}>
                     Ek-IV Md.4(2) — Bu CN kodu 2026–2028 geçiş döneminde dolaylı emisyondan muaftır.
                     İşaretlenirse Scope 2 = 0 olarak raporlanır.
                   </div>
@@ -618,13 +599,13 @@ export default function InstallationDetailPage() {
               </label>
 
               <div style={s.btnRow}>
-                <button type="button" style={{ ...s.btn, ...s.btnS }}
+                <Button type="button" variant="secondary" style={{ flex: 1 }}
                   onClick={() => { setShowModal(false); setForm(EMPTY_FORM); setEfManual(false); setEfEntry(null); }}>
                   İptal
-                </button>
-                <button type="submit" style={{ ...s.btn, ...s.btnP }} disabled={saving}>
+                </Button>
+                <Button type="submit" variant="primary" style={{ flex: 1 }} disabled={saving}>
                   {saving ? "Kaydediliyor..." : "Kaydet"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -636,8 +617,8 @@ export default function InstallationDetailPage() {
         <div style={s.modal} onClick={e => e.target === e.currentTarget && setShowCsvModal(false)}>
           <div style={{ ...s.mCard, width: 480 }}>
             <div style={s.mTitle}>CFE Saatlik Veri Yükleme</div>
-            <p style={{ fontSize: 13, color: "#5c7a72", marginBottom: 16 }}>
-              Beklenen CSV formatı: <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 3 }}>timestamp,consumption_kwh,production_kwh</code>
+            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+              Beklenen CSV formatı: <code style={{ background: "var(--bg-elevated)", padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>timestamp,consumption_kwh,production_kwh</code>
               <br />Maksimum 10 MB · Yıllık ~8760 satır
             </p>
 
@@ -653,10 +634,10 @@ export default function InstallationDetailPage() {
                   {csvFile ? (
                     <div>
                       <div style={{ fontWeight: 600 }}>{csvFile.name}</div>
-                      <div style={{ fontSize: 12, color: "#5c7a72" }}>{(csvFile.size / 1024).toFixed(0)} KB</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{(csvFile.size / 1024).toFixed(0)} KB</div>
                     </div>
                   ) : (
-                    <div style={{ color: "#5c7a72" }}>
+                    <div style={{ color: "var(--text-muted)" }}>
                       CSV dosyasını sürükleyin veya tıklayın
                     </div>
                   )}
@@ -665,34 +646,34 @@ export default function InstallationDetailPage() {
                 </div>
 
                 <div style={s.btnRow}>
-                  <button style={{ ...s.btn, ...s.btnS }} onClick={() => setShowCsvModal(false)}>İptal</button>
-                  <button style={{ ...s.btn, ...s.btnP }} disabled={!csvFile || csvUploading} onClick={uploadCsv}>
+                  <Button variant="secondary" style={{ flex: 1 }} onClick={() => setShowCsvModal(false)}>İptal</Button>
+                  <Button variant="primary" style={{ flex: 1 }} disabled={!csvFile || csvUploading} onClick={uploadCsv}>
                     {csvUploading ? "Yükleniyor..." : "Yükle & Hesapla"}
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <Card variant="accent" style={{ marginBottom: 16 }}>
                   <div style={{ fontWeight: 700, color: "#065F46", fontSize: 15, marginBottom: 4 }}>
                     CFE Skoru: {csvResult.cfeScore.toFixed(1)}%
                   </div>
-                  <div style={{ fontSize: 13, color: "#1a3530" }}>
+                  <div style={{ fontSize: 13, color: "var(--text-primary)" }}>
                     {csvResult.rowCount} satır işlendi
                     {csvResult.errorCount > 0 && ` · ${csvResult.errorCount} satır atlandı`}
                   </div>
-                </div>
+                </Card>
                 {csvResult.errors.length > 0 && (
-                  <div style={{ background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                  <div style={{ background: "var(--bg-subtle)", border: "1px solid var(--warning)", borderRadius: "var(--radius-md)", padding: 12, marginBottom: 16 }}>
                     <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 6 }}>Atlandı:</div>
                     {csvResult.errors.map((e, i) => (
-                      <div key={i} style={{ fontSize: 12, color: "#92400E" }}>{e}</div>
+                      <div key={i} style={{ fontSize: 12, color: "var(--warning)" }}>{e}</div>
                     ))}
                   </div>
                 )}
-                <button style={{ ...s.btn, ...s.btnP, width: "100%" }} onClick={() => setShowCsvModal(false)}>
+                <Button variant="primary" style={{ width: "100%" }} onClick={() => setShowCsvModal(false)}>
                   Kapat
-                </button>
+                </Button>
               </>
             )}
           </div>

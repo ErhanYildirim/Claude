@@ -19,7 +19,7 @@ const s: Record<string, React.CSSProperties> = {
     width: 80, height: 80, borderRadius: "var(--radius-pill)", flexShrink: 0,
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: 30, fontWeight: 800, color: "var(--bg-surface)",
-    background: "linear-gradient(135deg,var(--accent),#009966)",
+    background: "var(--accent)",
   },
   inputReadonly: {
     width: "100%", padding: "9px 12px", borderRadius: "var(--radius-md)",

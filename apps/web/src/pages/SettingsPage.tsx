@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { api } from "../lib/api.js";
 import type { MemberList, MemberItem, PendingInviteList, ApiKeyList, NewApiKey, WebhookList, NewWebhook, DeliveryList, AuditLogList, TenantProfile, IntegrationConfig } from "../lib/api.js";
+import { Button, Card, Input } from "../components/ui/index.js";
 
 const s: Record<string, React.CSSProperties> = {
   page:   { maxWidth: 900, margin: "0 auto", padding: "32px 24px" },
@@ -9,31 +10,27 @@ const s: Record<string, React.CSSProperties> = {
   tabs:   { display: "flex", gap: 0, borderBottom: "1px solid var(--border)", marginBottom: 28, overflowX: "auto" as const },
   tab:    { padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: "var(--text-muted)", borderBottom: "2px solid transparent", marginBottom: -1, whiteSpace: "nowrap" as const },
   tabA:   { color: "var(--accent)", borderBottom: "2px solid var(--accent)" },
-  card:   { background: "var(--bg-card)", borderRadius: 10, border: "1px solid var(--border)", padding: "20px", marginBottom: 16 },
-  label:  { display: "block", fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 5 },
-  input:  { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid var(--border)", fontSize: 13, outline: "none", marginBottom: 12, boxSizing: "border-box" as const, background: "var(--bg-card)", color: "var(--text)" },
-  select: { width: "100%", padding: "8px 12px", borderRadius: 7, border: "1px solid var(--border)", fontSize: 13, background: "var(--bg-card)", color: "var(--text)", marginBottom: 12, boxSizing: "border-box" as const },
-  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border-light)" },
-  rowL:   { fontSize: 14, color: "var(--text)" },
+  select: { width: "100%", padding: "8px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 13, background: "var(--bg-surface)", color: "var(--text-primary)", marginBottom: 12, boxSizing: "border-box" as const },
+  row:    { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--border)" },
+  rowL:   { fontSize: 14, color: "var(--text-primary)" },
   rowR:   { display: "flex", gap: 8, alignItems: "center" },
-  badge:  { display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 },
-  btnSm:  { padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 },
-  btnP:   { background: "var(--accent)", color: "#fff" },
-  btnR:   { background: "#FEE2E2", color: "#DC2626" },
-  btnG:   { background: "#D1FAE5", color: "#065F46" },
-  btnSec: { background: "var(--accent-bg)", color: "var(--text)" },
-  err:    { color: "#DC2626", fontSize: 13, marginBottom: 12 },
-  ok:     { color: "#059669", fontSize: 13, marginBottom: 12 },
+  badge:  { display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-sm)", fontSize: 11, fontWeight: 600 },
+  btnSm:  { padding: "5px 12px", borderRadius: "var(--radius-md)", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 },
+  btnR:   { background: "var(--bg-subtle)", color: "var(--danger)" },
+  btnG:   { background: "var(--bg-subtle)", color: "var(--success)" },
+  btnSec: { background: "var(--accent-bg)", color: "var(--text-primary)" },
+  err:    { color: "var(--danger)", fontSize: 13, marginBottom: 12 },
+  ok:     { color: "var(--success)", fontSize: 13, marginBottom: 12 },
   row2:   { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  mono:   { fontFamily: "monospace", background: "var(--accent-bg)", padding: "6px 10px", borderRadius: 5, fontSize: 12, wordBreak: "break-all" as const, color: "var(--text)" },
+  mono:   { fontFamily: "monospace", background: "var(--accent-bg)", padding: "6px 10px", borderRadius: "var(--radius-sm)", fontSize: 12, wordBreak: "break-all" as const, color: "var(--text-primary)" },
   section:{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, marginTop: 20, textTransform: "uppercase" as const, letterSpacing: ".05em" },
 };
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
-  owner:    { bg: "#FEF3C7", color: "#92400E" },
-  admin:    { bg: "#DBEAFE", color: "#009966" },
-  analyst:  { bg: "#D1FAE5", color: "#065F46" },
-  viewer:   { bg: "#eef7f3", color: "#5c7a72" },
+  owner:    { bg: "var(--bg-subtle)", color: "var(--warning)" },
+  admin:    { bg: "var(--bg-elevated)", color: "var(--accent)" },
+  analyst:  { bg: "var(--bg-subtle)", color: "var(--success)" },
+  viewer:   { bg: "var(--bg-base)", color: "var(--text-muted)" },
 };
 
 const ROLE_LABELS_FULL: Record<string, string> = {
@@ -47,13 +44,13 @@ const ROLE_LABELS_FULL: Record<string, string> = {
 function MemberAvatar({ member }: { member: MemberItem }) {
   const label = member.displayName ?? member.email ?? member.userId;
   const initials = label.slice(0, 2).toUpperCase();
-  const colors = ["#00b87a", "#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#14b8a6"];
+  const colors = ["var(--accent)", "var(--info)", "#8b5cf6", "var(--warning)", "var(--danger)", "#14b8a6"];
   const color  = colors[label.charCodeAt(0) % colors.length];
   return (
     <div style={{
-      width: 34, height: 34, borderRadius: "50%", background: color,
+      width: 34, height: 34, borderRadius: "var(--radius-pill)", background: color,
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 12, fontWeight: 800, color: "#fff", flexShrink: 0,
+      fontSize: 12, fontWeight: 800, color: "var(--bg-surface)", flexShrink: 0,
     }}>{initials}</div>
   );
 }
@@ -127,13 +124,13 @@ function TeamTab() {
   return (
     <div>
       {/* Aktif üyeler */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>Ekip Üyeleri</div>
-          <span style={{ fontSize: 12, color: "#5c7a72" }}>{members.length} üye</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{members.length} üye</span>
         </div>
-        {loading && <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>}
-        {!loading && members.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz üye yok.</div>}
+        {loading && <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Yükleniyor…</div>}
+        {!loading && members.length === 0 && <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Henüz üye yok.</div>}
         {members.map((m, i) => {
           const rc = ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer;
           const isLast = i === members.length - 1;
@@ -141,13 +138,13 @@ function TeamTab() {
             <div key={m.id} style={{ ...s.row, ...(isLast ? { borderBottom: "none" } : {}), gap: 12 }}>
               <MemberAvatar member={m} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {m.displayName ?? m.email ?? m.userId.slice(0, 8) + "…"}
                 </div>
                 {m.email && (
-                  <div style={{ fontSize: 11, color: "#5c7a72", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
                 )}
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
                   {new Date(m.createdAt).toLocaleDateString("tr-TR")} tarihinde katıldı
                 </div>
               </div>
@@ -156,7 +153,7 @@ function TeamTab() {
                 {canManage && (
                   <>
                     <select
-                      style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #dce8e3", fontSize: 12, background: "#fff" }}
+                      style={{ padding: "4px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 12, background: "var(--bg-surface)" }}
                       value={m.role}
                       onChange={e => changeRole(m.userId, e.target.value)}
                     >
@@ -174,14 +171,14 @@ function TeamTab() {
             </div>
           );
         })}
-      </div>
+      </Card>
 
       {/* Bekleyen davetler */}
       {invites.length > 0 && (
-        <div style={s.card}>
+        <Card style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
             Bekleyen Davetler
-            <span style={{ marginLeft: 8, background: "#fef3c7", color: "#92400e", borderRadius: 4, fontSize: 11, padding: "1px 6px", fontWeight: 600 }}>
+            <span style={{ marginLeft: 8, background: "var(--bg-subtle)", color: "var(--warning)", borderRadius: "var(--radius-sm)", fontSize: 11, padding: "1px 6px", fontWeight: 600 }}>
               {invites.length}
             </span>
           </div>
@@ -190,8 +187,8 @@ function TeamTab() {
             return (
               <div key={inv.id} style={{ ...s.row, ...(i === invites.length - 1 ? { borderBottom: "none" } : {}) }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b" }}>{inv.email}</div>
-                  <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{inv.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
                     <span style={{ ...s.badge, ...rc, marginRight: 6 }}>{inv.role}</span>
                     · {timeLeft(inv.expiresAt)} kaldı · {new Date(inv.createdAt).toLocaleDateString("tr-TR")} gönderildi
                   </div>
@@ -204,32 +201,31 @@ function TeamTab() {
               </div>
             );
           })}
-        </div>
+        </Card>
       )}
 
       {/* Davet formu */}
       {canManage && (
-        <div style={s.card}>
+        <Card style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Üye Davet Et</div>
-          <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14 }}>
             Platformda kayıtlı değilse 48 saatlik davet bağlantısı gönderilir. Kayıtlıysa direkt eklenir.
           </div>
           {err && <div style={s.err}>{err}</div>}
           {ok  && (
-            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#065f46", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ background: "var(--bg-base)", border: "1px solid var(--border-accent)", borderRadius: "var(--radius-md)", padding: "10px 14px", fontSize: 13, color: "var(--success)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
               ✅ {ok}
             </div>
           )}
           <form onSubmit={invite}>
             <div style={s.row2}>
               <div>
-                <label style={s.label}>E-posta Adresi</label>
-                <input style={s.input} type="email" value={email}
+                <Input label="E-posta Adresi" value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="kullanici@sirket.com" required />
               </div>
               <div>
-                <label style={s.label}>Rol</label>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Rol</label>
                 <select style={s.select} value={role} onChange={e => setRole(e.target.value)}>
                   {Object.entries(ROLE_LABELS_FULL)
                     .filter(([r]) => r !== "owner" || myRole === "owner")
@@ -237,11 +233,11 @@ function TeamTab() {
                 </select>
               </div>
             </div>
-            <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "9px 22px", fontSize: 13 }} disabled={saving}>
+            <Button type="submit" variant="primary" size="md" disabled={saving}>
               {saving ? "Gönderiliyor…" : "Davet Gönder"}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
       )}
     </div>
   );
@@ -280,25 +276,25 @@ function NewKeyBanner({ keyData, onClose }: { keyData: NewApiKey; onClose: () =>
 
   return (
     <div style={{
-      background: "#ecfdf5", border: "2px solid #34d399", borderRadius: 12,
+      background: "var(--bg-base)", border: "2px solid var(--accent)", borderRadius: "var(--radius-lg)",
       padding: "20px 22px", marginBottom: 20,
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <span style={{ fontSize: 22 }}>🔑</span>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#065F46" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "var(--success)" }}>
             API anahtarı oluşturuldu!
           </div>
-          <div style={{ fontSize: 13, color: "#047857", marginTop: 2 }}>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
             Bu anahtar <strong>yalnızca bir kez</strong> gösterilir. Güvenli bir yere kopyalayın.
           </div>
         </div>
       </div>
 
       <div style={{
-        background: "#fff", border: "1px solid #6ee7b7", borderRadius: 8,
+        background: "var(--bg-surface)", border: "1px solid var(--border-accent)", borderRadius: "var(--radius-md)",
         padding: "10px 14px", fontFamily: "monospace", fontSize: 13,
-        wordBreak: "break-all", color: "#064e3b", letterSpacing: ".02em",
+        wordBreak: "break-all", color: "var(--text-primary)", letterSpacing: ".02em",
         marginBottom: 12,
       }}>
         {keyData.key}
@@ -309,7 +305,7 @@ function NewKeyBanner({ keyData, onClose }: { keyData: NewApiKey; onClose: () =>
           onClick={copy}
           style={{
             ...s.btnSm, padding: "7px 16px", fontSize: 13,
-            background: copied ? "#065F46" : "#00b87a", color: "#fff",
+            background: copied ? "var(--text-secondary)" : "var(--accent)", color: "var(--bg-surface)",
             transition: "background .2s",
           }}
         >
@@ -374,10 +370,10 @@ function ApiKeysTab() {
       {newKey && <NewKeyBanner keyData={newKey} onClose={() => setNewKey(null)} />}
 
       {/* Existing keys */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14 }}>Mevcut API Anahtarları</div>
         {keys.length === 0 ? (
-          <div style={{ color: "#5c7a72", fontSize: 13, padding: "8px 0" }}>
+          <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "8px 0" }}>
             Henüz API anahtarı yok. Aşağıdan yeni bir anahtar oluşturun.
           </div>
         ) : keys.map((k, i) => {
@@ -386,22 +382,22 @@ function ApiKeysTab() {
             <div key={k.id} style={{
               display: "flex", justifyContent: "space-between", alignItems: "flex-start",
               padding: "14px 0", gap: 12,
-              borderBottom: i < keys.length - 1 ? "1px solid #eef7f3" : "none",
+              borderBottom: i < keys.length - 1 ? "1px solid var(--bg-base)" : "none",
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#0a1f1a" }}>{k.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>{k.name}</span>
                   {expired && (
-                    <span style={{ ...s.badge, background: "#FEE2E2", color: "#DC2626" }}>Süresi doldu</span>
+                    <span style={{ ...s.badge, background: "var(--bg-subtle)", color: "var(--danger)" }}>Süresi doldu</span>
                   )}
                 </div>
-                <div style={{ fontFamily: "monospace", fontSize: 12, color: "#5c7a72", marginTop: 3 }}>
+                <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>
                   {k.prefix}{"·".repeat(24)}
                 </div>
-                <div style={{ fontSize: 12, color: "#7a9990", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" as const }}>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, display: "flex", gap: 12, flexWrap: "wrap" as const }}>
                   <span>Oluşturuldu: {new Date(k.createdAt).toLocaleDateString("tr-TR")}</span>
                   {k.expiresAt && (
-                    <span style={{ color: expired ? "#DC2626" : undefined }}>
+                    <span style={{ color: expired ? "var(--danger)" : undefined }}>
                       Son kullanım: {new Date(k.expiresAt).toLocaleDateString("tr-TR")}
                     </span>
                   )}
@@ -411,7 +407,7 @@ function ApiKeysTab() {
                 </div>
                 <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
                   {k.scopes.map(sc => (
-                    <span key={sc} style={{ ...s.badge, background: "#e6f9f2", color: "#009966", fontSize: 10.5 }}>{sc}</span>
+                    <span key={sc} style={{ ...s.badge, background: "var(--accent-bg)", color: "var(--accent)", fontSize: 10.5 }}>{sc}</span>
                   ))}
                 </div>
               </div>
@@ -421,23 +417,22 @@ function ApiKeysTab() {
             </div>
           );
         })}
-      </div>
+      </Card>
 
       {/* Create new key */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Yeni API Anahtarı Oluştur</div>
         {err && <div style={s.err}>{err}</div>}
         <form onSubmit={create}>
-          <label style={s.label}>Anahtar Adı *</label>
-          <input
-            style={s.input}
+          <Input
+            label="Anahtar Adı *"
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             placeholder="Örn: ERP entegrasyonu, CI/CD pipeline"
             required
           />
 
-          <label style={s.label}>Son Kullanma Tarihi</label>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Son Kullanma Tarihi</label>
           <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" as const }}>
             {EXPIRY_PRESETS.map(p => (
               <button
@@ -448,9 +443,9 @@ function ApiKeysTab() {
                   ...s.btnSm,
                   padding: "6px 14px",
                   fontSize: 13,
-                  background: form.expiryPreset === p.days ? "#009966" : "#eef7f3",
-                  color: form.expiryPreset === p.days ? "#fff" : "#1a3530",
-                  border: `1px solid ${form.expiryPreset === p.days ? "#009966" : "#d4ece4"}`,
+                  background: form.expiryPreset === p.days ? "var(--accent)" : "var(--bg-base)",
+                  color: form.expiryPreset === p.days ? "var(--bg-surface)" : "var(--text-primary)",
+                  border: `1px solid ${form.expiryPreset === p.days ? "var(--accent)" : "var(--border)"}`,
                   transition: "all .15s",
                 }}
               >
@@ -459,72 +454,73 @@ function ApiKeysTab() {
             ))}
           </div>
           {form.expiryPreset !== null && (
-            <div style={{ fontSize: 12, color: "#5c7a72", marginBottom: 14, marginTop: -8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, marginTop: -8 }}>
               Sona erme: {new Date(daysFromNow(form.expiryPreset)).toLocaleDateString("tr-TR")}
             </div>
           )}
 
-          <label style={s.label}>Kapsamlar *</label>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Kapsamlar *</label>
           <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginBottom: 18 }}>
             {ALL_SCOPES.map(sc => (
               <label key={sc.id} style={{
                 display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
-                padding: "10px 12px", borderRadius: 8,
-                background: form.scopes.includes(sc.id) ? "#f0fdf8" : "#fafafa",
-                border: `1px solid ${form.scopes.includes(sc.id) ? "#86efca" : "#e5efea"}`,
+                padding: "10px 12px", borderRadius: "var(--radius-md)",
+                background: form.scopes.includes(sc.id) ? "var(--bg-base)" : "var(--bg-elevated)",
+                border: `1px solid ${form.scopes.includes(sc.id) ? "var(--border-accent)" : "var(--border)"}`,
                 transition: "all .15s",
               }}>
                 <input
                   type="checkbox"
                   checked={form.scopes.includes(sc.id)}
                   onChange={() => toggleScope(sc.id)}
-                  style={{ marginTop: 2, flexShrink: 0, accentColor: "#00b87a" }}
+                  style={{ marginTop: 2, flexShrink: 0, accentColor: "var(--accent)" }}
                 />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#0a1f1a" }}>{sc.id}</div>
-                  <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 1 }}>{sc.desc}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{sc.id}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>{sc.desc}</div>
                 </div>
               </label>
             ))}
           </div>
 
-          <button
+          <Button
             type="submit"
-            style={{ ...s.btnSm, ...s.btnP, padding: "9px 22px", fontSize: 13 }}
+            variant="primary"
+            size="md"
             disabled={saving || form.scopes.length === 0}
           >
             {saving ? "Oluşturuluyor..." : "Anahtar Oluştur"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
       {/* curl usage guide */}
-      <div style={{ ...s.card, padding: "14px 20px" }}>
+      <Card style={{ padding: "14px 20px", marginBottom: 16 }}>
         <button
           onClick={() => setShowCurl(v => !v)}
           style={{
             display: "flex", alignItems: "center", gap: 8, width: "100%",
             background: "none", border: "none", cursor: "pointer", padding: 0,
-            fontSize: 14, fontWeight: 700, color: "#0a1f1a", textAlign: "left" as const,
+            fontSize: 14, fontWeight: 700, color: "var(--text-primary)", textAlign: "left" as const,
           }}
         >
-          <span style={{ fontSize: 13, color: "#5c7a72" }}>{showCurl ? "▾" : "▸"}</span>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{showCurl ? "▾" : "▸"}</span>
           API Kullanım Rehberi
         </button>
         {showCurl && (
           <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 13, color: "#374151", marginBottom: 10 }}>
-              Voltfox API'sine tüm isteklerde <code style={{ background: "#eef7f3", padding: "1px 5px", borderRadius: 4 }}>Authorization</code> header'ı ekleyin:
+            <div style={{ fontSize: 13, color: "var(--text-primary)", marginBottom: 10 }}>
+              Voltfox API'sine tüm isteklerde <code style={{ background: "var(--bg-base)", padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>Authorization</code> header'ı ekleyin:
             </div>
             <div style={{ ...s.mono, padding: "12px 14px", fontSize: 12, lineHeight: 1.7 }}>
               {`# Emisyon faktörü verisi çek\ncurl -H "Authorization: Bearer ${exampleKey}" \\\n     https://api.voltfox.io/api/v1/ef?country=TR&grid=EPiAS\n\n# Saatlik hesaplama başlat\ncurl -X POST \\\n     -H "Authorization: Bearer ${exampleKey}" \\\n     -H "Content-Type: application/json" \\\n     -d '{"installationId":"...","periodId":"..."}' \\\n     https://api.voltfox.io/api/v1/calculations`}
             </div>
-            <div style={{ fontSize: 12, color: "#7a9990", marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 10 }}>
               Rate limit: 100 istek/dakika · Tüm yanıtlar JSON formatındadır.
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -585,17 +581,17 @@ function WebhooksTab() {
   }
 
   const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-    delivered: { bg: "#D1FAE5", color: "#065F46" },
-    failed:    { bg: "#FEE2E2", color: "#DC2626" },
-    pending:   { bg: "#FEF3C7", color: "#92400E" },
+    delivered: { bg: "var(--bg-subtle)", color: "var(--success)" },
+    failed:    { bg: "var(--bg-subtle)", color: "var(--danger)" },
+    pending:   { bg: "var(--bg-subtle)", color: "var(--warning)" },
   };
 
   return (
     <div>
       {newHook && (
-        <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: 16, marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, color: "#065F46", marginBottom: 8 }}>Webhook oluşturuldu — imzalama sırrını kaydedin!</div>
-          <div style={{ fontSize: 12, color: "#1a3530", marginBottom: 4 }}>HMAC-SHA256 imzalama sırrı:</div>
+        <div style={{ background: "var(--bg-base)", border: "1px solid var(--border-accent)", borderRadius: "var(--radius-lg)", padding: 16, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, color: "var(--success)", marginBottom: 8 }}>Webhook oluşturuldu — imzalama sırrını kaydedin!</div>
+          <div style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 4 }}>HMAC-SHA256 imzalama sırrı:</div>
           <div style={s.mono}>{newHook.secret}</div>
           <button style={{ ...s.btnSm, ...s.btnG, marginTop: 10 }}
             onClick={() => navigator.clipboard.writeText(newHook.secret)}>
@@ -608,20 +604,20 @@ function WebhooksTab() {
         </div>
       )}
 
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Mevcut Webhook'lar</div>
-        {hooks.length === 0 && <div style={{ color: "#5c7a72", fontSize: 13 }}>Henüz webhook yok.</div>}
+        {hooks.length === 0 && <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Henüz webhook yok.</div>}
         {hooks.map((h, i) => (
           <div key={h.id}>
             <div style={{ ...s.row, ...(i === hooks.length - 1 && deliveries?.id !== h.id ? { borderBottom: "none" } : {}) }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>{h.url}</div>
-                <div style={{ fontSize: 11, color: "#5c7a72", marginTop: 3, display: "flex", gap: 4 }}>
-                  {h.events.map(ev => <span key={ev} style={{ ...s.badge, background: "#eef7f3", color: "#1a3530" }}>{ev}</span>)}
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3, display: "flex", gap: 4 }}>
+                  {h.events.map(ev => <span key={ev} style={{ ...s.badge, background: "var(--bg-base)", color: "var(--text-primary)" }}>{ev}</span>)}
                 </div>
               </div>
               <div style={s.rowR}>
-                <span style={{ ...s.badge, background: h.active ? "#D1FAE5" : "#eef7f3", color: h.active ? "#065F46" : "#5c7a72" }}>
+                <span style={{ ...s.badge, background: h.active ? "var(--bg-subtle)" : "var(--bg-base)", color: h.active ? "var(--success)" : "var(--text-muted)" }}>
                   {h.active ? "aktif" : "pasif"}
                 </span>
                 <button style={{ ...s.btnSm, ...s.btnSec }} onClick={() => showDeliveries(h.id)}>
@@ -631,18 +627,18 @@ function WebhooksTab() {
               </div>
             </div>
             {deliveries?.id === h.id && (
-              <div style={{ background: "#f4fbf8", border: "1px solid #d4ece4", borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#5c7a72", marginBottom: 8 }}>SON TESLİMATLAR</div>
-                {deliveries.list.length === 0 && <div style={{ fontSize: 12, color: "#5c7a72" }}>Henüz teslimat yok.</div>}
+              <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: 12, marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>SON TESLİMATLAR</div>
+                {deliveries.list.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Henüz teslimat yok.</div>}
                 {deliveries.list.slice(0, 10).map(d => {
                   const sc = STATUS_COLOR[d.status] ?? STATUS_COLOR.pending;
                   return (
-                    <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #d4ece4", fontSize: 12 }}>
-                      <span style={{ color: "#1a3530" }}>{d.event}</span>
+                    <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
+                      <span style={{ color: "var(--text-primary)" }}>{d.event}</span>
                       <div style={{ display: "flex", gap: 8 }}>
                         <span style={{ ...s.badge, ...sc }}>{d.status}</span>
-                        {d.responseStatus && <span style={{ color: "#5c7a72" }}>HTTP {d.responseStatus}</span>}
-                        <span style={{ color: "#5c7a72" }}>{d.deliveredAt ? new Date(d.deliveredAt).toLocaleTimeString("tr-TR") : "—"}</span>
+                        {d.responseStatus && <span style={{ color: "var(--text-muted)" }}>HTTP {d.responseStatus}</span>}
+                        <span style={{ color: "var(--text-muted)" }}>{d.deliveredAt ? new Date(d.deliveredAt).toLocaleTimeString("tr-TR") : "—"}</span>
                       </div>
                     </div>
                   );
@@ -651,16 +647,15 @@ function WebhooksTab() {
             )}
           </div>
         ))}
-      </div>
+      </Card>
 
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Yeni Webhook</div>
         {err && <div style={s.err}>{err}</div>}
         <form onSubmit={create}>
-          <label style={s.label}>Endpoint URL *</label>
-          <input style={s.input} type="url" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+          <Input label="Endpoint URL *" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
             placeholder="https://your-server.com/webhook" required />
-          <label style={s.label}>Olaylar *</label>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Olaylar *</label>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginBottom: 14 }}>
             {WEBHOOK_EVENTS.map(ev => (
               <label key={ev} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, cursor: "pointer" }}>
@@ -669,11 +664,11 @@ function WebhooksTab() {
               </label>
             ))}
           </div>
-          <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "8px 18px", fontSize: 13 }} disabled={saving || form.events.length === 0}>
+          <Button type="submit" variant="primary" size="md" disabled={saving || form.events.length === 0}>
             {saving ? "Oluşturuluyor..." : "Oluştur"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -682,10 +677,10 @@ function WebhooksTab() {
 type AuditLog = AuditLogList["logs"][0];
 
 const ACTION_BADGE: Record<string, { bg: string; color: string }> = {
-  CREATE:    { bg: "#D1FAE5", color: "#065F46" },
-  UPDATE:    { bg: "#DBEAFE", color: "#009966" },
-  DELETE:    { bg: "#FEE2E2", color: "#DC2626" },
-  CALCULATE: { bg: "#F3E8FF", color: "#6D28D9" },
+  CREATE:    { bg: "var(--bg-subtle)", color: "var(--success)" },
+  UPDATE:    { bg: "var(--bg-elevated)", color: "var(--accent)" },
+  DELETE:    { bg: "var(--bg-subtle)", color: "var(--danger)" },
+  CALCULATE: { bg: "var(--bg-elevated)", color: "var(--info)" },
 };
 
 const RESOURCE_OPTIONS = ["", "Installation", "ReportingPeriod", "Tenant", "ApiKey", "Webhook"];
@@ -752,70 +747,70 @@ function AuditTrailTab() {
           {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a || "Tüm İşlemler"}</option>)}
         </select>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 12 }}
+          style={{ padding: "7px 10px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 12 }}
           title="Başlangıç tarihi" />
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 12 }}
+          style={{ padding: "7px 10px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 12 }}
           title="Bitiş tarihi" />
-        <button style={{ ...s.btnSm, ...s.btnP, padding: "7px 16px" }} onClick={() => load()}>Filtrele</button>
+        <button style={{ ...s.btnSm, background: "var(--accent)", color: "var(--bg-surface)", padding: "7px 16px" }} onClick={() => load()}>Filtrele</button>
         {logs.length > 0 && (
           <button style={{ ...s.btnSm, ...s.btnSec, padding: "7px 14px" }} onClick={exportCsv} title="CSV olarak indir">
             ↓ CSV
           </button>
         )}
-        {count > 0 && <span style={{ fontSize: 12, color: "#5c7a72" }}>{count} kayıt</span>}
+        {count > 0 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{count} kayıt</span>}
       </div>
 
       {err && <div style={s.err}>{err}</div>}
 
-      <div style={{ ...s.card, padding: 0, overflow: "hidden" }}>
+      <Card style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <table style={{ width: "100%", borderCollapse: "collapse" as const }}>
           <thead>
             <tr>
               {["Tarih", "İşlem", "Kaynak", "ID", "Kullanıcı"].map(h => (
-                <th key={h} style={{ background: "#f4fbf8", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "#5c7a72", borderBottom: "1px solid #d4ece4" }}>{h}</th>
+                <th key={h} style={{ background: "var(--bg-elevated)", padding: "10px 14px", textAlign: "left" as const, fontSize: 12, fontWeight: 600, color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {logs.length === 0 && !loading && (
-              <tr><td colSpan={5} style={{ padding: "24px 14px", color: "#5c7a72", fontSize: 13, textAlign: "center" as const }}>Kayıt bulunamadı.</td></tr>
+              <tr><td colSpan={5} style={{ padding: "24px 14px", color: "var(--text-muted)", fontSize: 13, textAlign: "center" as const }}>Kayıt bulunamadı.</td></tr>
             )}
             {logs.map((log, i) => {
-              const ac = ACTION_BADGE[log.action] ?? { bg: "#eef7f3", color: "#5c7a72" };
+              const ac = ACTION_BADGE[log.action] ?? { bg: "var(--bg-base)", color: "var(--text-muted)" };
               const isOpen = expanded === log.id;
               return (
                 <Fragment key={log.id}>
                   <tr key={log.id}
-                    style={{ borderBottom: "1px solid #eef7f3", cursor: "pointer", background: isOpen ? "#f4fbf8" : "transparent" }}
+                    style={{ borderBottom: "1px solid var(--bg-base)", cursor: "pointer", background: isOpen ? "var(--bg-elevated)" : "transparent" }}
                     onClick={() => setExpanded(isOpen ? null : log.id)}>
-                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#5c7a72", whiteSpace: "nowrap" as const }}>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" as const }}>
                       {new Date(log.createdAt).toLocaleString("tr-TR")}
                     </td>
                     <td style={{ padding: "10px 14px" }}>
                       <span style={{ ...s.badge, ...ac }}>{log.action}</span>
                     </td>
                     <td style={{ padding: "10px 14px", fontSize: 13 }}>{log.resource}</td>
-                    <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "#1a3530" }}>{log.resourceId.slice(0, 8)}…</td>
-                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#5c7a72", fontFamily: "monospace" }}>
+                    <td style={{ padding: "10px 14px", fontSize: 12, fontFamily: "monospace", color: "var(--text-primary)" }}>{log.resourceId.slice(0, 8)}…</td>
+                    <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>
                       {log.userId ? log.userId.slice(0, 8) + "…" : "sistem"}
                     </td>
                   </tr>
                   {isOpen && (
-                    <tr key={log.id + "-payload"} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid #eef7f3" }}>
+                    <tr key={log.id + "-payload"} style={{ borderBottom: i === logs.length - 1 ? "none" : "1px solid var(--bg-base)" }}>
                       <td colSpan={5} style={{ padding: "0 14px 12px" }}>
                         <div style={{ display: "flex", gap: 8, marginBottom: 6, flexWrap: "wrap" as const }}>
-                          {log.ipAddress && <span style={{ fontSize: 11, color: "#5c7a72", background: "#eef7f3", padding: "2px 8px", borderRadius: 4 }}>IP: {log.ipAddress}</span>}
-                          <span style={{ fontSize: 11, color: "#5c7a72", background: "#eef7f3", padding: "2px 8px", borderRadius: 4 }}>ID: {log.id.slice(0, 8)}…</span>
-                          <span style={{ fontSize: 11, color: "#5c7a72", background: "#eef7f3", padding: "2px 8px", borderRadius: 4 }}>{new Date(log.createdAt).toLocaleString("tr-TR")}</span>
+                          {log.ipAddress && <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--bg-base)", padding: "2px 8px", borderRadius: "var(--radius-sm)" }}>IP: {log.ipAddress}</span>}
+                          <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--bg-base)", padding: "2px 8px", borderRadius: "var(--radius-sm)" }}>ID: {log.id.slice(0, 8)}…</span>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)", background: "var(--bg-base)", padding: "2px 8px", borderRadius: "var(--radius-sm)" }}>{new Date(log.createdAt).toLocaleString("tr-TR")}</span>
                         </div>
                         {log.payload && typeof log.payload === "object" && !Array.isArray(log.payload) ? (
                           <table style={{ fontSize: 11, fontFamily: "monospace", borderCollapse: "collapse" as const, width: "100%" }}>
                             <tbody>
                               {Object.entries(log.payload as Record<string, unknown>).map(([k, v]) => (
-                                <tr key={k} style={{ borderBottom: "1px solid #eef7f3" }}>
-                                  <td style={{ padding: "3px 8px", color: "#009966", fontWeight: 700, whiteSpace: "nowrap" as const, width: 1 }}>{k}</td>
-                                  <td style={{ padding: "3px 8px", color: "#1a3530", wordBreak: "break-all" as const }}>
+                                <tr key={k} style={{ borderBottom: "1px solid var(--bg-base)" }}>
+                                  <td style={{ padding: "3px 8px", color: "var(--accent)", fontWeight: 700, whiteSpace: "nowrap" as const, width: 1 }}>{k}</td>
+                                  <td style={{ padding: "3px 8px", color: "var(--text-primary)", wordBreak: "break-all" as const }}>
                                     {typeof v === "object" ? JSON.stringify(v) : String(v ?? "")}
                                   </td>
                                 </tr>
@@ -823,7 +818,7 @@ function AuditTrailTab() {
                             </tbody>
                           </table>
                         ) : (
-                          <pre style={{ background: "#f4fbf8", borderRadius: 6, padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "#1a3530" }}>
+                          <pre style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px", fontSize: 11, fontFamily: "monospace", overflowX: "auto", margin: 0, color: "var(--text-primary)" }}>
                             {JSON.stringify(log.payload, null, 2)}
                           </pre>
                         )}
@@ -835,9 +830,9 @@ function AuditTrailTab() {
             })}
           </tbody>
         </table>
-      </div>
+      </Card>
 
-      {loading && <div style={{ textAlign: "center", padding: "12px 0", color: "#5c7a72", fontSize: 13 }}>Yükleniyor...</div>}
+      {loading && <div style={{ textAlign: "center", padding: "12px 0", color: "var(--text-muted)", fontSize: 13 }}>Yükleniyor...</div>}
       {nextCursor && !loading && (
         <div style={{ textAlign: "center", marginTop: 12 }}>
           <button style={{ ...s.btnSm, ...s.btnSec, padding: "8px 18px", fontSize: 13 }} onClick={() => load(nextCursor)}>
@@ -903,77 +898,74 @@ function TenantTab() {
     }
   }
 
-  if (!tenant) return <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>;
+  if (!tenant) return <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Yükleniyor…</div>;
 
   return (
     <div>
       {/* Mevcut bilgiler */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Şirket Kimliği</div>
         <div style={s.row}>
-          <span style={{ fontSize: 13, color: "#5c7a72" }}>Slug (URL)</span>
-          <code style={{ fontSize: 12, background: "#eef7f3", padding: "3px 8px", borderRadius: 5 }}>{tenant.slug}</code>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Slug (URL)</span>
+          <code style={{ fontSize: 12, background: "var(--bg-base)", padding: "3px 8px", borderRadius: "var(--radius-sm)" }}>{tenant.slug}</code>
         </div>
         <div style={{ ...s.row, borderBottom: "none" }}>
-          <span style={{ fontSize: 13, color: "#5c7a72" }}>Tenant ID</span>
-          <code style={{ fontSize: 11, color: "#94a3b8" }}>{tenant.id.slice(0, 8)}…</code>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Tenant ID</span>
+          <code style={{ fontSize: 11, color: "var(--text-muted)" }}>{tenant.id.slice(0, 8)}…</code>
         </div>
-      </div>
+      </Card>
 
       {/* Düzenleme formu */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Profil Özelleştirme</div>
         <form onSubmit={save}>
-          <label style={s.label}>Şirket Adı</label>
-          <input style={s.input} value={name} onChange={e => setName(e.target.value)}
+          <Input label="Şirket Adı" value={name} onChange={e => setName(e.target.value)}
             disabled={!canEdit} placeholder="Şirket adını girin" />
 
-          <label style={s.label}>Logo URL</label>
-          <input style={s.input} value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
+          <Input label="Logo URL" value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
             disabled={!canEdit} placeholder="https://example.com/logo.png (opsiyonel)" />
           {logoUrl && (
             <div style={{ marginBottom: 12 }}>
               <img src={logoUrl} alt="Logo önizleme"
-                style={{ maxHeight: 48, maxWidth: 200, borderRadius: 6, border: "1px solid #d4ece4" }}
+                style={{ maxHeight: 48, maxWidth: 200, borderRadius: "var(--radius-md)", border: "1px solid var(--border)" }}
                 onError={e => (e.currentTarget.style.display = "none")} />
             </div>
           )}
 
-          <label style={s.label}>Marka Rengi</label>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Marka Rengi</label>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <input type="color" value={color} onChange={e => setColor(e.target.value)}
               disabled={!canEdit}
-              style={{ width: 44, height: 36, border: "1px solid #d4ece4", borderRadius: 6,
+              style={{ width: 44, height: 36, border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
                        cursor: canEdit ? "pointer" : "not-allowed", padding: 2 }} />
-            <input style={{ ...s.input, marginBottom: 0, maxWidth: 110 }} value={color}
+            <input style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 13, outline: "none", boxSizing: "border-box" as const, background: "var(--bg-surface)", color: "var(--text-primary)", marginBottom: 0, maxWidth: 110 }} value={color}
               onChange={e => setColor(e.target.value)} disabled={!canEdit}
               placeholder="#00b87a" maxLength={7} />
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: color,
-                          border: "1px solid rgba(0,0,0,.1)", flexShrink: 0 }} />
+            <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: color,
+                          border: "1px solid var(--border)", flexShrink: 0 }} />
           </div>
 
-          <label style={s.label}>Zaman Dilimi</label>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Zaman Dilimi</label>
           <select style={s.select} value={timezone} onChange={e => setTimezone(e.target.value)}
             disabled={!canEdit}>
             {TIMEZONES_EU.map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </select>
 
           {!canEdit && (
-            <div style={{ fontSize: 12, color: "#d97706", background: "#fef3c7",
-                          padding: "8px 12px", borderRadius: 6, marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: "var(--warning)", background: "var(--bg-subtle)",
+                          padding: "8px 12px", borderRadius: "var(--radius-md)", marginBottom: 12 }}>
               Bu ayarları değiştirmek için admin veya owner yetkisi gereklidir.
             </div>
           )}
           {ok  && <div style={s.ok}>{ok}</div>}
           {err && <div style={s.err}>{err}</div>}
           {canEdit && (
-            <button type="submit" style={{ ...s.btnSm, ...s.btnP, padding: "9px 20px" }}
-              disabled={saving}>
+            <Button type="submit" variant="primary" size="md" disabled={saving}>
               {saving ? "Kaydediliyor…" : "Kaydet"}
-            </button>
+            </Button>
           )}
         </form>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -989,10 +981,10 @@ const ROLE_LABELS: Record<Role, string> = {
 };
 
 const ROLE_COLORS_DEF: Record<Role, { bg: string; color: string }> = {
-  owner:   { bg: "#FEF3C7", color: "#92400E" },
-  admin:   { bg: "#DBEAFE", color: "#009966" },
-  analyst: { bg: "#D1FAE5", color: "#065F46" },
-  viewer:  { bg: "#eef7f3", color: "#5c7a72" },
+  owner:   { bg: "var(--bg-subtle)", color: "var(--warning)" },
+  admin:   { bg: "var(--bg-elevated)", color: "var(--accent)" },
+  analyst: { bg: "var(--bg-subtle)", color: "var(--success)" },
+  viewer:  { bg: "var(--bg-base)", color: "var(--text-muted)" },
 };
 
 interface PermRow { feature: string; owner: boolean; admin: boolean; analyst: boolean; viewer: boolean; }
@@ -1022,9 +1014,9 @@ function PermissionsTab() {
 
   return (
     <div>
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Rol Açıklamaları</div>
-        <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 16, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.6 }}>
           Her rol, platforma farklı düzeyde erişim sağlar. Roller hiyerarşiktir: üst roller alt rollerin tüm yetkilerini içerir.
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 8 }}>
@@ -1037,32 +1029,32 @@ function PermissionsTab() {
               viewer:  "Yalnızca görüntüleme. Veri değiştirme yok.",
             };
             return (
-              <div key={r} style={{ padding: "12px 14px", borderRadius: 8,
-                                     background: rc.bg, border: `1px solid ${rc.color}30` }}>
+              <div key={r} style={{ padding: "12px 14px", borderRadius: "var(--radius-md)",
+                                     background: rc.bg, border: `1px solid var(--border)` }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: rc.color, marginBottom: 4 }}>
                   {ROLE_LABELS[r]}
                 </div>
-                <div style={{ fontSize: 11, color: "#5c7a72", lineHeight: 1.5 }}>{descs[r]}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>{descs[r]}</div>
               </div>
             );
           })}
         </div>
-      </div>
+      </Card>
 
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Özellik Erişim Matrisi</div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #d4ece4" }}>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "#5c7a72",
+              <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                <th style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-muted)",
                              fontWeight: 700, fontSize: 12, width: "55%" }}>Özellik</th>
                 {roles.map(r => {
                   const rc = ROLE_COLORS_DEF[r];
                   return (
                     <th key={r} style={{ textAlign: "center", padding: "8px 12px", width: "12.5%" }}>
                       <span style={{ background: rc.bg, color: rc.color, padding: "3px 10px",
-                                     borderRadius: 20, fontSize: 11, fontWeight: 700,
+                                     borderRadius: "var(--radius-pill)", fontSize: 11, fontWeight: 700,
                                      display: "inline-block" }}>{ROLE_LABELS[r]}</span>
                     </th>
                   );
@@ -1071,14 +1063,14 @@ function PermissionsTab() {
             </thead>
             <tbody>
               {PERMISSION_MATRIX.map((row, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid #eef7f3",
-                                      background: i % 2 === 0 ? "transparent" : "#fafffe" }}>
-                  <td style={{ padding: "8px 12px", color: "#0a1f1a" }}>{row.feature}</td>
+                <tr key={i} style={{ borderBottom: "1px solid var(--bg-base)",
+                                      background: i % 2 === 0 ? "transparent" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "8px 12px", color: "var(--text-primary)" }}>{row.feature}</td>
                   {roles.map(r => (
                     <td key={r} style={{ textAlign: "center", padding: "8px 12px" }}>
                       {row[r]
-                        ? <span style={{ color: "#00b87a", fontSize: 16 }}>✓</span>
-                        : <span style={{ color: "#d1d5db", fontSize: 14 }}>—</span>}
+                        ? <span style={{ color: "var(--accent)", fontSize: 16 }}>✓</span>
+                        : <span style={{ color: "var(--border)", fontSize: 14 }}>—</span>}
                     </td>
                   ))}
                 </tr>
@@ -1086,7 +1078,7 @@ function PermissionsTab() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -1096,17 +1088,17 @@ import type { TenantSubscription } from "../lib/api.js";
 
 function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
   const pct = Math.min((used / limit) * 100, 100);
-  const color = pct >= 90 ? "#ef4444" : pct >= 70 ? "#d97706" : "#00b87a";
+  const color = pct >= 90 ? "var(--danger)" : pct >= 70 ? "var(--warning)" : "var(--accent)";
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13,
-                    color: "#0a1f1a", marginBottom: 6 }}>
+                    color: "var(--text-primary)", marginBottom: 6 }}>
         <span style={{ fontWeight: 600 }}>{label}</span>
-        <span style={{ color: "#5c7a72" }}>{used} / {limit}</span>
+        <span style={{ color: "var(--text-muted)" }}>{used} / {limit}</span>
       </div>
-      <div style={{ height: 8, borderRadius: 99, background: "#eef7f3", overflow: "hidden" }}>
+      <div style={{ height: 8, borderRadius: "var(--radius-pill)", background: "var(--bg-base)", overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: color,
-                      borderRadius: 99, transition: "width .4s" }} />
+                      borderRadius: "var(--radius-pill)", transition: "width .4s" }} />
       </div>
     </div>
   );
@@ -1130,55 +1122,54 @@ function SubscriptionTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor…</div>;
-  if (!sub) return <div style={{ color: "#DC2626", fontSize: 13 }}>Abonelik bilgisi yüklenemedi.</div>;
+  if (loading) return <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Yükleniyor…</div>;
+  if (!sub) return <div style={{ color: "var(--danger)", fontSize: 13 }}>Abonelik bilgisi yüklenemedi.</div>;
 
-  const planColor = sub.plan === "free" ? "#5c7a72" : sub.plan === "enterprise" ? "#7c3aed" : "#00b87a";
+  const planColor = sub.plan === "free" ? "var(--text-muted)" : sub.plan === "enterprise" ? "var(--info)" : "var(--accent)";
   const features  = PLAN_FEATURES[sub.plan] ?? PLAN_FEATURES.free;
 
   return (
     <div>
       {/* Mevcut plan */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#5c7a72", textTransform: "uppercase",
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase",
                           letterSpacing: ".08em", marginBottom: 4 }}>Aktif Plan</div>
             <div style={{ fontSize: 26, fontWeight: 800, color: planColor }}>{sub.planName}</div>
             {sub.planExpires && (
-              <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
                 Bitiş: {new Date(sub.planExpires).toLocaleDateString("tr-TR")}
               </div>
             )}
             {!sub.planExpires && sub.plan !== "free" && (
-              <div style={{ fontSize: 12, color: "#00b87a", marginTop: 4 }}>Süresiz</div>
+              <div style={{ fontSize: 12, color: "var(--accent)", marginTop: 4 }}>Süresiz</div>
             )}
           </div>
-          <div style={{ background: planColor + "18", border: `1px solid ${planColor}40`,
-                        borderRadius: 10, padding: "12px 16px", minWidth: 140 }}>
-            <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 6, fontWeight: 600 }}>Plan Kapsamı</div>
+          <div style={{ background: "var(--accent-bg)", border: "1px solid var(--border-accent)",
+                        borderRadius: "var(--radius-lg)", padding: "12px 16px", minWidth: 140 }}>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, fontWeight: 600 }}>Plan Kapsamı</div>
             {features.map((f, i) => (
-              <div key={i} style={{ fontSize: 12, color: "#0a1f1a", marginBottom: 3 }}>
+              <div key={i} style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 3 }}>
                 <span style={{ color: planColor, marginRight: 5 }}>✓</span>{f}
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Kullanım */}
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 16 }}>Kullanım Limitleri</div>
         <UsageBar used={sub.usage.seats}    limit={sub.limits.seats}    label="Kullanıcılar" />
         <UsageBar used={sub.usage.installs} limit={sub.limits.installs} label="Tesisler" />
-      </div>
+      </Card>
 
       {/* Plan yükseltme */}
       {sub.plan !== "enterprise" && (
-        <div style={{ ...s.card, background: "linear-gradient(135deg,#e6f9f2,#f4fbf8)",
-                      border: "1px solid #a7f3d0" }}>
+        <Card style={{ background: "var(--bg-base)", border: "1px solid var(--border-accent)", marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Planınızı Yükseltin</div>
-          <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 14, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 14, lineHeight: 1.6 }}>
             Daha fazla tesis, kullanıcı ve gelişmiş özellikler için plan yükseltin.
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
@@ -1186,20 +1177,20 @@ function SubscriptionTab() {
               .filter(p => p !== sub.plan)
               .map(plan => {
                 const fc = PLAN_FEATURES[plan] ?? [];
-                const pc = plan === "enterprise" ? "#7c3aed" : "#00b87a";
+                const pc = plan === "enterprise" ? "var(--info)" : "var(--accent)";
                 const prices: Record<string, string> = { starter: "€99/ay", pro: "€299/ay", enterprise: "Özel fiyat" };
                 return (
-                  <div key={plan} style={{ border: "1px solid #d4ece4", borderRadius: 8,
-                                            padding: "14px", background: "#fff" }}>
+                  <div key={plan} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
+                                            padding: "14px", background: "var(--bg-surface)" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: pc, marginBottom: 4,
                                    textTransform: "capitalize" }}>
                       {PLAN_FEATURES[plan] ? plan.charAt(0).toUpperCase() + plan.slice(1) : plan}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#0a1f1a", marginBottom: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-primary)", marginBottom: 8 }}>
                       {prices[plan]}
                     </div>
                     {fc.slice(0, 3).map((f, i) => (
-                      <div key={i} style={{ fontSize: 11, color: "#5c7a72", marginBottom: 2 }}>
+                      <div key={i} style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 2 }}>
                         <span style={{ color: pc, marginRight: 4 }}>✓</span>{f}
                       </div>
                     ))}
@@ -1207,10 +1198,10 @@ function SubscriptionTab() {
                 );
               })}
           </div>
-          <div style={{ fontSize: 12, color: "#5c7a72" }}>
-            Plan değişikliği için: <a href="mailto:sales@voltfox.io" style={{ color: "#00b87a" }}>sales@voltfox.io</a>
+          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            Plan değişikliği için: <a href="mailto:sales@voltfox.io" style={{ color: "var(--accent)" }}>sales@voltfox.io</a>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
@@ -1236,7 +1227,7 @@ function NotificationsTab() {
     setSaving(false);
   }
 
-  if (!prefs) return <div style={{ color: "#5c7a72", fontSize: 13 }}>Yükleniyor...</div>;
+  if (!prefs) return <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Yükleniyor...</div>;
 
   const EVENT_ROWS: { key: keyof import("../lib/api.js").NotificationPrefs; label: string; desc: string }[] = [
     { key: "calculationDone", label: "SEE Hesaplama Tamamlandı",  desc: "Bir dönem SEE hesabı tamamlandığında bildirim al" },
@@ -1250,17 +1241,17 @@ function NotificationsTab() {
       {ok && <div style={s.ok}>{ok}</div>}
 
       <div style={s.section}>Uygulama İçi Bildirimler</div>
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         {EVENT_ROWS.map(row => (
           <div key={row.key} style={{ ...s.row, alignItems: "center" }}>
             <div>
               <div style={s.rowL}>{row.label}</div>
-              <div style={{ fontSize: 11, color: "#94A3B8" }}>{row.desc}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{row.desc}</div>
             </div>
             <button
               style={{
-                width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                background: prefs[row.key] ? "#00b87a" : "#d1d5db", transition: "background .2s",
+                width: 44, height: 24, borderRadius: "var(--radius-pill)", border: "none", cursor: "pointer",
+                background: prefs[row.key] ? "var(--accent)" : "var(--border)", transition: "background .2s",
                 position: "relative" as const,
               }}
               onClick={() => toggle(row.key)}
@@ -1270,25 +1261,25 @@ function NotificationsTab() {
               <span style={{
                 position: "absolute" as const, top: 3,
                 left:  prefs[row.key] ? 22 : 3,
-                width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                width: 18, height: 18, borderRadius: "var(--radius-pill)", background: "var(--bg-surface)",
                 transition: "left .2s",
               }} />
             </button>
           </div>
         ))}
-      </div>
+      </Card>
 
       <div style={s.section}>E-posta Bildirimleri</div>
-      <div style={s.card}>
+      <Card style={{ marginBottom: 16 }}>
         <div style={{ ...s.row, alignItems: "center" }}>
           <div>
             <div style={s.rowL}>E-posta Bildirimleri</div>
-            <div style={{ fontSize: 11, color: "#94A3B8" }}>Etkinleştirilen olaylar için hesap e-postanıza bildirim gönderilir</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Etkinleştirilen olaylar için hesap e-postanıza bildirim gönderilir</div>
           </div>
           <button
             style={{
-              width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-              background: prefs.emailEnabled ? "#00b87a" : "#d1d5db", transition: "background .2s",
+              width: 44, height: 24, borderRadius: "var(--radius-pill)", border: "none", cursor: "pointer",
+              background: prefs.emailEnabled ? "var(--accent)" : "var(--border)", transition: "background .2s",
               position: "relative" as const,
             }}
             onClick={() => toggle("emailEnabled")}
@@ -1297,17 +1288,17 @@ function NotificationsTab() {
             <span style={{
               position: "absolute" as const, top: 3,
               left:  prefs.emailEnabled ? 22 : 3,
-              width: 18, height: 18, borderRadius: "50%", background: "#fff",
+              width: 18, height: 18, borderRadius: "var(--radius-pill)", background: "var(--bg-surface)",
               transition: "left .2s",
             }} />
           </button>
         </div>
         {prefs.emailEnabled && (
-          <div style={{ padding: "10px 0 4px", fontSize: 12, color: "#5c7a72" }}>
+          <div style={{ padding: "10px 0 4px", fontSize: 12, color: "var(--text-muted)" }}>
             Yukarıda etkinleştirilmiş olaylar için e-posta gönderilir. RESEND_API_KEY ortam değişkeni sunucuda ayarlanmış olmalıdır.
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -1361,23 +1352,23 @@ function McpServersSection() {
   }
 
   return (
-    <div style={s.card}>
+    <Card style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
             🔌 MCP Servers
           </div>
-          <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
             Model Context Protocol sunucuları — Claude'un araç olarak kullanabileceği harici servisler
           </div>
         </div>
-        <button style={{ ...s.btnSm, ...s.btnP }} onClick={() => setShowForm(f => !f)}>
+        <Button variant="primary" size="sm" onClick={() => setShowForm(f => !f)}>
           {showForm ? "İptal" : "+ Ekle"}
-        </button>
+        </Button>
       </div>
 
       {servers.length === 0 && !showForm && (
-        <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" as const, padding: "16px 0" }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" as const, padding: "16px 0" }}>
           Henüz MCP server eklenmemiş.
         </div>
       )}
@@ -1385,12 +1376,12 @@ function McpServersSection() {
       {servers.map((srv, idx) => (
         <div key={idx} style={{
           display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
-          background: "#f8fafc", borderRadius: 7, marginBottom: 8, border: "1px solid #e2e8f0",
+          background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", marginBottom: 8, border: "1px solid var(--border)",
         }}>
           <span style={{ fontSize: 18 }}>{srv.type === "sse" ? "📡" : srv.type === "stdio" ? "⚙️" : "🌐"}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srv.name}</div>
-            <div style={{ fontSize: 11, color: "#5c7a72", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srv.type.toUpperCase()} · {srv.url}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srv.name}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srv.type.toUpperCase()} · {srv.url}</div>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, cursor: "pointer", flexShrink: 0 }}>
             <input type="checkbox" checked={srv.enabled} onChange={() => toggle(idx)} />
@@ -1401,15 +1392,14 @@ function McpServersSection() {
       ))}
 
       {showForm && (
-        <div style={{ background: "#f8fafc", borderRadius: 8, padding: "14px", border: "1px solid #e2e8f0", marginTop: 8 }}>
+        <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", border: "1px solid var(--border)", marginTop: 8 }}>
           <div style={s.row2}>
             <div>
-              <label style={s.label}>Server Adı *</label>
-              <input style={s.input} value={form.name} placeholder="örn: Filesystem, Slack"
+              <Input label="Server Adı *" value={form.name} placeholder="örn: Filesystem, Slack"
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
             <div>
-              <label style={s.label}>Protokol</label>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>Protokol</label>
               <select style={s.select} value={form.type}
                 onChange={e => setForm(f => ({ ...f, type: e.target.value as McpServer["type"] }))}>
                 <option value="sse">SSE (Server-Sent Events)</option>
@@ -1418,23 +1408,21 @@ function McpServersSection() {
               </select>
             </div>
           </div>
-          <label style={s.label}>
-            {form.type === "stdio" ? "Komut / Çalıştırılabilir *" : "Endpoint URL *"}
-          </label>
-          <input style={s.input}
+          <Input
+            label={form.type === "stdio" ? "Komut / Çalıştırılabilir *" : "Endpoint URL *"}
             value={form.url}
             placeholder={form.type === "stdio" ? "npx -y @modelcontextprotocol/server-filesystem /path" : "https://mcp.example.com/sse"}
             onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
           {err && <div style={s.err}>{err}</div>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ ...s.btnSm, ...s.btnP }} onClick={save} disabled={saving}>
+            <Button variant="primary" size="sm" onClick={save} disabled={saving}>
               {saving ? "Kaydediliyor..." : "Ekle"}
-            </button>
-            <button style={{ ...s.btnSm, ...s.btnSec }} onClick={() => { setShowForm(false); setErr(""); }}>İptal</button>
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => { setShowForm(false); setErr(""); }}>İptal</Button>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -1492,25 +1480,25 @@ teknik tasarıma yansıtan kıdemli bir yazılım mühendisi gibi düşün.`;
   const isOpen = showNew || editing !== null;
 
   return (
-    <div style={s.card}>
+    <Card style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
             📄 Claude Skill.md Dosyaları
           </div>
-          <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
             Claude Code CLI skill tanımları — Claude'un davranışını özelleştiren sistem promptlar
           </div>
         </div>
         {!isOpen && (
-          <button style={{ ...s.btnSm, ...s.btnP }} onClick={() => { setDraft({ name: "", content: "" }); setShowNew(true); }}>
+          <Button variant="primary" size="sm" onClick={() => { setDraft({ name: "", content: "" }); setShowNew(true); }}>
             + Yeni Skill
-          </button>
+          </Button>
         )}
       </div>
 
       {skills.length === 0 && !isOpen && (
-        <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" as const, padding: "16px 0" }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" as const, padding: "16px 0" }}>
           Henüz skill tanımı eklenmemiş.
         </div>
       )}
@@ -1518,12 +1506,12 @@ teknik tasarıma yansıtan kıdemli bir yazılım mühendisi gibi düşün.`;
       {!isOpen && skills.map((skill, idx) => (
         <div key={idx} style={{
           display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
-          background: "#f8fafc", borderRadius: 7, marginBottom: 8, border: "1px solid #e2e8f0",
+          background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", marginBottom: 8, border: "1px solid var(--border)",
         }}>
           <span style={{ fontSize: 18 }}>📋</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#0d1f1b" }}>{skill.name}</div>
-            <div style={{ fontSize: 11, color: "#5c7a72", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{skill.name}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {skill.content.slice(0, 80)}...
             </div>
           </div>
@@ -1535,30 +1523,31 @@ teknik tasarıma yansıtan kıdemli bir yazılım mühendisi gibi düşün.`;
 
       {isOpen && (
         <div style={{ marginTop: 8 }}>
-          <label style={s.label}>Skill Adı *</label>
-          <input style={s.input} value={draft.name} placeholder="örn: voltfox-engineering"
+          <Input label="Skill Adı *" value={draft.name} placeholder="örn: voltfox-engineering"
             onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
-          <label style={s.label}>skill.md İçeriği *</label>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>skill.md İçeriği *</label>
           <textarea
             value={draft.content}
             onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
             placeholder={PLACEHOLDER}
             rows={14}
             style={{
-              ...s.input,
-              fontFamily: "monospace", fontSize: 12, lineHeight: 1.6,
-              resize: "vertical" as const, minHeight: 200, marginBottom: 10,
+              width: "100%", padding: "8px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)",
+              fontSize: 12, outline: "none", marginBottom: 10, boxSizing: "border-box" as const,
+              background: "var(--bg-surface)", color: "var(--text-primary)",
+              fontFamily: "monospace", lineHeight: 1.6,
+              resize: "vertical" as const, minHeight: 200,
             }}
           />
           {err && <div style={s.err}>{err}</div>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button style={{ ...s.btnSm, ...s.btnP }} onClick={saveSkill} disabled={saving}>
+            <Button variant="primary" size="sm" onClick={saveSkill} disabled={saving}>
               {saving ? "Kaydediliyor..." : editing !== null ? "Güncelle" : "Kaydet"}
-            </button>
-            <button style={{ ...s.btnSm, ...s.btnSec }}
+            </Button>
+            <Button variant="secondary" size="sm"
               onClick={() => { setShowNew(false); setEditing(null); setDraft({ name: "", content: "" }); setErr(""); }}>
               İptal
-            </button>
+            </Button>
             {editing !== null && (
               <button style={{ ...s.btnSm, ...s.btnR }} onClick={() => removeSkill(editing!)}>Sil</button>
             )}
@@ -1566,11 +1555,11 @@ teknik tasarıma yansıtan kıdemli bir yazılım mühendisi gibi düşün.`;
         </div>
       )}
 
-      <div style={{ marginTop: 14, padding: "10px 14px", background: "#fffbeb", borderRadius: 7, border: "1px solid #fde68a", fontSize: 12, color: "#92400e", lineHeight: 1.6 }}>
+      <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--bg-subtle)", borderRadius: "var(--radius-md)", border: "1px solid var(--warning)", fontSize: 12, color: "var(--warning)", lineHeight: 1.6 }}>
         <strong>Nasıl kullanılır?</strong> Skill.md dosyaları Claude Code CLI'da <code>/.voltfox-engineering</code> gibi slash komutları olarak çalışır.
         Bu sayfada oluşturduğunuz tanımlar ekip genelinde paylaşılır.
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -1597,11 +1586,11 @@ const AI_PROVIDERS: Array<{
 ];
 
 const AI_STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  connected:    { bg: "#D1FAE5", color: "#065F46", label: "Bağlı" },
-  disconnected: { bg: "#FEF3C7", color: "#92400E", label: "Yapılandırılmamış" },
-  error:        { bg: "#FEE2E2", color: "#DC2626", label: "Hata" },
-  beta:         { bg: "#DBEAFE", color: "#009966", label: "Beta" },
-  coming_soon:  { bg: "#F3F4F6", color: "#6B7280", label: "Yakında" },
+  connected:    { bg: "var(--bg-subtle)", color: "var(--success)", label: "Bağlı" },
+  disconnected: { bg: "var(--bg-subtle)", color: "var(--warning)", label: "Yapılandırılmamış" },
+  error:        { bg: "var(--bg-subtle)", color: "var(--danger)", label: "Hata" },
+  beta:         { bg: "var(--bg-elevated)", color: "var(--accent)", label: "Beta" },
+  coming_soon:  { bg: "var(--bg-elevated)", color: "var(--text-muted)", label: "Yakında" },
 };
 
 function AiModelsTab() {
@@ -1670,7 +1659,7 @@ function AiModelsTab() {
 
   return (
     <div>
-      <div style={{ fontSize: 13, color: "#5c7a72", marginBottom: 20, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
         ESG Co-Pilot ve diğer AI özellikleri için harici AI sağlayıcılarının API anahtarlarını yapılandırın.
         Anahtarlar şifrelenmiş olarak saklanır ve kayıt sonrası tam değerleri gösterilmez.
       </div>
@@ -1686,14 +1675,14 @@ function AiModelsTab() {
         const hasNewValue = Object.values(form).some(v => v.trim());
 
         return (
-          <div key={provider.key} style={s.card}>
+          <Card key={provider.key} style={{ marginBottom: 16 }}>
             {/* Başlık satırı */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 26 }}>{provider.icon}</span>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{provider.name}</div>
-                  <div style={{ fontSize: 12, color: "#5c7a72", marginTop: 2, maxWidth: 380, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, maxWidth: 380, lineHeight: 1.5 }}>
                     {provider.desc}
                   </div>
                 </div>
@@ -1705,11 +1694,11 @@ function AiModelsTab() {
 
             {/* Son test bilgisi */}
             {cfg?.lastTestedAt && (
-              <div style={{ fontSize: 11, color: "#5c7a72", marginBottom: 12, padding: "6px 10px",
-                            background: "#f8fafc", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, padding: "6px 10px",
+                            background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", border: "1px solid var(--border)" }}>
                 Son test: {new Date(cfg.lastTestedAt).toLocaleString("tr-TR")}
                 {cfg.testMessage && (
-                  <span style={{ marginLeft: 6, color: status === "connected" ? "#10b981" : "#dc2626" }}>
+                  <span style={{ marginLeft: 6, color: status === "connected" ? "var(--success)" : "var(--danger)" }}>
                     · {cfg.testMessage}
                   </span>
                 )}
@@ -1719,17 +1708,17 @@ function AiModelsTab() {
             {/* API Anahtarı alanı */}
             {provider.fields.map(field => (
               <div key={field.id}>
-                <label style={s.label}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 5 }}>
                   {field.label}
                   {cfg && (
-                    <span style={{ fontSize: 11, color: "#5c7a72", fontWeight: 400, marginLeft: 8 }}>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400, marginLeft: 8 }}>
                       (kayıtlı — değiştirmek için yeni değer girin)
                     </span>
                   )}
                 </label>
                 <div style={{ position: "relative" as const }}>
                   <input
-                    style={{ ...s.input, paddingRight: 40, fontFamily: "monospace", fontSize: 12 }}
+                    style={{ width: "100%", padding: "8px 40px 8px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", fontSize: 12, outline: "none", marginBottom: 12, boxSizing: "border-box" as const, background: "var(--bg-surface)", color: "var(--text-primary)", fontFamily: "monospace" }}
                     type={showKey[`${provider.key}:${field.id}`] ? "text" : "password"}
                     value={form[field.id] ?? ""}
                     onChange={e => setForms(p => ({
@@ -1745,7 +1734,7 @@ function AiModelsTab() {
                     style={{
                       position: "absolute", right: 10, top: "50%", transform: "translateY(-56%)",
                       background: "none", border: "none", cursor: "pointer",
-                      color: "#9ca3af", fontSize: 15, padding: 0, lineHeight: 1,
+                      color: "var(--text-muted)", fontSize: 15, padding: 0, lineHeight: 1,
                     }}
                     title={showKey[`${provider.key}:${field.id}`] ? "Gizle" : "Göster"}
                     tabIndex={-1}
@@ -1759,10 +1748,10 @@ function AiModelsTab() {
             {/* Test sonucu */}
             {result && (
               <div style={{
-                padding: "9px 12px", borderRadius: 7, marginBottom: 14,
-                background: result.ok ? "#f0fdf4" : "#fef2f2",
-                border: `1px solid ${result.ok ? "#bbf7d0" : "#fecaca"}`,
-                fontSize: 13, color: result.ok ? "#065f46" : "#dc2626",
+                padding: "9px 12px", borderRadius: "var(--radius-md)", marginBottom: 14,
+                background: result.ok ? "var(--bg-base)" : "var(--bg-subtle)",
+                border: `1px solid ${result.ok ? "var(--border-accent)" : "var(--danger)"}`,
+                fontSize: 13, color: result.ok ? "var(--success)" : "var(--danger)",
                 display: "flex", alignItems: "center", gap: 7,
               }}>
                 <span>{result.ok ? "✅" : "❌"}</span>
@@ -1773,22 +1762,22 @@ function AiModelsTab() {
             {/* Kaydetme / silme hatası */}
             {saveErrors[provider.key] && (
               <div style={{
-                padding: "8px 12px", borderRadius: 7, marginBottom: 14,
-                background: "#fef2f2", border: "1px solid #fecaca",
-                fontSize: 13, color: "#dc2626",
+                padding: "8px 12px", borderRadius: "var(--radius-md)", marginBottom: 14,
+                background: "var(--bg-subtle)", border: "1px solid var(--danger)",
+                fontSize: 13, color: "var(--danger)",
                 display: "flex", alignItems: "center", gap: 7,
               }}>
                 <span>❌</span>
                 <span>{saveErrors[provider.key]}</span>
                 <button onClick={() => setSaveErrors(p => ({ ...p, [provider.key]: null }))}
-                  style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 14, lineHeight: 1 }}>×</button>
+                  style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 14, lineHeight: 1 }}>×</button>
               </div>
             )}
 
             {/* Butonlar */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const, alignItems: "center" }}>
               <button
-                style={{ ...s.btnSm, ...s.btnP, padding: "7px 18px", fontSize: 13 }}
+                style={{ ...s.btnSm, background: "var(--accent)", color: "var(--bg-surface)", padding: "7px 18px", fontSize: 13 }}
                 onClick={() => save(provider.key)}
                 disabled={isSaving || !hasNewValue}
               >
@@ -1805,7 +1794,7 @@ function AiModelsTab() {
                   </button>
                   {confirmRemoveKey === provider.key ? (
                     <>
-                      <span style={{ fontSize: 12, color: "#dc2626", fontWeight: 600 }}>Emin misiniz?</span>
+                      <span style={{ fontSize: 12, color: "var(--danger)", fontWeight: 600 }}>Emin misiniz?</span>
                       <button
                         style={{ ...s.btnSm, ...s.btnR, padding: "7px 14px", fontSize: 13 }}
                         onClick={() => remove(provider.key)}
@@ -1830,20 +1819,20 @@ function AiModelsTab() {
                 </>
               )}
             </div>
-          </div>
+          </Card>
         );
       })}
 
-      <div style={{ ...s.card, background: "linear-gradient(135deg,#f0f9ff,#e0f2fe)", border: "1px solid #bae6fd" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "#0369a1" }}>
+      <Card style={{ background: "var(--bg-base)", border: "1px solid var(--info)", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "var(--info)" }}>
           Co-Pilot nasıl çalışır?
         </div>
-        <div style={{ fontSize: 12, color: "#0c4a6e", lineHeight: 1.7 }}>
+        <div style={{ fontSize: 12, color: "var(--text-primary)", lineHeight: 1.7 }}>
           En az bir API anahtarı yapılandırın. Öncelik sırası: <strong>Anthropic → OpenAI → Gemini</strong>.<br />
           ESG Playground ekranında <strong>"AI"</strong> sekmesine geçerek doğal dilde komut verebilirsiniz.<br />
           Örnek: <em>"Berlin fabrikamı ekle, DE şebekesine bağla ve CBAM hesap motoru ekle"</em>
         </div>
-      </div>
+      </Card>
 
       <McpServersSection />
       <ClaudeSkillsSection />

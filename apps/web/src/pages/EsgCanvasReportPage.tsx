@@ -168,7 +168,7 @@ function KpiCard({ node }: { node: CanvasNode }) {
       data-testid="kpi-card"
       style={{
         background: "var(--bg-surface)",
-        border: `1px solid ${hasValue ? "var(--border)" : "var(--border)"}`,
+        border: `1px solid ${hasValue ? "var(--border)" : "var(--border-muted, var(--border))"}`,
         borderRadius: "var(--radius-lg)",
         padding: "20px",
         position: "relative",

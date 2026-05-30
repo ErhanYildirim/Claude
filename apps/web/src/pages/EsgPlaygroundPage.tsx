@@ -605,6 +605,21 @@ export default function EsgPlaygroundPage() {
                 <div style={{ fontSize: 11, color: sub }}>
                   {new Date(g.updatedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}
                 </div>
+                <button
+                  data-testid="report-btn"
+                  onClick={e => { e.stopPropagation(); navigate(`/esg-playground/${g.id}/report`); }}
+                  style={{
+                    marginTop: 10, width: "100%",
+                    padding: "5px 0", borderRadius: 6,
+                    border: `1px solid ${border}`, background: "transparent",
+                    color: sub, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    transition: "border-color 0.12s, color 0.12s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#10b981"; e.currentTarget.style.color = "#10b981"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = sub; }}
+                >
+                  📊 Raporu Görüntüle
+                </button>
               </div>
             ))}
             <div
@@ -849,6 +864,14 @@ export default function EsgPlaygroundPage() {
             title="PNG Export"
             style={{ padding: "4px 8px", borderRadius: 6, fontSize: 13, border: `1px solid ${border}`, background: card, color: text, cursor: "pointer" }}
           >📸</button>
+          <button
+            onClick={() => graphId && navigate(`/esg-playground/${graphId}/report`)}
+            title="Canvas Raporu"
+            data-testid="toolbar-report-btn"
+            style={{ padding: "4px 8px", borderRadius: 6, fontSize: 13, border: `1px solid ${border}`, background: card, color: text, cursor: "pointer" }}
+          >
+            📊
+          </button>
           <button
             onClick={exportJson}
             title="JSON Export"

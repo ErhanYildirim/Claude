@@ -606,16 +606,18 @@ export default function EsgPlaygroundPage() {
                   {new Date(g.updatedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}
                 </div>
                 <button
-                  data-testid="report-btn"
+                  data-testid={`report-btn-${g.id}`}
+                  disabled={deletingId === g.id}
                   onClick={e => { e.stopPropagation(); navigate(`/esg-playground/${g.id}/report`); }}
                   style={{
                     marginTop: 10, width: "100%",
                     padding: "5px 0", borderRadius: 6,
                     border: `1px solid ${border}`, background: "transparent",
-                    color: sub, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    color: sub, fontSize: 11, fontWeight: 600, cursor: deletingId === g.id ? "not-allowed" : "pointer",
+                    opacity: deletingId === g.id ? 0.4 : 1,
                     transition: "border-color 0.12s, color 0.12s",
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#10b981"; e.currentTarget.style.color = "#10b981"; }}
+                  onMouseEnter={e => { if (deletingId !== g.id) { e.currentTarget.style.borderColor = "#10b981"; e.currentTarget.style.color = "#10b981"; } }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = sub; }}
                 >
                   📊 Raporu Görüntüle

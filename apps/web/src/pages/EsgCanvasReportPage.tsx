@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import type { EsgGraph } from "../lib/api.js";
+import * as XLSX from "xlsx";
 
 interface CanvasNode {
   id: string;
@@ -42,6 +43,31 @@ interface LiveZoneData {
   ci: number | null;
   rePct: number | null;
   updatedAt: string | null;
+}
+
+function exportExcel(graph: EsgGraph, outputNodes: CanvasNode[], liveZones: Record<string, LiveZoneData>) {
+  const wb = XLSX.utils.book_new();
+
+  const reportRows = [
+    ["Canvas", graph.name],
+    ["Tarih",  new Date(graph.updatedAt).toLocaleString("tr-TR")],
+    [],
+    ["Node Adı", "Değer", "Birim", "Son Güncelleme"],
+    ...outputNodes.map(n => {
+      const cfg = OUTPUT_CONFIG[n.type ?? ""] ?? { title: n.data.label ?? "", unit: "" };
+      const val = n.type === "cbamReportNode" ? (n.data.subLabel ?? "") : (n.data.liveValue ?? "");
+      return [n.data.label ?? cfg.title, val, cfg.unit, new Date().toLocaleString("tr-TR")];
+    }),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(reportRows), "Rapor");
+
+  const energyRows = [
+    ["Zone", "CI (gCO₂/kWh)", "RE%"],
+    ...Object.entries(liveZones).map(([zone, v]) => [zone, v.ci, v.rePct]),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(energyRows), "Enerji");
+
+  XLSX.writeFile(wb, `${graph.name.replace(/[^a-z0-9ğüşıöçA-ZĞÜŞİÖÇ\s]/gi, "")}-rapor.xlsx`);
 }
 
 function parseNodes(nodesJson: unknown): { outputNodes: CanvasNode[]; energyNodes: CanvasNode[] } {
@@ -123,6 +149,11 @@ export default function EsgCanvasReportPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 28px", fontFamily: "var(--font-sans)" }}>
+      <style media="print">{`
+        [data-testid="excel-btn"], [data-testid="pdf-btn"] { display: none !important; }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        [data-testid="kpi-card"] { page-break-inside: avoid; }
+      `}</style>
       <ReportHeader graph={graph!} lastUpdated={lastUpdated} onRefresh={() => fetchLive(energyNodes)} outputNodes={outputNodes} energyNodes={energyNodes} liveZones={liveZones} />
       <CanvasMeta graph={graph!} outputCount={outputNodes.length} energyCount={energyNodes.length} />
       <KpiGrid outputNodes={outputNodes} />
@@ -134,7 +165,7 @@ export default function EsgCanvasReportPage() {
 }
 
 function ReportHeader({
-  graph, lastUpdated, onRefresh,
+  graph, lastUpdated, onRefresh, outputNodes, liveZones,
 }: {
   graph: EsgGraph;
   lastUpdated: Date | null;
@@ -183,7 +214,7 @@ function ReportHeader({
       <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
         <button
           data-testid="excel-btn"
-          onClick={() => {/* Task 5'te implemente edilecek */}}
+          onClick={() => exportExcel(graph, outputNodes, liveZones)}
           style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)", borderRadius: "var(--radius-md)", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
         >
           📊 Excel

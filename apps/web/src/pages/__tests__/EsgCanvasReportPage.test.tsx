@@ -12,6 +12,15 @@ vi.mock("../../lib/api.js", () => ({
   },
 }));
 
+vi.mock("xlsx", () => ({
+  utils: {
+    book_new:         vi.fn(() => ({})),
+    aoa_to_sheet:     vi.fn(() => ({})),
+    book_append_sheet: vi.fn(),
+  },
+  writeFile: vi.fn(),
+}));
+
 import { api } from "../../lib/api.js";
 
 function renderPage(graphId = "test-id") {
@@ -147,5 +156,39 @@ describe("EsgCanvasReportPage", () => {
       expect(screen.getByTestId("kpi-card")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("live-data-row")).not.toBeInTheDocument();
+  });
+
+  it("Excel butonuna tıklanınca xlsx.writeFile çağrılır", async () => {
+    const { writeFile } = await import("xlsx");
+
+    vi.mocked(api.esgPlayground.get).mockResolvedValue({
+      id: "test-id", name: "Test Canvas", description: null,
+      nodesJson: [{ id: "1", type: "emissionCalcNode", data: { label: "Emisyon", liveValue: "8 t" } }],
+      edgesJson: [], viewport: {}, createdBy: "u1", updatedBy: null,
+      isTemplate: false, templateKey: null, templateCategory: null,
+      tenantId: "t1", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+
+    const { getByTestId } = renderPage();
+    await waitFor(() => screen.getByTestId("excel-btn"));
+    (getByTestId("excel-btn") as HTMLButtonElement).click();
+    expect(writeFile).toHaveBeenCalled();
+  });
+
+  it("PDF butonuna tıklanınca window.print çağrılır", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    vi.mocked(api.esgPlayground.get).mockResolvedValue({
+      id: "test-id", name: "Test", description: null,
+      nodesJson: [{ id: "1", type: "emissionCalcNode", data: { label: "E", liveValue: "1 t" } }],
+      edgesJson: [], viewport: {}, createdBy: "u1", updatedBy: null,
+      isTemplate: false, templateKey: null, templateCategory: null,
+      tenantId: "t1", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+
+    const { getByTestId } = renderPage();
+    await waitFor(() => screen.getByTestId("pdf-btn"));
+    (getByTestId("pdf-btn") as HTMLButtonElement).click();
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
   });
 });

@@ -133,13 +133,103 @@ export default function EsgCanvasReportPage() {
   );
 }
 
-// ── Placeholder bileşenler — sonraki task'larda implemente edilecek ──────────
-function ReportHeader(_: { graph: EsgGraph; lastUpdated: Date | null; onRefresh: () => void; outputNodes: CanvasNode[]; energyNodes: CanvasNode[]; liveZones: Record<string, LiveZoneData> }) {
-  return <div data-testid="report-header" />;
+function ReportHeader({
+  graph, lastUpdated, onRefresh,
+}: {
+  graph: EsgGraph;
+  lastUpdated: Date | null;
+  onRefresh: () => void;
+  outputNodes: CanvasNode[];
+  energyNodes: CanvasNode[];
+  liveZones: Record<string, LiveZoneData>;
+}) {
+  const navigate = useNavigate();
+  const ago = lastUpdated
+    ? Math.floor((Date.now() - lastUpdated.getTime()) / 60_000)
+    : null;
+
+  return (
+    <div
+      data-testid="report-header"
+      style={{
+        display: "flex", alignItems: "center", gap: 12,
+        marginBottom: 16, flexWrap: "wrap",
+      }}
+    >
+      <button
+        onClick={() => navigate(`/esg-playground/${graph.id}`)}
+        style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 13, padding: 0 }}
+      >
+        ← Playground
+      </button>
+      <span style={{ color: "var(--border)" }}>|</span>
+      <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{graph.name}</span>
+      <span style={{
+        background: "var(--accent-bg)", color: "var(--accent)",
+        border: "1px solid var(--border-accent)", borderRadius: "var(--radius-pill)",
+        fontSize: 10, fontWeight: 600, padding: "2px 8px",
+      }}>
+        ● CANLI
+      </span>
+      {ago !== null && (
+        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Son: {ago === 0 ? "az önce" : `${ago} dk önce`}</span>
+      )}
+      <button
+        onClick={onRefresh}
+        style={{ background: "none", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, padding: "3px 8px" }}
+      >
+        ↻ Yenile
+      </button>
+      <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <button
+          data-testid="excel-btn"
+          onClick={() => {/* Task 5'te implemente edilecek */}}
+          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)", borderRadius: "var(--radius-md)", padding: "6px 12px", fontSize: 12, cursor: "pointer" }}
+        >
+          📊 Excel
+        </button>
+        <button
+          data-testid="pdf-btn"
+          onClick={() => window.print()}
+          style={{ background: "var(--accent)", border: "none", color: "#fff", borderRadius: "var(--radius-md)", padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+        >
+          📄 PDF İndir
+        </button>
+      </div>
+    </div>
+  );
 }
-function CanvasMeta(_: { graph: EsgGraph; outputCount: number; energyCount: number }) {
-  return <div data-testid="canvas-meta" />;
+
+const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  cfe:  { label: "24/7 CFE", color: "#16a34a" },
+  cbam: { label: "CBAM",     color: "#dc2626" },
+  ghg:  { label: "GHG Protocol", color: "#7c3aed" },
+  org:  { label: "Organizasyon", color: "#64748b" },
+};
+
+function CanvasMeta({ graph, outputCount, energyCount }: { graph: EsgGraph; outputCount: number; energyCount: number }) {
+  const cat = graph.templateCategory ? CATEGORY_LABELS[graph.templateCategory] : null;
+  return (
+    <div
+      data-testid="canvas-meta"
+      style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}
+    >
+      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+        {outputCount} çıktı node'u · {energyCount} enerji kaynağı
+      </span>
+      {cat && (
+        <span style={{
+          background: `${cat.color}22`, color: cat.color,
+          border: `1px solid ${cat.color}44`, borderRadius: "var(--radius-pill)",
+          fontSize: 10, fontWeight: 700, padding: "2px 8px",
+        }}>
+          {cat.label}
+        </span>
+      )}
+    </div>
+  );
 }
+
 function KpiGrid({ outputNodes }: { outputNodes: CanvasNode[] }) {
   return (
     <div
@@ -203,6 +293,44 @@ function KpiCard({ node }: { node: CanvasNode }) {
     </div>
   );
 }
-function LiveDataRow(_: { energyNodes: CanvasNode[]; liveZones: Record<string, LiveZoneData> }) {
-  return <div data-testid="live-data-row" />;
+const ENERGY_ICONS: Record<string, string> = { gridNode: "🔌", solarNode: "☀️", windNode: "💨" };
+const ENERGY_LABELS: Record<string, string> = { gridNode: "CI", solarNode: "RE%", windNode: "RE%" };
+
+function LiveDataRow({ energyNodes, liveZones }: { energyNodes: CanvasNode[]; liveZones: Record<string, LiveZoneData> }) {
+  const items = energyNodes.filter(n => n.data.zone && liveZones[n.data.zone as string]);
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      data-testid="live-data-row"
+      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}
+    >
+      {items.map(n => {
+        const zone = n.data.zone as string;
+        const live = liveZones[zone];
+        const isGrid = n.type === "gridNode";
+        const value = isGrid
+          ? (live.ci !== null ? `${live.ci} gCO₂/kWh` : "—")
+          : (live.rePct !== null ? `${live.rePct.toFixed(1)}% RE` : "—");
+        return (
+          <div
+            key={n.id}
+            style={{
+              background: "var(--bg-surface)", border: "1px solid var(--border)",
+              borderRadius: "var(--radius-md)", padding: "12px 16px",
+              display: "flex", alignItems: "center", gap: 12,
+            }}
+          >
+            <span style={{ fontSize: 20 }}>{ENERGY_ICONS[n.type ?? ""] ?? "⚡"}</span>
+            <div>
+              <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                {n.data.label ?? n.type} · {ENERGY_LABELS[n.type ?? ""] ?? ""}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

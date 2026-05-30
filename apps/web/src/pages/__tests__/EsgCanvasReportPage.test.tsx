@@ -111,4 +111,41 @@ describe("EsgCanvasReportPage", () => {
       expect(link.href).toContain("/installations/inst-123");
     });
   });
+
+  it("enerji node'u yoksa live-data-row render edilmez", async () => {
+    vi.mocked(api.esgPlayground.get).mockResolvedValue({
+      id: "test-id", name: "Test", description: null,
+      nodesJson: [{ id: "1", type: "emissionCalcNode", data: { label: "E", liveValue: "1 t" } }],
+      edgesJson: [], viewport: {}, createdBy: "u1", updatedBy: null,
+      isTemplate: false, templateKey: null, templateCategory: null,
+      tenantId: "t1", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("live-data-row")).not.toBeInTheDocument();
+    });
+  });
+
+  it("liveData API başarısız olursa sayfa çökmez", async () => {
+    vi.mocked(api.esgPlayground.liveData).mockRejectedValue(new Error("network error"));
+    vi.mocked(api.esgPlayground.get).mockResolvedValue({
+      id: "test-id", name: "Test", description: null,
+      nodesJson: [
+        { id: "1", type: "emissionCalcNode", data: { label: "E", liveValue: "1 t" } },
+        { id: "2", type: "gridNode", data: { label: "Grid", zone: "TR" } },
+      ],
+      edgesJson: [], viewport: {}, createdBy: "u1", updatedBy: null,
+      isTemplate: false, templateKey: null, templateCategory: null,
+      tenantId: "t1", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("kpi-card")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("live-data-row")).not.toBeInTheDocument();
+  });
 });

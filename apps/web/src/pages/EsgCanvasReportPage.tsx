@@ -32,9 +32,9 @@ const OUTPUT_CONFIG: Record<string, { title: string; unit: string; color: string
 };
 
 interface LiveZoneData {
-  ci: number;
-  rePct: number;
-  updatedAt: string;
+  ci: number | null;
+  rePct: number | null;
+  updatedAt: string | null;
 }
 
 function parseNodes(nodesJson: unknown): { outputNodes: CanvasNode[]; energyNodes: CanvasNode[] } {
